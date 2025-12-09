@@ -23,13 +23,16 @@ export function useZoomPan() {
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
 
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target) return;
+
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     
     setState((prev) => {
       const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale * delta));
       
       // Zoom toward cursor position
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const rect = target.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
