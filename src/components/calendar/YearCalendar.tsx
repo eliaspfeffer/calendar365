@@ -7,13 +7,82 @@ import { NoteDialog } from './NoteDialog';
 import { ZoomControls } from './ZoomControls';
 import { StickyNote, StickyColor } from '@/types/calendar';
 
-interface YearCalendarProps {
+interface SingleYearGridProps {
   year: number;
+  scale: number;
+  getNotesByDate: (date: string) => StickyNote[];
+  onCellClick: (date: Date) => void;
+  onNoteClick: (note: StickyNote) => void;
+  onDeleteNote: (id: string) => void;
 }
 
-export function YearCalendar({ year }: YearCalendarProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+function SingleYearGrid({
+  year,
+  scale,
+  getNotesByDate,
+  onCellClick,
+  onNoteClick,
+  onDeleteNote,
+}: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
+  const maxDays = Math.max(...calendarData.map((month) => month.length));
+
+  return (
+    <div className="inline-block bg-card shadow-2xl min-w-max">
+      {/* Header */}
+      <div className="bg-calendar-header px-8 py-6">
+        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-primary-foreground tracking-wider text-center">
+          THE BIG CALENDAR {year}
+        </h1>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="p-4">
+        {/* Month rows */}
+        {calendarData.map((monthDays, monthIndex) => (
+          <div key={monthIndex} className="flex">
+            {/* Month label */}
+            <div className="w-16 flex-shrink-0 flex items-center justify-center bg-secondary/50 border-b border-r border-calendar-grid">
+              <span className="font-display text-2xl text-primary tracking-wide">
+                {months[monthIndex]}
+              </span>
+            </div>
+
+            {/* Days */}
+            <div className="flex">
+              {monthDays.map((day) => (
+                <CalendarCell
+                  key={formatDateKey(day.date)}
+                  day={day}
+                  notes={getNotesByDate(formatDateKey(day.date))}
+                  onCellClick={() => onCellClick(day.date)}
+                  onNoteClick={onNoteClick}
+                  onDeleteNote={onDeleteNote}
+                  scale={scale}
+                />
+              ))}
+
+              {/* Empty cells to fill up to maxDays */}
+              {Array.from({ length: maxDays - monthDays.length }).map((_, i) => (
+                <div
+                  key={`empty-${monthIndex}-${i}`}
+                  className="min-w-[50px] h-[60px] border-r border-b border-calendar-grid bg-muted/30"
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface YearCalendarProps {
+  years: number[];
+}
+
+export function YearCalendar({ years }: YearCalendarProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const { notes, addNote, updateNote, deleteNote, getNotesByDate } = useStickyNotes();
   const {
     scale,
@@ -68,8 +137,6 @@ export function YearCalendar({ year }: YearCalendarProps) {
     }
   }, [editingNote, deleteNote]);
 
-  const maxDays = Math.max(...calendarData.map((month) => month.length));
-
   return (
     <div
       ref={containerRef}
@@ -82,52 +149,19 @@ export function YearCalendar({ year }: YearCalendarProps) {
           transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
         }}
       >
-        {/* Calendar Container */}
-        <div className="inline-block bg-card shadow-2xl m-10 min-w-max">
-          {/* Header */}
-          <div className="bg-calendar-header px-8 py-6">
-            <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-primary-foreground tracking-wider text-center">
-              THE BIG CALENDAR {year}
-            </h1>
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="p-4">
-            {/* Month rows */}
-            {calendarData.map((monthDays, monthIndex) => (
-              <div key={monthIndex} className="flex">
-                {/* Month label */}
-                <div className="w-16 flex-shrink-0 flex items-center justify-center bg-secondary/50 border-b border-r border-calendar-grid">
-                  <span className="font-display text-2xl text-primary tracking-wide">
-                    {months[monthIndex]}
-                  </span>
-                </div>
-
-                {/* Days */}
-                <div className="flex">
-                  {monthDays.map((day) => (
-                    <CalendarCell
-                      key={formatDateKey(day.date)}
-                      day={day}
-                      notes={getNotesByDate(formatDateKey(day.date))}
-                      onCellClick={() => handleCellClick(day.date)}
-                      onNoteClick={handleNoteClick}
-                      onDeleteNote={deleteNote}
-                      scale={scale}
-                    />
-                  ))}
-
-                  {/* Empty cells to fill up to maxDays */}
-                  {Array.from({ length: maxDays - monthDays.length }).map((_, i) => (
-                    <div
-                      key={`empty-${monthIndex}-${i}`}
-                      className="min-w-[50px] h-[60px] border-r border-b border-calendar-grid bg-muted/30"
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Multiple Year Calendars */}
+        <div className="flex flex-col gap-12 p-10">
+          {years.map((year) => (
+            <SingleYearGrid
+              key={year}
+              year={year}
+              scale={scale}
+              getNotesByDate={getNotesByDate}
+              onCellClick={handleCellClick}
+              onNoteClick={handleNoteClick}
+              onDeleteNote={deleteNote}
+            />
+          ))}
         </div>
       </div>
 
