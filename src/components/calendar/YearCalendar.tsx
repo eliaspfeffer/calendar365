@@ -79,11 +79,12 @@ function SingleYearGrid({
 
 interface YearCalendarProps {
   years: number[];
+  userId: string;
 }
 
-export function YearCalendar({ years }: YearCalendarProps) {
+export function YearCalendar({ years, userId }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { notes, addNote, updateNote, deleteNote, getNotesByDate } = useStickyNotes();
+  const { notes, addNote, updateNote, deleteNote, getNotesByDate } = useStickyNotes(userId);
   const {
     scale,
     translateX,

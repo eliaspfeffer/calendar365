@@ -1,57 +1,106 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { StickyNote, StickyColor } from '@/types/calendar';
+import { supabase } from '@/integrations/supabase/client';
 
-const STORAGE_KEY = 'calendar-sticky-notes';
+export function useStickyNotes(userId: string | undefined) {
+  const [notes, setNotes] = useState<StickyNote[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-function loadNotes(): StickyNote[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
+  // Fetch notes from Supabase
+  useEffect(() => {
+    if (!userId) {
+      setNotes([]);
+      setIsLoading(false);
+      return;
+    }
 
-function saveNotes(notes: StickyNote[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
+    const fetchNotes = async () => {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('sticky_notes')
+        .select('*')
+        .eq('user_id', userId);
 
-export function useStickyNotes() {
-  const [notes, setNotes] = useState<StickyNote[]>(loadNotes);
-
-  const addNote = useCallback((date: string, text: string, color: StickyColor) => {
-    const newNote: StickyNote = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      date,
-      text,
-      color,
+      if (error) {
+        console.error('Error fetching notes:', error);
+      } else {
+        // Map data to our StickyNote type
+        const mappedNotes: StickyNote[] = (data || []).map((note) => ({
+          id: note.id,
+          user_id: note.user_id,
+          date: note.date,
+          text: note.text,
+          color: note.color as StickyColor,
+        }));
+        setNotes(mappedNotes);
+      }
+      setIsLoading(false);
     };
 
-    setNotes((prev) => {
-      const updated = [...prev, newNote];
-      saveNotes(updated);
-      return updated;
-    });
+    fetchNotes();
+  }, [userId]);
 
+  const addNote = useCallback(async (date: string, text: string, color: StickyColor) => {
+    if (!userId) return null;
+
+    const { data, error } = await supabase
+      .from('sticky_notes')
+      .insert({
+        user_id: userId,
+        date,
+        text,
+        color,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding note:', error);
+      return null;
+    }
+
+    const newNote: StickyNote = {
+      id: data.id,
+      user_id: data.user_id,
+      date: data.date,
+      text: data.text,
+      color: data.color as StickyColor,
+    };
+
+    setNotes((prev) => [...prev, newNote]);
     return newNote;
-  }, []);
+  }, [userId]);
 
-  const updateNote = useCallback((id: string, text: string, color: StickyColor) => {
-    setNotes((prev) => {
-      const updated = prev.map((note) =>
+  const updateNote = useCallback(async (id: string, text: string, color: StickyColor) => {
+    const { error } = await supabase
+      .from('sticky_notes')
+      .update({ text, color })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating note:', error);
+      return;
+    }
+
+    setNotes((prev) =>
+      prev.map((note) =>
         note.id === id ? { ...note, text, color } : note
-      );
-      saveNotes(updated);
-      return updated;
-    });
+      )
+    );
   }, []);
 
-  const deleteNote = useCallback((id: string) => {
-    setNotes((prev) => {
-      const updated = prev.filter((note) => note.id !== id);
-      saveNotes(updated);
-      return updated;
-    });
+  const deleteNote = useCallback(async (id: string) => {
+    const { error } = await supabase
+      .from('sticky_notes')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting note:', error);
+      return;
+    }
+
+    setNotes((prev) => prev.filter((note) => note.id !== id));
   }, []);
 
   const getNotesByDate = useCallback(
@@ -59,5 +108,5 @@ export function useStickyNotes() {
     [notes]
   );
 
-  return { notes, addNote, updateNote, deleteNote, getNotesByDate };
+  return { notes, isLoading, addNote, updateNote, deleteNote, getNotesByDate };
 }
