@@ -1,11 +1,9 @@
 import { YearCalendar } from '@/components/calendar/YearCalendar';
 
 const Index = () => {
-  const currentYear = new Date().getFullYear();
-
   return (
     <main className="w-full h-screen overflow-hidden">
-      <YearCalendar year={currentYear} />
+      <YearCalendar years={[2025, 2026]} />
     </main>
   );
 };
