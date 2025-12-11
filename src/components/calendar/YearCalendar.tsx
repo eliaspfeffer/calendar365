@@ -79,10 +79,11 @@ function SingleYearGrid({
 
 interface YearCalendarProps {
   years: number[];
-  userId: string;
+  userId: string | null;
+  onAuthRequired?: () => void;
 }
 
-export function YearCalendar({ years, userId }: YearCalendarProps) {
+export function YearCalendar({ years, userId, onAuthRequired }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { notes, addNote, updateNote, deleteNote, getNotesByDate } = useStickyNotes(userId);
   const {
@@ -109,10 +110,14 @@ export function YearCalendar({ years, userId }: YearCalendarProps) {
   }, [handleWheel]);
 
   const handleCellClick = useCallback((date: Date) => {
+    if (!userId) {
+      onAuthRequired?.();
+      return;
+    }
     setSelectedDate(formatDateKey(date));
     setEditingNote(null);
     setDialogOpen(true);
-  }, []);
+  }, [userId, onAuthRequired]);
 
   const handleNoteClick = useCallback((note: StickyNote) => {
     setSelectedDate(note.date);

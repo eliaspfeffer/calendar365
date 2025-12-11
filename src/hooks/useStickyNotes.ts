@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { StickyNote, StickyColor } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
 
-export function useStickyNotes(userId: string | undefined) {
+export function useStickyNotes(userId: string | null) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
