@@ -95,6 +95,7 @@ export function YearCalendar({ years, userId, onAuthRequired }: YearCalendarProp
     zoomIn,
     zoomOut,
     resetView,
+    isDragging,
   } = useZoomPan();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -110,6 +111,7 @@ export function YearCalendar({ years, userId, onAuthRequired }: YearCalendarProp
   }, [handleWheel]);
 
   const handleCellClick = useCallback((date: Date) => {
+    if (isDragging()) return; // Ignore clicks during drag
     if (!userId) {
       onAuthRequired?.();
       return;
@@ -117,13 +119,14 @@ export function YearCalendar({ years, userId, onAuthRequired }: YearCalendarProp
     setSelectedDate(formatDateKey(date));
     setEditingNote(null);
     setDialogOpen(true);
-  }, [userId, onAuthRequired]);
+  }, [userId, onAuthRequired, isDragging]);
 
   const handleNoteClick = useCallback((note: StickyNote) => {
+    if (isDragging()) return; // Ignore clicks during drag
     setSelectedDate(note.date);
     setEditingNote(note);
     setDialogOpen(true);
-  }, []);
+  }, [isDragging]);
 
   const handleSaveNote = useCallback(
     (text: string, color: StickyColor) => {

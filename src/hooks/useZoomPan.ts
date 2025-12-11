@@ -8,6 +8,7 @@ interface ZoomPanState {
 
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
+const DRAG_THRESHOLD = 5; // pixels moved before considered a drag
 
 export function useZoomPan() {
   const [state, setState] = useState<ZoomPanState>({
@@ -17,6 +18,7 @@ export function useZoomPan() {
   });
 
   const isPanning = useRef(false);
+  const hasDragged = useRef(false);
   const startPoint = useRef({ x: 0, y: 0 });
   const startTranslate = useRef({ x: 0, y: 0 });
 
@@ -52,6 +54,7 @@ export function useZoomPan() {
     if (e.button !== 0) return;
     
     isPanning.current = true;
+    hasDragged.current = false;
     startPoint.current = { x: e.clientX, y: e.clientY };
     startTranslate.current = { x: state.translateX, y: state.translateY };
   }, [state.translateX, state.translateY]);
@@ -62,6 +65,11 @@ export function useZoomPan() {
     const dx = e.clientX - startPoint.current.x;
     const dy = e.clientY - startPoint.current.y;
 
+    // Check if moved beyond threshold
+    if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+      hasDragged.current = true;
+    }
+
     setState((prev) => ({
       ...prev,
       translateX: startTranslate.current.x + dx,
@@ -71,7 +79,13 @@ export function useZoomPan() {
 
   const handleMouseUp = useCallback(() => {
     isPanning.current = false;
+    // Reset hasDragged after a short delay to allow click handlers to check it
+    setTimeout(() => {
+      hasDragged.current = false;
+    }, 0);
   }, []);
+
+  const isDragging = useCallback(() => hasDragged.current, []);
 
   const zoomIn = useCallback(() => {
     setState((prev) => ({
@@ -114,6 +128,6 @@ export function useZoomPan() {
     zoomIn,
     zoomOut,
     resetView,
-    isPanning: isPanning.current,
+    isDragging,
   };
 }
