@@ -2,14 +2,18 @@ import { useState } from 'react';
 import { YearCalendar } from '@/components/calendar/YearCalendar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut, Loader2, LogIn } from 'lucide-react';
+import { useSettings } from '@/hooks/useSettings';
+import { LogOut, Loader2, LogIn, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
+import { SettingsDialog } from '@/components/settings/SettingsDialog';
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
+  const { settings, updateSettings } = useSettings();
   const { toast } = useToast();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -36,8 +40,16 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Header with auth button */}
-      <div className="fixed top-4 right-4 z-50">
+      {/* Header with settings and auth buttons */}
+      <div className="fixed top-4 right-4 z-50 flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSettingsDialogOpen(true)}
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
         {user ? (
           <Button
             variant="outline"
@@ -65,9 +77,16 @@ const Index = () => {
         years={[2025, 2026]} 
         userId={user?.id || null}
         onAuthRequired={handleAuthRequired}
+        textOverflowMode={settings.textOverflowMode}
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
+      <SettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        textOverflowMode={settings.textOverflowMode}
+        onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
+      />
     </div>
   );
 };

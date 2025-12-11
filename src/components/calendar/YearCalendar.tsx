@@ -6,6 +6,7 @@ import { CalendarCell } from './CalendarCell';
 import { NoteDialog } from './NoteDialog';
 import { ZoomControls } from './ZoomControls';
 import { StickyNote, StickyColor } from '@/types/calendar';
+import { TextOverflowMode } from '@/hooks/useSettings';
 
 interface SingleYearGridProps {
   year: number;
@@ -14,6 +15,7 @@ interface SingleYearGridProps {
   onCellClick: (date: Date) => void;
   onNoteClick: (note: StickyNote) => void;
   onDeleteNote: (id: string) => void;
+  textOverflowMode: TextOverflowMode;
 }
 
 function SingleYearGrid({
@@ -23,6 +25,7 @@ function SingleYearGrid({
   onCellClick,
   onNoteClick,
   onDeleteNote,
+  textOverflowMode,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -59,6 +62,7 @@ function SingleYearGrid({
                   onNoteClick={onNoteClick}
                   onDeleteNote={onDeleteNote}
                   scale={scale}
+                  textOverflowMode={textOverflowMode}
                 />
               ))}
 
@@ -81,9 +85,10 @@ interface YearCalendarProps {
   years: number[];
   userId: string | null;
   onAuthRequired?: () => void;
+  textOverflowMode: TextOverflowMode;
 }
 
-export function YearCalendar({ years, userId, onAuthRequired }: YearCalendarProps) {
+export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { notes, addNote, updateNote, deleteNote, getNotesByDate } = useStickyNotes(userId);
   const {
@@ -169,6 +174,7 @@ export function YearCalendar({ years, userId, onAuthRequired }: YearCalendarProp
               onCellClick={handleCellClick}
               onNoteClick={handleNoteClick}
               onDeleteNote={deleteNote}
+              textOverflowMode={textOverflowMode}
             />
           ))}
         </div>
