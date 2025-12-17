@@ -8,6 +8,13 @@ export interface StickyNote {
   color: StickyColor;
 }
 
+export interface NoteConnection {
+  id: string;
+  user_id: string;
+  source_note_id: string;
+  target_note_id: string;
+}
+
 export interface CalendarDay {
   date: Date;
   dayOfMonth: number;

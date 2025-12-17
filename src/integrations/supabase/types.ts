@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      note_connections: {
+        Row: {
+          created_at: string
+          id: string
+          source_note_id: string
+          target_note_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source_note_id: string
+          target_note_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source_note_id?: string
+          target_note_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_connections_source_note_id_fkey"
+            columns: ["source_note_id"]
+            isOneToOne: false
+            referencedRelation: "sticky_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_connections_target_note_id_fkey"
+            columns: ["target_note_id"]
+            isOneToOne: false
+            referencedRelation: "sticky_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sticky_notes: {
         Row: {
           color: string

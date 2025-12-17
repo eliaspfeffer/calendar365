@@ -1,5 +1,5 @@
 import { StickyNote, StickyColor } from '@/types/calendar';
-import { X } from 'lucide-react';
+import { X, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TextOverflowMode } from '@/hooks/useSettings';
 
@@ -7,8 +7,13 @@ interface StickyNoteComponentProps {
   note: StickyNote;
   onDelete: (id: string) => void;
   onClick: () => void;
+  onHover: (noteId: string | null) => void;
+  onLinkClick?: (noteId: string) => void;
   scale: number;
   textOverflowMode: TextOverflowMode;
+  isLinkMode: boolean;
+  isConnected: boolean;
+  isHighlighted: boolean;
 }
 
 const colorClasses: Record<StickyColor, string> = {
@@ -20,10 +25,30 @@ const colorClasses: Record<StickyColor, string> = {
   purple: 'bg-sticky-purple',
 };
 
-export function StickyNoteComponent({ note, onDelete, onClick, scale, textOverflowMode }: StickyNoteComponentProps) {
+export function StickyNoteComponent({
+  note,
+  onDelete,
+  onClick,
+  onHover,
+  onLinkClick,
+  scale,
+  textOverflowMode,
+  isLinkMode,
+  isConnected,
+  isHighlighted,
+}: StickyNoteComponentProps) {
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(note.id);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isLinkMode && onLinkClick) {
+      e.stopPropagation();
+      onLinkClick(note.id);
+    } else {
+      onClick();
+    }
   };
 
   const getOverflowStyles = () => {
@@ -51,12 +76,17 @@ export function StickyNoteComponent({ note, onDelete, onClick, scale, textOverfl
 
   return (
     <div
+      data-note-id={note.id}
       className={cn(
         'sticky-note absolute inset-1 p-1 rounded-sm cursor-pointer animate-pop-in group',
         colorClasses[note.color],
-        getOverflowStyles()
+        getOverflowStyles(),
+        isLinkMode && 'ring-2 ring-primary ring-offset-1 cursor-crosshair',
+        isHighlighted && 'ring-2 ring-primary shadow-lg shadow-primary/30'
       )}
-      onClick={onClick}
+      onClick={handleClick}
+      onMouseEnter={() => onHover(note.id)}
+      onMouseLeave={() => onHover(null)}
       style={{
         fontSize: `${Math.max(8, 10 * scale)}px`,
       }}
@@ -68,6 +98,11 @@ export function StickyNoteComponent({ note, onDelete, onClick, scale, textOverfl
       >
         <X className="w-3 h-3 text-foreground/60" />
       </button>
+      {isConnected && (
+        <div className="absolute bottom-0.5 right-0.5">
+          <Link className="w-2.5 h-2.5 text-foreground/40" />
+        </div>
+      )}
       <p
         className={cn(
           'font-medium text-foreground/80 leading-tight pr-3',
