@@ -9,8 +9,13 @@ interface CalendarCellProps {
   onCellClick: () => void;
   onNoteClick: (note: StickyNote) => void;
   onDeleteNote: (id: string) => void;
+  onNoteHover: (noteId: string | null) => void;
+  onLinkClick?: (noteId: string) => void;
   scale: number;
   textOverflowMode: TextOverflowMode;
+  isLinkMode: boolean;
+  connectedNoteIds: string[];
+  highlightedNoteIds: string[];
 }
 
 export function CalendarCell({
@@ -19,8 +24,13 @@ export function CalendarCell({
   onCellClick,
   onNoteClick,
   onDeleteNote,
+  onNoteHover,
+  onLinkClick,
   scale,
   textOverflowMode,
+  isLinkMode,
+  connectedNoteIds,
+  highlightedNoteIds,
 }: CalendarCellProps) {
   const hasNote = notes.length > 0;
 
@@ -59,8 +69,13 @@ export function CalendarCell({
           note={note}
           onDelete={onDeleteNote}
           onClick={() => onNoteClick(note)}
+          onHover={onNoteHover}
+          onLinkClick={onLinkClick}
           scale={scale}
           textOverflowMode={textOverflowMode}
+          isLinkMode={isLinkMode}
+          isConnected={connectedNoteIds.includes(note.id)}
+          isHighlighted={highlightedNoteIds.includes(note.id)}
         />
       ))}
     </div>
