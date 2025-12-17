@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { StickyColor, StickyNote } from '@/types/calendar';
 import { cn } from '@/lib/utils';
+import { CalendarIcon } from 'lucide-react';
 
 interface NoteDialogProps {
   open: boolean;
@@ -12,6 +15,7 @@ interface NoteDialogProps {
   existingNote?: StickyNote | null;
   onSave: (text: string, color: StickyColor) => void;
   onDelete?: () => void;
+  onMove?: (newDate: string) => void;
 }
 
 const colors: { value: StickyColor; className: string; label: string }[] = [
@@ -30,22 +34,30 @@ export function NoteDialog({
   existingNote,
   onSave,
   onDelete,
+  onMove,
 }: NoteDialogProps) {
   const [text, setText] = useState('');
   const [color, setColor] = useState<StickyColor>('yellow');
+  const [newDate, setNewDate] = useState<string>('');
 
   useEffect(() => {
     if (existingNote) {
       setText(existingNote.text);
       setColor(existingNote.color);
+      setNewDate(existingNote.date);
     } else {
       setText('');
       setColor('yellow');
+      setNewDate(date || '');
     }
-  }, [existingNote, open]);
+  }, [existingNote, open, date]);
 
   const handleSave = () => {
     if (text.trim()) {
+      // Check if date changed for existing note
+      if (existingNote && newDate !== existingNote.date && onMove) {
+        onMove(newDate);
+      }
       onSave(text.trim(), color);
       onOpenChange(false);
     }
@@ -69,10 +81,29 @@ export function NoteDialog({
           <DialogTitle className="font-display text-2xl tracking-wide text-primary">
             {existingNote ? 'Edit Note' : 'Add Note'}
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">{formatDateDisplay(date)}</p>
+          {!existingNote && (
+            <p className="text-sm text-muted-foreground">{formatDateDisplay(date)}</p>
+          )}
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Date picker for existing notes */}
+          {existingNote && (
+            <div className="space-y-2">
+              <Label htmlFor="note-date" className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CalendarIcon className="w-4 h-4" />
+                Move to date (connected notes will move too)
+              </Label>
+              <Input
+                id="note-date"
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          )}
+
           <div className="flex gap-2 justify-center">
             {colors.map((c) => (
               <button
