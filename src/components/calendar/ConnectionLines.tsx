@@ -5,7 +5,6 @@ interface ConnectionLinesProps {
   connections: NoteConnection[];
   notes: StickyNote[];
   hoveredNoteId: string | null;
-  scale: number;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -18,7 +17,6 @@ export function ConnectionLines({
   connections,
   notes,
   hoveredNoteId,
-  scale,
   containerRef,
 }: ConnectionLinesProps) {
   const [positions, setPositions] = useState<Map<string, Position>>(new Map());
@@ -29,17 +27,24 @@ export function ConnectionLines({
 
       const newPositions = new Map<string, Position>();
       const container = containerRef.current;
-      const containerRect = container.getBoundingClientRect();
 
       notes.forEach((note) => {
         const noteElement = container.querySelector(`[data-note-id="${note.id}"]`);
         if (noteElement) {
-          const rect = noteElement.getBoundingClientRect();
-          // Calculate position relative to the scrollable container
-          newPositions.set(note.id, {
-            x: (rect.left - containerRect.left + rect.width / 2) / scale,
-            y: (rect.top - containerRect.top + rect.height / 2) / scale,
-          });
+          // Use offsetLeft/offsetTop to get position in untransformed space
+          const el = noteElement as HTMLElement;
+          let x = el.offsetWidth / 2;
+          let y = el.offsetHeight / 2;
+          
+          // Walk up the offset parents to get total offset within container
+          let current: HTMLElement | null = el;
+          while (current && current !== container) {
+            x += current.offsetLeft;
+            y += current.offsetTop;
+            current = current.offsetParent as HTMLElement | null;
+          }
+          
+          newPositions.set(note.id, { x, y });
         }
       });
 
@@ -48,31 +53,22 @@ export function ConnectionLines({
 
     updatePositions();
 
-    // Update on scroll or resize
-    const handleUpdate = () => {
-      requestAnimationFrame(updatePositions);
-    };
-
-    window.addEventListener('resize', handleUpdate);
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleUpdate);
-    }
+    // Update on resize
+    window.addEventListener('resize', updatePositions);
 
     // Use MutationObserver to detect DOM changes
-    const observer = new MutationObserver(handleUpdate);
-    if (container) {
-      observer.observe(container, { childList: true, subtree: true });
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(updatePositions);
+    });
+    if (containerRef.current) {
+      observer.observe(containerRef.current, { childList: true, subtree: true });
     }
 
     return () => {
-      window.removeEventListener('resize', handleUpdate);
-      if (container) {
-        container.removeEventListener('scroll', handleUpdate);
-      }
+      window.removeEventListener('resize', updatePositions);
       observer.disconnect();
     };
-  }, [notes, scale, containerRef]);
+  }, [notes, containerRef]);
 
   // Filter connections to show only those related to hovered note
   const visibleConnections = hoveredNoteId
@@ -109,14 +105,13 @@ export function ConnectionLines({
 
         if (!sourcePos || !targetPos) return null;
 
-        // Calculate the angle for the arrow
         const dx = targetPos.x - sourcePos.x;
         const dy = targetPos.y - sourcePos.y;
         const length = Math.sqrt(dx * dx + dy * dy);
         
         // Shorten line to not overlap with notes
         const padding = 20;
-        const ratio = padding / length;
+        const ratio = length > 0 ? padding / length : 0;
         const adjustedSourceX = sourcePos.x + dx * ratio;
         const adjustedSourceY = sourcePos.y + dy * ratio;
         const adjustedTargetX = targetPos.x - dx * ratio;
@@ -125,10 +120,10 @@ export function ConnectionLines({
         return (
           <g key={connection.id}>
             <line
-              x1={adjustedSourceX * scale}
-              y1={adjustedSourceY * scale}
-              x2={adjustedTargetX * scale}
-              y2={adjustedTargetY * scale}
+              x1={adjustedSourceX}
+              y1={adjustedSourceY}
+              x2={adjustedTargetX}
+              y2={adjustedTargetY}
               stroke="hsl(var(--primary))"
               strokeWidth={2}
               strokeDasharray="6 4"
@@ -137,8 +132,8 @@ export function ConnectionLines({
             />
             {/* Distance label */}
             <text
-              x={((adjustedSourceX + adjustedTargetX) / 2) * scale}
-              y={((adjustedSourceY + adjustedTargetY) / 2) * scale - 8}
+              x={(adjustedSourceX + adjustedTargetX) / 2}
+              y={(adjustedSourceY + adjustedTargetY) / 2 - 8}
               fill="hsl(var(--primary))"
               fontSize={12}
               textAnchor="middle"
