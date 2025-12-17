@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useCalendarData, formatDateKey } from '@/hooks/useCalendarData';
 import { useStickyNotes } from '@/hooks/useStickyNotes';
+import { useNoteConnections } from '@/hooks/useNoteConnections';
 import { useZoomPan } from '@/hooks/useZoomPan';
 import { CalendarCell } from './CalendarCell';
 import { NoteDialog } from './NoteDialog';
 import { ZoomControls } from './ZoomControls';
+import { ConnectionLines } from './ConnectionLines';
 import { StickyNote, StickyColor } from '@/types/calendar';
 import { TextOverflowMode } from '@/hooks/useSettings';
+import { useToast } from '@/hooks/use-toast';
 
 interface SingleYearGridProps {
   year: number;
@@ -15,7 +18,12 @@ interface SingleYearGridProps {
   onCellClick: (date: Date) => void;
   onNoteClick: (note: StickyNote) => void;
   onDeleteNote: (id: string) => void;
+  onNoteHover: (noteId: string | null) => void;
+  onLinkClick?: (noteId: string) => void;
   textOverflowMode: TextOverflowMode;
+  isLinkMode: boolean;
+  connectedNoteIds: string[];
+  highlightedNoteIds: string[];
 }
 
 function SingleYearGrid({
@@ -25,7 +33,12 @@ function SingleYearGrid({
   onCellClick,
   onNoteClick,
   onDeleteNote,
+  onNoteHover,
+  onLinkClick,
   textOverflowMode,
+  isLinkMode,
+  connectedNoteIds,
+  highlightedNoteIds,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -61,8 +74,13 @@ function SingleYearGrid({
                   onCellClick={() => onCellClick(day.date)}
                   onNoteClick={onNoteClick}
                   onDeleteNote={onDeleteNote}
+                  onNoteHover={onNoteHover}
+                  onLinkClick={onLinkClick}
                   scale={scale}
                   textOverflowMode={textOverflowMode}
+                  isLinkMode={isLinkMode}
+                  connectedNoteIds={connectedNoteIds}
+                  highlightedNoteIds={highlightedNoteIds}
                 />
               ))}
 
@@ -90,7 +108,10 @@ interface YearCalendarProps {
 
 export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { notes, addNote, updateNote, deleteNote, getNotesByDate } = useStickyNotes(userId);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const { notes, addNote, updateNote, moveNote, deleteNote, getNotesByDate } = useStickyNotes(userId);
+  const { connections, addConnection, getConnectedNotes, getConnectionsForNote } = useNoteConnections(userId);
+  const { toast } = useToast();
   const {
     scale,
     translateX,
@@ -106,6 +127,33 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<StickyNote | null>(null);
+  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
+  const [isLinkMode, setIsLinkMode] = useState(false);
+  const [linkSourceNoteId, setLinkSourceNoteId] = useState<string | null>(null);
+
+  // Track Command/Meta key state
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) {
+        setIsLinkMode(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) {
+        setIsLinkMode(false);
+        setLinkSourceNoteId(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -116,7 +164,8 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
   }, [handleWheel]);
 
   const handleCellClick = useCallback((date: Date) => {
-    if (isDragging()) return; // Ignore clicks during drag
+    if (isDragging()) return;
+    if (isLinkMode) return; // Don't open dialog in link mode
     if (!userId) {
       onAuthRequired?.();
       return;
@@ -124,14 +173,44 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
     setSelectedDate(formatDateKey(date));
     setEditingNote(null);
     setDialogOpen(true);
-  }, [userId, onAuthRequired, isDragging]);
+  }, [userId, onAuthRequired, isDragging, isLinkMode]);
 
   const handleNoteClick = useCallback((note: StickyNote) => {
-    if (isDragging()) return; // Ignore clicks during drag
+    if (isDragging()) return;
+    if (isLinkMode) return; // Handled by onLinkClick
     setSelectedDate(note.date);
     setEditingNote(note);
     setDialogOpen(true);
-  }, [isDragging]);
+  }, [isDragging, isLinkMode]);
+
+  const handleLinkClick = useCallback((noteId: string) => {
+    if (!linkSourceNoteId) {
+      // First note selected
+      setLinkSourceNoteId(noteId);
+      toast({
+        title: 'Link mode',
+        description: 'Now click another note to connect them (or the same note to cancel)',
+      });
+    } else if (linkSourceNoteId === noteId) {
+      // Same note clicked, cancel
+      setLinkSourceNoteId(null);
+      toast({
+        title: 'Link cancelled',
+      });
+    } else {
+      // Second note selected, create or remove connection
+      addConnection(linkSourceNoteId, noteId);
+      setLinkSourceNoteId(null);
+      toast({
+        title: 'Notes linked!',
+        description: 'Hover over either note to see the connection.',
+      });
+    }
+  }, [linkSourceNoteId, addConnection, toast]);
+
+  const handleNoteHover = useCallback((noteId: string | null) => {
+    setHoveredNoteId(noteId);
+  }, []);
 
   const handleSaveNote = useCallback(
     (text: string, color: StickyColor) => {
@@ -151,13 +230,30 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
     }
   }, [editingNote, deleteNote]);
 
+  const handleMoveNote = useCallback(
+    (newDate: string) => {
+      if (editingNote) {
+        moveNote(editingNote.id, newDate, connections);
+      }
+    },
+    [editingNote, moveNote, connections]
+  );
+
+  // Get all note IDs that have connections
+  const connectedNoteIds = connections.flatMap((c) => [c.source_note_id, c.target_note_id]);
+  const uniqueConnectedNoteIds = [...new Set(connectedNoteIds)];
+
+  // Get highlighted notes (connected to hovered note)
+  const highlightedNoteIds = hoveredNoteId ? [hoveredNoteId, ...getConnectedNotes(hoveredNoteId)] : [];
+
   return (
     <div
       ref={containerRef}
-      className="w-full h-screen overflow-hidden bg-muted cursor-grab active:cursor-grabbing"
+      className="w-full h-screen overflow-hidden bg-muted cursor-grab active:cursor-grabbing relative"
       onMouseDown={handleMouseDown}
     >
       <div
+        ref={contentRef}
         className="origin-top-left transition-none"
         style={{
           transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
@@ -174,11 +270,32 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
               onCellClick={handleCellClick}
               onNoteClick={handleNoteClick}
               onDeleteNote={deleteNote}
+              onNoteHover={handleNoteHover}
+              onLinkClick={handleLinkClick}
               textOverflowMode={textOverflowMode}
+              isLinkMode={isLinkMode}
+              connectedNoteIds={uniqueConnectedNoteIds}
+              highlightedNoteIds={highlightedNoteIds}
             />
           ))}
         </div>
       </div>
+
+      {/* Connection lines overlay */}
+      <ConnectionLines
+        connections={connections}
+        notes={notes}
+        hoveredNoteId={hoveredNoteId}
+        scale={scale}
+        containerRef={contentRef}
+      />
+
+      {/* Link mode indicator */}
+      {isLinkMode && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg z-50 animate-fade-in">
+          {linkSourceNoteId ? 'Click another note to link' : 'Click a note to start linking'}
+        </div>
+      )}
 
       <ZoomControls
         onZoomIn={zoomIn}
@@ -194,6 +311,7 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
         existingNote={editingNote}
         onSave={handleSaveNote}
         onDelete={editingNote ? handleDeleteNote : undefined}
+        onMove={editingNote ? handleMoveNote : undefined}
       />
     </div>
   );
