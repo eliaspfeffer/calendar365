@@ -254,7 +254,7 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
     >
       <div
         ref={contentRef}
-        className="origin-top-left transition-none"
+        className="origin-top-left transition-none relative"
         style={{
           transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
         }}
@@ -279,16 +279,15 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
             />
           ))}
         </div>
-      </div>
 
-      {/* Connection lines overlay */}
-      <ConnectionLines
-        connections={connections}
-        notes={notes}
-        hoveredNoteId={hoveredNoteId}
-        scale={scale}
-        containerRef={contentRef}
-      />
+        {/* Connection lines overlay - inside transformed container */}
+        <ConnectionLines
+          connections={connections}
+          notes={notes}
+          hoveredNoteId={hoveredNoteId}
+          containerRef={contentRef}
+        />
+      </div>
 
       {/* Link mode indicator */}
       {isLinkMode && (
