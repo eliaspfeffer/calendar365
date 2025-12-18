@@ -188,6 +188,37 @@ export function YearCalendar({
     };
   }, []);
 
+  // Allow deleting a note with the keyboard while hovering it
+  useEffect(() => {
+    const isTypingInField = () => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active) return false;
+      const tag = active.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        active.isContentEditable
+      );
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (dialogOpen) return;
+      if (!hoveredNoteId) return;
+      if (draggedNoteId) return;
+      if (isTypingInField()) return;
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        deleteNote(hoveredNoteId);
+        setHoveredNoteId(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hoveredNoteId, deleteNote, dialogOpen, draggedNoteId]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
