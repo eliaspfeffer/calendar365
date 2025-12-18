@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { NoteConnection } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
+import { exampleConnections } from '@/data/exampleCalendar';
 
 export function useNoteConnections(userId: string | null) {
   const [connections, setConnections] = useState<NoteConnection[]>([]);
@@ -9,7 +10,7 @@ export function useNoteConnections(userId: string | null) {
   // Fetch connections from Supabase
   useEffect(() => {
     if (!userId) {
-      setConnections([]);
+      setConnections(exampleConnections);
       setIsLoading(false);
       return;
     }
@@ -81,6 +82,7 @@ export function useNoteConnections(userId: string | null) {
   }, [userId, connections]);
 
   const deleteConnection = useCallback(async (id: string) => {
+    if (!userId) return;
     const { error } = await supabase
       .from('note_connections')
       .delete()
@@ -92,7 +94,7 @@ export function useNoteConnections(userId: string | null) {
     }
 
     setConnections((prev) => prev.filter((c) => c.id !== id));
-  }, []);
+  }, [userId]);
 
   const getConnectedNotes = useCallback(
     (noteId: string): string[] => {
