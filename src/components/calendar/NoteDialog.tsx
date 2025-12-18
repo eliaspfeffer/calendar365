@@ -63,6 +63,17 @@ export function NoteDialog({
     }
   };
 
+  const handleTextKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement> = (e) => {
+    if (e.key !== 'Enter') return;
+    if (e.shiftKey) return;
+    if (e.nativeEvent.isComposing) return;
+    if (!text.trim()) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    handleSave();
+  };
+
   const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -124,6 +135,7 @@ export function NoteDialog({
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleTextKeyDown}
             placeholder="Write your note..."
             className="min-h-[100px] resize-none"
             autoFocus
