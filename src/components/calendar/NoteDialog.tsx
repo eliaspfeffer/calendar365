@@ -16,6 +16,7 @@ interface NoteDialogProps {
   onSave: (text: string, color: StickyColor) => Promise<boolean> | boolean;
   onDelete?: () => void;
   onMove?: (newDate: string | null) => Promise<boolean> | boolean;
+  readOnly?: boolean;
 }
 
 const colors: { value: StickyColor; className: string; label: string }[] = [
@@ -35,6 +36,7 @@ export function NoteDialog({
   onSave,
   onDelete,
   onMove,
+  readOnly = false,
 }: NoteDialogProps) {
   const [text, setText] = useState('');
   const [color, setColor] = useState<StickyColor>('yellow');
@@ -53,6 +55,10 @@ export function NoteDialog({
   }, [existingNote, open, date]);
 
   const handleSave = async () => {
+    if (readOnly) {
+      onOpenChange(false);
+      return;
+    }
     if (text.trim()) {
       const normalizedExistingDate = existingNote?.date ?? null;
       const normalizedNewDate = newDate.trim() ? newDate : null;
@@ -95,12 +101,15 @@ export function NoteDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide text-primary">
-            {existingNote ? 'Edit Note' : 'Add Note'}
+            {readOnly ? "View Note" : existingNote ? "Edit Note" : "Add Note"}
           </DialogTitle>
           {!existingNote && (
             <p className="text-sm text-muted-foreground">
               {date ? formatDateDisplay(date) : 'Inbox (no date yet)'}
             </p>
+          )}
+          {existingNote && existingNote.date && (
+            <p className="text-sm text-muted-foreground">{formatDateDisplay(existingNote.date)}</p>
           )}
         </DialogHeader>
 
@@ -118,6 +127,7 @@ export function NoteDialog({
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
                 className="w-full"
+                disabled={readOnly}
               />
             </div>
           )}
@@ -127,6 +137,7 @@ export function NoteDialog({
               <button
                 key={c.value}
                 onClick={() => setColor(c.value)}
+                disabled={readOnly}
                 className={cn(
                   'w-8 h-8 rounded-full transition-all border-2',
                   c.className,
@@ -145,12 +156,13 @@ export function NoteDialog({
             onKeyDown={handleTextKeyDown}
             placeholder="Write your note..."
             className="min-h-[100px] resize-none"
-            autoFocus
+            autoFocus={!readOnly}
+            readOnly={readOnly}
           />
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          {existingNote && onDelete && (
+          {existingNote && onDelete && !readOnly && (
             <Button variant="destructive" onClick={onDelete} className="mr-auto">
               Delete
             </Button>
@@ -158,9 +170,11 @@ export function NoteDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!text.trim()}>
-            Save Note
-          </Button>
+          {!readOnly && (
+            <Button onClick={handleSave} disabled={!text.trim()}>
+              Save Note
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

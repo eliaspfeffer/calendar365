@@ -17,6 +17,7 @@ interface InboxNotesPanelProps {
   onNoteDragEnd?: () => void;
   draggedNoteId?: string | null;
   textOverflowMode: TextOverflowMode;
+  canEdit: boolean;
 }
 
 export function InboxNotesPanel({
@@ -30,8 +31,10 @@ export function InboxNotesPanel({
   onNoteDragEnd,
   draggedNoteId,
   textOverflowMode,
+  canEdit,
 }: InboxNotesPanelProps) {
   const handleDragOver = (e: React.DragEvent) => {
+    if (!canEdit) return;
     const types = e.dataTransfer.types;
     if (types.includes("text/plain") || draggedNoteId) {
       e.preventDefault();
@@ -41,6 +44,7 @@ export function InboxNotesPanel({
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    if (!canEdit) return;
     let noteId = draggedNoteId;
     if (!noteId) {
       noteId = e.dataTransfer.getData("text/plain");
@@ -68,7 +72,7 @@ export function InboxNotesPanel({
             {notes.length} {notes.length === 1 ? "note" : "notes"} (undated)
           </div>
         </div>
-        <Button size="sm" onClick={onNewNote}>
+        <Button size="sm" onClick={onNewNote} disabled={!canEdit}>
           New
         </Button>
       </div>
@@ -96,6 +100,7 @@ export function InboxNotesPanel({
                     onDragStart={onNoteDragStart}
                     onDragEnd={onNoteDragEnd}
                     isDragging={draggedNoteId === note.id}
+                    canEdit={canEdit}
                   />
                 </div>
               ))}
@@ -106,4 +111,3 @@ export function InboxNotesPanel({
     </Card>
   );
 }
-

@@ -23,6 +23,7 @@ interface CalendarCellProps {
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
   draggedNoteId?: string | null;
+  canEdit: boolean;
 }
 
 export function CalendarCell({
@@ -43,11 +44,13 @@ export function CalendarCell({
   connectedNoteIds,
   highlightedNoteIds,
   draggedNoteId,
+  canEdit,
 }: CalendarCellProps) {
   const dateKey = formatDateKey(day.date);
   const isExpandMode = textOverflowMode === "expand";
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (!canEdit) return;
     // Check if we're dragging a note by looking at dataTransfer types
     const types = e.dataTransfer.types;
     if (types.includes("text/plain") || draggedNoteId) {
@@ -59,6 +62,7 @@ export function CalendarCell({
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    if (!canEdit) return;
     // Get the note ID from dataTransfer or from draggedNoteId
     let noteId = draggedNoteId;
     if (!noteId) {
@@ -102,19 +106,21 @@ export function CalendarCell({
           >
             {day.dayOfMonth}
           </span>
-          <button
-            type="button"
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-foreground/10"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onCellClick();
-            }}
-            aria-label="Add note"
-            title="Add note"
-          >
-            <Plus className="w-3 h-3 text-foreground/60" />
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-foreground/10"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onCellClick();
+              }}
+              aria-label="Add note"
+              title="Add note"
+            >
+              <Plus className="w-3 h-3 text-foreground/60" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -137,6 +143,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="list"
+              canEdit={canEdit}
             />
           ))}
         </div>
@@ -158,6 +165,7 @@ export function CalendarCell({
             isHighlighted={highlightedNoteIds.includes(note.id)}
             isDragging={draggedNoteId === note.id}
             variant="full"
+            canEdit={canEdit}
           />
         ))
       ) : (
@@ -179,6 +187,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="list"
+              canEdit={canEdit}
             />
           ))}
         </div>

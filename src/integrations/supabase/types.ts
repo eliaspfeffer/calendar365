@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_members: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          member_id: string
+          owner_id: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          member_id: string
+          owner_id: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          member_id?: string
+          owner_id?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_members_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_members_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_share_links: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          owner_id: string
+          role: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          owner_id: string
+          role: string
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          owner_id?: string
+          role?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_share_links_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       note_connections: {
         Row: {
           created_at: string
@@ -88,7 +165,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_calendar_share: {
+        Args: {
+          p_token: string
+        }
+        Returns: {
+          owner_id: string
+          role: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

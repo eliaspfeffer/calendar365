@@ -1,14 +1,20 @@
-import { useState, useCallback, useEffect } from 'react';
-import { NoteConnection } from '@/types/calendar';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useEffect } from "react";
+import { NoteConnection } from "@/types/calendar";
+import { supabase } from "@/integrations/supabase/client";
 
-export function useNoteConnections(userId: string | null) {
+export function useNoteConnections({
+  authUserId,
+  calendarOwnerId,
+}: {
+  authUserId: string | null;
+  calendarOwnerId: string | null;
+}) {
   const [connections, setConnections] = useState<NoteConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch connections from Supabase
   useEffect(() => {
-    if (!userId) {
+    if (!authUserId || !calendarOwnerId) {
       setConnections([]);
       setIsLoading(false);
       return;
@@ -19,7 +25,7 @@ export function useNoteConnections(userId: string | null) {
       const { data, error } = await supabase
         .from('note_connections')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', calendarOwnerId);
 
       if (error) {
         console.error('Error fetching connections:', error);
@@ -36,10 +42,54 @@ export function useNoteConnections(userId: string | null) {
     };
 
     fetchConnections();
-  }, [userId]);
+  }, [authUserId, calendarOwnerId]);
+
+  // Realtime updates for co-editing
+  useEffect(() => {
+    if (!authUserId || !calendarOwnerId) return;
+
+    const channel = supabase
+      .channel(`note_connections:${calendarOwnerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "note_connections",
+          filter: `user_id=eq.${calendarOwnerId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const next = payload.new as any;
+            const mapped: NoteConnection = {
+              id: next.id,
+              user_id: next.user_id,
+              source_note_id: next.source_note_id,
+              target_note_id: next.target_note_id,
+            };
+            setConnections((prev) =>
+              prev.some((c) => c.id === mapped.id) ? prev : [...prev, mapped]
+            );
+            return;
+          }
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as any;
+            const id = oldRow?.id as string | undefined;
+            if (!id) return;
+            setConnections((prev) => prev.filter((c) => c.id !== id));
+            return;
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authUserId, calendarOwnerId]);
 
   const addConnection = useCallback(async (sourceNoteId: string, targetNoteId: string) => {
-    if (!userId) return null;
+    if (!authUserId || !calendarOwnerId) return null;
 
     // Check if connection already exists (in either direction)
     const existingConnection = connections.find(
@@ -57,7 +107,7 @@ export function useNoteConnections(userId: string | null) {
     const { data, error } = await supabase
       .from('note_connections')
       .insert({
-        user_id: userId,
+        user_id: calendarOwnerId,
         source_note_id: sourceNoteId,
         target_note_id: targetNoteId,
       })
@@ -78,7 +128,7 @@ export function useNoteConnections(userId: string | null) {
 
     setConnections((prev) => [...prev, newConnection]);
     return newConnection;
-  }, [userId, connections]);
+  }, [authUserId, calendarOwnerId, connections]);
 
   const deleteConnection = useCallback(async (id: string) => {
     const { error } = await supabase

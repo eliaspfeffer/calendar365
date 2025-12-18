@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { StickyNote, StickyColor, NoteConnection } from '@/types/calendar';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useEffect } from "react";
+import { StickyNote, StickyColor, NoteConnection } from "@/types/calendar";
+import { supabase } from "@/integrations/supabase/client";
 
 // Helper to calculate day difference between two dates
 function getDaysDifference(date1: string, date2: string): number {
@@ -17,7 +17,29 @@ function addDaysToDate(dateStr: string, days: number): string {
   return date.toISOString().split('T')[0];
 }
 
-export function useStickyNotes(userId: string | null) {
+function mapRowToStickyNote(row: {
+  id: string;
+  user_id: string;
+  date: string | null;
+  text: string;
+  color: string;
+}): StickyNote {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    date: row.date,
+    text: row.text,
+    color: row.color as StickyColor,
+  };
+}
+
+export function useStickyNotes({
+  authUserId,
+  calendarOwnerId,
+}: {
+  authUserId: string | null;
+  calendarOwnerId: string | null;
+}) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,7 +48,7 @@ export function useStickyNotes(userId: string | null) {
       return supabase
         .from('sticky_notes')
         .insert({
-          user_id: userId,
+          user_id: calendarOwnerId,
           date,
           text,
           color,
@@ -34,12 +56,12 @@ export function useStickyNotes(userId: string | null) {
         .select()
         .single();
     },
-    [userId]
+    [calendarOwnerId]
   );
 
   // Fetch notes from Supabase
   useEffect(() => {
-    if (!userId) {
+    if (!authUserId || !calendarOwnerId) {
       setNotes([]);
       setIsLoading(false);
       return;
@@ -50,30 +72,62 @@ export function useStickyNotes(userId: string | null) {
       const { data, error } = await supabase
         .from('sticky_notes')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', calendarOwnerId)
         .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error fetching notes:', error);
       } else {
-        // Map data to our StickyNote type
-        const mappedNotes: StickyNote[] = (data || []).map((note) => ({
-          id: note.id,
-          user_id: note.user_id,
-          date: note.date,
-          text: note.text,
-          color: note.color as StickyColor,
-        }));
-        setNotes(mappedNotes);
+        setNotes((data || []).map(mapRowToStickyNote));
       }
       setIsLoading(false);
     };
 
     fetchNotes();
-  }, [userId]);
+  }, [authUserId, calendarOwnerId]);
+
+  // Realtime updates for co-editing
+  useEffect(() => {
+    if (!authUserId || !calendarOwnerId) return;
+
+    const channel = supabase
+      .channel(`sticky_notes:${calendarOwnerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "sticky_notes",
+          filter: `user_id=eq.${calendarOwnerId}`,
+        },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const next = mapRowToStickyNote(payload.new as any);
+            setNotes((prev) => (prev.some((n) => n.id === next.id) ? prev : [...prev, next]));
+            return;
+          }
+          if (payload.eventType === "UPDATE") {
+            const next = mapRowToStickyNote(payload.new as any);
+            setNotes((prev) => prev.map((n) => (n.id === next.id ? next : n)));
+            return;
+          }
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as any;
+            const id = oldRow?.id as string | undefined;
+            if (!id) return;
+            setNotes((prev) => prev.filter((n) => n.id !== id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [authUserId, calendarOwnerId]);
 
   const addNote = useCallback(async (date: string | null, text: string, color: StickyColor) => {
-    if (!userId) return null;
+    if (!authUserId || !calendarOwnerId) return null;
 
     const { data, error } = await insertStickyNote(date, text, color);
 
@@ -85,14 +139,8 @@ export function useStickyNotes(userId: string | null) {
         console.error('Error adding note:', retry.error);
         return null;
       }
-      const newNote: StickyNote = {
-        id: retry.data.id,
-        user_id: retry.data.user_id,
-        date: retry.data.date,
-        text: retry.data.text,
-        color: retry.data.color as StickyColor,
-      };
-      setNotes((prev) => [...prev, newNote]);
+      const newNote = mapRowToStickyNote(retry.data as any);
+      setNotes((prev) => (prev.some((n) => n.id === newNote.id) ? prev : [...prev, newNote]));
       return newNote;
     }
 
@@ -101,17 +149,11 @@ export function useStickyNotes(userId: string | null) {
       return null;
     }
 
-    const newNote: StickyNote = {
-      id: data.id,
-      user_id: data.user_id,
-      date: data.date,
-      text: data.text,
-      color: data.color as StickyColor,
-    };
+    const newNote = mapRowToStickyNote(data as any);
 
-    setNotes((prev) => [...prev, newNote]);
+    setNotes((prev) => (prev.some((n) => n.id === newNote.id) ? prev : [...prev, newNote]));
     return newNote;
-  }, [userId, insertStickyNote]);
+  }, [authUserId, calendarOwnerId, insertStickyNote]);
 
   const updateNote = useCallback(async (id: string, text: string, color: StickyColor) => {
     const { error } = await supabase
@@ -136,7 +178,7 @@ export function useStickyNotes(userId: string | null) {
     const noteToMove = notes.find((n) => n.id === id);
     if (!noteToMove) return false;
 
-    if (noteToMove.date === newDate) return;
+    if (noteToMove.date === newDate) return true;
 
     // Get all connected note IDs
     const connectedNoteIds: string[] = [];
