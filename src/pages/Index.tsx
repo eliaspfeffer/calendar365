@@ -78,6 +78,7 @@ const Index = () => {
         userId={user?.id || null}
         onAuthRequired={handleAuthRequired}
         textOverflowMode={settings.textOverflowMode}
+        calendarColor={settings.calendarColor}
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
@@ -86,6 +87,8 @@ const Index = () => {
         onOpenChange={setSettingsDialogOpen}
         textOverflowMode={settings.textOverflowMode}
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
+        calendarColor={settings.calendarColor}
+        onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
       />
     </div>
   );
