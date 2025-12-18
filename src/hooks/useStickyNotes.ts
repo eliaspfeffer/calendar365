@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { StickyNote, StickyColor, NoteConnection } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
+import { exampleNotes } from '@/data/exampleCalendar';
 
 // Helper to calculate day difference between two dates
 function getDaysDifference(date1: string, date2: string): number {
@@ -40,7 +41,7 @@ export function useStickyNotes(userId: string | null) {
   // Fetch notes from Supabase
   useEffect(() => {
     if (!userId) {
-      setNotes([]);
+      setNotes(exampleNotes);
       setIsLoading(false);
       return;
     }
@@ -114,6 +115,7 @@ export function useStickyNotes(userId: string | null) {
   }, [userId, insertStickyNote]);
 
   const updateNote = useCallback(async (id: string, text: string, color: StickyColor) => {
+    if (!userId) return false;
     const { error } = await supabase
       .from('sticky_notes')
       .update({ text, color })
@@ -130,9 +132,10 @@ export function useStickyNotes(userId: string | null) {
       )
     );
     return true;
-  }, []);
+  }, [userId]);
 
   const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[]) => {
+    if (!userId) return false;
     const noteToMove = notes.find((n) => n.id === id);
     if (!noteToMove) return false;
 
@@ -208,9 +211,10 @@ export function useStickyNotes(userId: string | null) {
       })
     );
     return true;
-  }, [notes]);
+  }, [notes, userId]);
 
   const deleteNote = useCallback(async (id: string) => {
+    if (!userId) return;
     const { error } = await supabase
       .from('sticky_notes')
       .delete()
@@ -222,7 +226,7 @@ export function useStickyNotes(userId: string | null) {
     }
 
     setNotes((prev) => prev.filter((note) => note.id !== id));
-  }, []);
+  }, [userId]);
 
   const getNotesByDate = useCallback(
     (date: string) => notes.filter((note) => note.date === date),
