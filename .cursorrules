@@ -1,0 +1,56 @@
+# Git Workflow Rules - Lovable Pattern
+
+## Git Commit Workflow Pattern
+
+When committing changes, follow this exact pattern used by Lovable:
+
+### 1. Create Feature Branch
+- Create a new branch from main for each feature/fix
+- Branch name can be generic (e.g., "changes" or descriptive)
+
+### 2. Make Changes and Commit
+- Commit changes with message: `"Changes"`
+- This is the working commit on the feature branch
+
+### 3. Merge to Main with Descriptive Commit
+- Merge the feature branch back to main
+- Use a descriptive merge commit message with:
+  - **Title**: Clear, concise description (e.g., "Fix pan offset in connections")
+  - **Body**: Detailed explanation with bullet points describing:
+    - What was changed
+    - Why it was changed
+    - How it works
+  - **Metadata**: Include `X-Lovable-Edit-ID: <unique-id>` header (optional, for tracking)
+
+### Example Merge Commit Format:
+```
+Fix pan offset in connections
+
+Adjust ConnectionLines positioning to account for zoom/pan transforms by moving the overlay inside the transformed calendar container and syncing coordinates, so arrows stay aligned when dragging.
+
+X-Lovable-Edit-ID: edt-4ebb4a07-b68f-481d-a885-c2499b5265f0
+```
+
+### When User Says "Follow Lovable Pattern" or "Commit with Lovable Pattern" or uses `/lovable-commit`:
+1. Check current git status to see what files have changed
+2. Analyze the changes to create an appropriate commit message
+3. Create a feature branch if not on one (or use existing branch)
+4. Stage and commit changes with message "Changes"
+5. Merge to main with a descriptive merge commit that:
+   - Has a clear title summarizing the changes
+   - Includes detailed body explaining what/why/how
+   - Lists key files/components affected
+   - Optionally includes X-Lovable-Edit-ID header
+
+### Cursor Command
+Type `/lovable-commit` in the chat to trigger this workflow automatically.
+
+### Alternative: Use Helper Script
+You can also use the provided script: `./git-commit-lovable.sh "Title" "Description"`
+
+### Commit Message Guidelines:
+- **Title**: Use imperative mood, capitalize first letter, no period
+- **Body**: Use bullet points for multiple changes, explain context
+- **Be specific**: Describe what files/components were affected
+- **Explain why**: Include reasoning for the change when relevant
+
