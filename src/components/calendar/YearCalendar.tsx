@@ -8,7 +8,7 @@ import { NoteDialog } from "./NoteDialog";
 import { ZoomControls } from "./ZoomControls";
 import { ConnectionLines } from "./ConnectionLines";
 import { StickyNote, StickyColor } from "@/types/calendar";
-import { TextOverflowMode } from "@/hooks/useSettings";
+import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -122,6 +122,7 @@ interface YearCalendarProps {
   userId: string | null;
   onAuthRequired?: () => void;
   textOverflowMode: TextOverflowMode;
+  calendarColor: CalendarColor;
 }
 
 export function YearCalendar({
@@ -129,6 +130,7 @@ export function YearCalendar({
   userId,
   onAuthRequired,
   textOverflowMode,
+  calendarColor,
 }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -353,6 +355,17 @@ export function YearCalendar({
     [handleMouseDown, isLinkMode, draggedNoteId]
   );
 
+  const calendarHeaderHslByColor: Record<CalendarColor, string> = {
+    blue: "207 90% 45%",
+    green: "142 76% 36%",
+    purple: "262 80% 50%",
+    red: "0 84% 60%",
+    orange: "25 95% 53%",
+    teal: "173 80% 40%",
+    pink: "330 81% 60%",
+    indigo: "231 48% 48%",
+  };
+
   return (
     <div
       ref={containerRef}
@@ -361,6 +374,11 @@ export function YearCalendar({
         draggedNoteId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
       )}
       onMouseDown={handleContainerMouseDown}
+      style={
+        {
+          "--calendar-header": calendarHeaderHslByColor[calendarColor],
+        } as React.CSSProperties
+      }
     >
       <div
         ref={contentRef}
