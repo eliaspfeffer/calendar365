@@ -45,9 +45,7 @@ export function CalendarCell({
   draggedNoteId,
 }: CalendarCellProps) {
   const dateKey = formatDateKey(day.date);
-  const maxVisibleNotes = 3;
-  const visibleNotes = notes.slice(0, maxVisibleNotes);
-  const hiddenCount = Math.max(0, notes.length - visibleNotes.length);
+  const shouldExpandCell = textOverflowMode === "expand" || notes.length > 1;
 
   const handleDragOver = (e: React.DragEvent) => {
     // Check if we're dragging a note by looking at dataTransfer types
@@ -77,7 +75,7 @@ export function CalendarCell({
     <div
       className={cn(
         "calendar-cell min-w-[50px] relative cursor-pointer group",
-        textOverflowMode === "expand" ? "min-h-[60px]" : "h-[60px]",
+        shouldExpandCell ? "min-h-[60px]" : "h-[60px]",
         day.isWeekend && "bg-calendar-weekend/50",
         day.isToday && "ring-2 ring-inset ring-primary",
         draggedNoteId && "ring-2 ring-primary ring-offset-1 bg-primary/5"
@@ -142,7 +140,7 @@ export function CalendarCell({
         ))
       ) : (
         <div className="absolute left-1 right-1 bottom-1 top-4 flex flex-col gap-1">
-          {visibleNotes.map((note) => (
+          {notes.map((note) => (
             <StickyNoteComponent
               key={note.id}
               note={note}
@@ -158,14 +156,9 @@ export function CalendarCell({
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
-              variant="stacked"
+              variant="list"
             />
           ))}
-          {hiddenCount > 0 && (
-            <div className="text-[10px] text-muted-foreground leading-none px-1">
-              +{hiddenCount} more
-            </div>
-          )}
         </div>
       )}
     </div>
