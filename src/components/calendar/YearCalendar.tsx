@@ -8,6 +8,7 @@ import { NoteDialog } from "./NoteDialog";
 import { ZoomControls } from "./ZoomControls";
 import { ConnectionLines } from "./ConnectionLines";
 import { InboxNotesPanel } from "./InboxNotesPanel";
+import { StickyNoteComponent } from "./StickyNoteComponent";
 import { StickyNote, StickyColor } from "@/types/calendar";
 import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -56,7 +57,7 @@ function SingleYearGrid({
   const maxDays = Math.max(...calendarData.map((month) => month.length));
 
   return (
-    <div className="inline-block bg-card shadow-2xl min-w-max">
+    <div className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max">
       {/* Header */}
       <div className="bg-calendar-header px-8 py-6">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-primary-foreground tracking-wider text-center">
@@ -137,8 +138,16 @@ export function YearCalendar({
 }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { notes, addNote, updateNote, moveNote, deleteNote, getNotesByDate } =
-    useStickyNotes(userId, calendarId);
+  const suppressNextCanvasClickRef = useRef(false);
+  const {
+    notes,
+    addNote,
+    updateNote,
+    moveNote,
+    moveNoteToCanvas,
+    deleteNote,
+    getNotesByDate,
+  } = useStickyNotes(userId, calendarId);
   const {
     connections,
     addConnection,
@@ -165,8 +174,10 @@ export function YearCalendar({
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [linkSourceNoteId, setLinkSourceNoteId] = useState<string | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
+  const [newNotePosition, setNewNotePosition] = useState<{ x: number; y: number } | null>(null);
 
-  const inboxNotes = notes.filter((n) => !n.date);
+  const inboxNotes = notes.filter((n) => !n.date && (n.pos_x == null || n.pos_y == null));
+  const canvasNotes = notes.filter((n) => !n.date && n.pos_x != null && n.pos_y != null);
 
   // Track Command/Meta key state
   useEffect(() => {
@@ -199,6 +210,18 @@ export function YearCalendar({
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
+
+  const getContentPointFromClient = useCallback(
+    (clientX: number, clientY: number) => {
+      const container = containerRef.current;
+      if (!container) return null;
+      const rect = container.getBoundingClientRect();
+      const x = (clientX - rect.left - translateX) / scale;
+      const y = (clientY - rect.top - translateY) / scale;
+      return { x, y };
+    },
+    [scale, translateX, translateY]
+  );
 
   const handleCellClick = useCallback(
     (date: Date) => {
@@ -385,6 +408,104 @@ export function YearCalendar({
     e.dataTransfer.dropEffect = "move";
   }, []);
 
+  const handleCanvasDragOver = useCallback(
+    (e: React.DragEvent) => {
+      const types = e.dataTransfer.types;
+      if (types.includes("text/plain") || draggedNoteId) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      }
+    },
+    [draggedNoteId]
+  );
+
+  const handleCanvasDrop = useCallback(
+    async (e: React.DragEvent) => {
+      if (!userId) {
+        onAuthRequired?.();
+        return;
+      }
+
+      suppressNextCanvasClickRef.current = true;
+      requestAnimationFrame(() => {
+        suppressNextCanvasClickRef.current = false;
+      });
+
+      let noteId = draggedNoteId;
+      if (!noteId) {
+        noteId = e.dataTransfer.getData("text/plain");
+      }
+      if (!noteId) return;
+
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(".year-calendar-grid") ||
+        target.closest(".inbox-notes-panel") ||
+        target.closest(".zoom-controls")
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const point = getContentPointFromClient(e.clientX, e.clientY);
+      if (!point) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const moved = await moveNoteToCanvas(noteId, point);
+      if (!moved) {
+        toast({
+          title: "Couldn’t place note",
+          description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+          variant: "destructive",
+        });
+        setDraggedNoteId(null);
+        return;
+      }
+      toast({
+        title: "Note parked",
+        description: "Note now has no date.",
+      });
+      setDraggedNoteId(null);
+    },
+    [draggedNoteId, getContentPointFromClient, moveNoteToCanvas, onAuthRequired, toast, userId]
+  );
+
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (suppressNextCanvasClickRef.current) return;
+      if (isDragging()) return;
+      if (isLinkMode) return;
+      if (draggedNoteId) return;
+
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(".year-calendar-grid") ||
+        target.closest(".inbox-notes-panel") ||
+        target.closest(".zoom-controls") ||
+        target.closest(".sticky-note")
+      ) {
+        return;
+      }
+
+      if (!userId) {
+        onAuthRequired?.();
+        return;
+      }
+
+      const point = getContentPointFromClient(e.clientX, e.clientY);
+      if (!point) return;
+
+      setSelectedDate(null);
+      setEditingNote(null);
+      setNewNotePosition(point);
+      setDialogOpen(true);
+    },
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, onAuthRequired, userId]
+  );
+
   const handleSaveNote = useCallback(
     async (text: string, color: StickyColor) => {
       if (!userId) {
@@ -403,7 +524,12 @@ export function YearCalendar({
         }
         return true;
       } else {
-        const created = await addNote(selectedDate, text, color);
+        const created = await addNote(
+          selectedDate,
+          text,
+          color,
+          selectedDate ? null : newNotePosition
+        );
         if (!created) {
           toast({
             title: "Couldn’t create note",
@@ -413,10 +539,11 @@ export function YearCalendar({
           });
           return false;
         }
+        setNewNotePosition(null);
         return true;
       }
     },
-    [editingNote, selectedDate, addNote, updateNote, toast, onAuthRequired, userId]
+    [editingNote, selectedDate, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition]
   );
 
   const handleDeleteNote = useCallback(() => {
@@ -514,6 +641,9 @@ export function YearCalendar({
           : undefined
       }
       onMouseDown={handleContainerMouseDown}
+      onDragOver={handleCanvasDragOver}
+      onDrop={handleCanvasDrop}
+      onClick={handleCanvasClick}
     >
       <div
         ref={contentRef}
@@ -554,6 +684,49 @@ export function YearCalendar({
           ))}
         </div>
 
+        {/* Canvas (undated, positioned) notes */}
+        {canvasNotes.length > 0 && (
+          <div className="absolute inset-0 z-30">
+            {canvasNotes.map((note) => (
+              <div
+                key={note.id}
+                className="absolute"
+                style={{
+                  left: note.pos_x as number,
+                  top: note.pos_y as number,
+                  width: 220,
+                  height: 140,
+                }}
+              >
+                <div className="relative w-full h-full">
+                  <StickyNoteComponent
+                    note={note}
+                    onDelete={(id) => {
+                      if (!userId) {
+                        onAuthRequired?.();
+                        return;
+                      }
+                      deleteNote(id);
+                    }}
+                    onClick={() => handleNoteClick(note)}
+                    onHover={handleNoteHover}
+                    onLinkClick={handleLinkClick}
+                    onDragStart={userId ? handleNoteDragStart : undefined}
+                    onDragEnd={userId ? handleNoteDragEnd : undefined}
+                    scale={scale}
+                    textOverflowMode={textOverflowMode}
+                    isLinkMode={isLinkMode}
+                    isConnected={uniqueConnectedNoteIds.includes(note.id)}
+                    isHighlighted={highlightedNoteIds.includes(note.id)}
+                    isDragging={draggedNoteId === note.id}
+                    variant="full"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Connection lines overlay - inside transformed container */}
         <ConnectionLines
           connections={connections}
@@ -588,6 +761,7 @@ export function YearCalendar({
           }
           setSelectedDate(null);
           setEditingNote(null);
+          setNewNotePosition(null);
           setDialogOpen(true);
         }}
         onNoteClick={handleInboxNoteClick}
@@ -608,7 +782,10 @@ export function YearCalendar({
 
       <NoteDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setNewNotePosition(null);
+        }}
         date={selectedDate}
         existingNote={editingNote}
         onSave={handleSaveNote}

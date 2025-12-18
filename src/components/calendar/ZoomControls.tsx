@@ -10,7 +10,10 @@ interface ZoomControlsProps {
 
 export function ZoomControls({ onZoomIn, onZoomOut, onReset, scale }: ZoomControlsProps) {
   return (
-    <div className="fixed bottom-6 right-6 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-50">
+    <div
+      className="zoom-controls fixed bottom-6 right-6 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-50"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <Button variant="ghost" size="icon" onClick={onZoomOut} className="h-8 w-8">
         <ZoomOut className="h-4 w-4" />
       </Button>

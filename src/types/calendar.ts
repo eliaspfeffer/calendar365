@@ -7,6 +7,8 @@ export interface StickyNote {
   date: string | null; // Format: YYYY-MM-DD (null means "Inbox"/undated)
   text: string;
   color: StickyColor;
+  pos_x?: number | null; // For undated notes placed on the canvas
+  pos_y?: number | null; // For undated notes placed on the canvas
 }
 
 export interface NoteConnection {
