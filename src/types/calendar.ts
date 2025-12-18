@@ -3,7 +3,7 @@ export type StickyColor = 'yellow' | 'pink' | 'green' | 'blue' | 'orange' | 'pur
 export interface StickyNote {
   id: string;
   user_id: string;
-  date: string; // Format: YYYY-MM-DD
+  date: string | null; // Format: YYYY-MM-DD (null means "Inbox"/undated)
   text: string;
   color: StickyColor;
 }
