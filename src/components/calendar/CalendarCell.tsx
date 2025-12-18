@@ -45,7 +45,7 @@ export function CalendarCell({
   draggedNoteId,
 }: CalendarCellProps) {
   const dateKey = formatDateKey(day.date);
-  const shouldExpandCell = textOverflowMode === "expand" || notes.length > 1;
+  const isExpandMode = textOverflowMode === "expand";
 
   const handleDragOver = (e: React.DragEvent) => {
     // Check if we're dragging a note by looking at dataTransfer types
@@ -75,7 +75,7 @@ export function CalendarCell({
     <div
       className={cn(
         "calendar-cell min-w-[50px] relative cursor-pointer group",
-        shouldExpandCell ? "min-h-[60px]" : "h-[60px]",
+        isExpandMode ? "min-h-[60px]" : "h-[60px]",
         day.isWeekend && "bg-calendar-weekend/50",
         day.isToday && "ring-2 ring-inset ring-primary",
         draggedNoteId && "ring-2 ring-primary ring-offset-1 bg-primary/5"
@@ -118,7 +118,29 @@ export function CalendarCell({
         </div>
       </div>
 
-      {notes.length <= 1 ? (
+      {isExpandMode ? (
+        <div className="pt-4 px-1 pb-1 flex flex-col gap-1">
+          {notes.map((note) => (
+            <StickyNoteComponent
+              key={note.id}
+              note={note}
+              onDelete={onDeleteNote}
+              onClick={() => onNoteClick(note)}
+              onHover={onNoteHover}
+              onLinkClick={onLinkClick}
+              onDragStart={onNoteDragStart}
+              onDragEnd={onNoteDragEnd}
+              scale={scale}
+              textOverflowMode={textOverflowMode}
+              isLinkMode={isLinkMode}
+              isConnected={connectedNoteIds.includes(note.id)}
+              isHighlighted={highlightedNoteIds.includes(note.id)}
+              isDragging={draggedNoteId === note.id}
+              variant="list"
+            />
+          ))}
+        </div>
+      ) : notes.length <= 1 ? (
         notes.map((note) => (
           <StickyNoteComponent
             key={note.id}
