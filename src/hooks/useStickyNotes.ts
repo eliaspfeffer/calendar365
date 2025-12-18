@@ -50,7 +50,8 @@ export function useStickyNotes(userId: string | null) {
       const { data, error } = await supabase
         .from('sticky_notes')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error fetching notes:', error);
