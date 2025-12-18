@@ -18,6 +18,7 @@ interface StickyNoteComponentProps {
   isConnected: boolean;
   isHighlighted: boolean;
   isDragging?: boolean;
+  variant?: "full" | "list";
 }
 
 const colorClasses: Record<StickyColor, string> = {
@@ -43,6 +44,7 @@ export function StickyNoteComponent({
   isConnected,
   isHighlighted,
   isDragging = false,
+  variant = "full",
 }: StickyNoteComponentProps) {
   const hasDraggedRef = useRef(false);
 
@@ -85,6 +87,7 @@ export function StickyNoteComponent({
       e.stopPropagation();
       onLinkClick(note.id);
     } else {
+      e.stopPropagation();
       onClick();
     }
   };
@@ -147,7 +150,8 @@ export function StickyNoteComponent({
       data-note-id={note.id}
       draggable={!isLinkMode}
       className={cn(
-        "sticky-note absolute inset-1 p-1 rounded-sm cursor-pointer animate-pop-in group",
+        "sticky-note rounded-sm cursor-pointer animate-pop-in group",
+        variant === "full" ? "absolute inset-1 p-1" : "relative w-full p-1",
         colorClasses[note.color],
         getOverflowStyles(),
         isLinkMode && "ring-2 ring-primary ring-offset-1 cursor-crosshair",
@@ -174,9 +178,14 @@ export function StickyNoteComponent({
         className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black/10 rounded-full z-10"
         style={{ fontSize: `${iconFontSize}px` }}
       >
-        <X className="w-3 h-3 text-foreground/60" />
+        <X
+          className={cn(
+            "text-foreground/60",
+            "w-3 h-3"
+          )}
+        />
       </button>
-      {isConnected && (
+      {variant === "full" && isConnected && (
         <div className="absolute bottom-0.5 right-0.5">
           <Link className="w-2.5 h-2.5 text-foreground/40" />
         </div>
