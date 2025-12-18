@@ -7,6 +7,7 @@ import { CalendarCell } from "./CalendarCell";
 import { NoteDialog } from "./NoteDialog";
 import { ZoomControls } from "./ZoomControls";
 import { ConnectionLines } from "./ConnectionLines";
+import { InboxNotesPanel } from "./InboxNotesPanel";
 import { StickyNote, StickyColor } from "@/types/calendar";
 import { TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -161,6 +162,8 @@ export function YearCalendar({
   const [linkSourceNoteId, setLinkSourceNoteId] = useState<string | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
 
+  const inboxNotes = notes.filter((n) => !n.date);
+
   // Track Command/Meta key state
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -214,15 +217,34 @@ export function YearCalendar({
       if (isDragging()) return;
       if (isLinkMode) return; // Handled by onLinkClick
       if (draggedNoteId) return; // Don't open dialog if we just dragged
-      setSelectedDate(note.date);
+      setSelectedDate(note.date ?? null);
       setEditingNote(note);
       setDialogOpen(true);
     },
     [isDragging, isLinkMode, draggedNoteId]
   );
 
+  const handleInboxNoteClick = useCallback(
+    (note: StickyNote) => {
+      if (isDragging()) return;
+      if (draggedNoteId) return;
+      setSelectedDate(note.date ?? null);
+      setEditingNote(note);
+      setDialogOpen(true);
+    },
+    [isDragging, draggedNoteId]
+  );
+
   const handleLinkClick = useCallback(
     (noteId: string) => {
+      const note = notes.find((n) => n.id === noteId);
+      if (!note?.date) {
+        toast({
+          title: "Inbox note",
+          description: "Assign a date before linking notes.",
+        });
+        return;
+      }
       if (!linkSourceNoteId) {
         // First note selected
         setLinkSourceNoteId(noteId);
@@ -238,6 +260,15 @@ export function YearCalendar({
           title: "Link cancelled",
         });
       } else {
+        const sourceNote = notes.find((n) => n.id === linkSourceNoteId);
+        if (!sourceNote?.date) {
+          setLinkSourceNoteId(null);
+          toast({
+            title: "Inbox note",
+            description: "Assign a date before linking notes.",
+          });
+          return;
+        }
         // Second note selected, create or remove connection
         addConnection(linkSourceNoteId, noteId);
         setLinkSourceNoteId(null);
@@ -247,7 +278,7 @@ export function YearCalendar({
         });
       }
     },
-    [linkSourceNoteId, addConnection, toast]
+    [linkSourceNoteId, addConnection, toast, notes]
   );
 
   const handleNoteHover = useCallback((noteId: string | null) => {
@@ -272,14 +303,23 @@ export function YearCalendar({
   }, []);
 
   const handleNoteDrop = useCallback(
-    (date: string, noteId: string) => {
+    async (date: string, noteId: string) => {
       if (!noteId) {
         setDraggedNoteId(null);
         return;
       }
       const note = notes.find((n) => n.id === noteId);
       if (note && note.date !== date) {
-        moveNote(noteId, date, connections);
+        const moved = await moveNote(noteId, date, connections);
+        if (!moved) {
+          toast({
+            title: "Couldn’t move note",
+            description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+            variant: "destructive",
+          });
+          setDraggedNoteId(null);
+          return;
+        }
         toast({
           title: "Note moved",
           description: `Note moved to ${new Date(date).toLocaleDateString()}`,
@@ -292,20 +332,63 @@ export function YearCalendar({
     [notes, moveNote, connections, toast]
   );
 
+  const handleInboxDrop = useCallback(
+    async (noteId: string) => {
+      const note = notes.find((n) => n.id === noteId);
+      if (!note) return;
+      if (!note.date) return;
+      const moved = await moveNote(noteId, null, connections);
+      if (!moved) {
+        toast({
+          title: "Couldn’t move to Inbox",
+          description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+          variant: "destructive",
+        });
+        setDraggedNoteId(null);
+        return;
+      }
+      toast({
+        title: "Moved to Inbox",
+        description: "Note now has no date.",
+      });
+      setDraggedNoteId(null);
+    },
+    [notes, moveNote, connections, toast]
+  );
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
 
   const handleSaveNote = useCallback(
-    (text: string, color: StickyColor) => {
+    async (text: string, color: StickyColor) => {
       if (editingNote) {
-        updateNote(editingNote.id, text, color);
-      } else if (selectedDate) {
-        addNote(selectedDate, text, color);
+        const updated = await updateNote(editingNote.id, text, color);
+        if (!updated) {
+          toast({
+            title: "Couldn’t save note",
+            description: "Your changes weren’t saved to Supabase.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      } else {
+        const created = await addNote(selectedDate, text, color);
+        if (!created) {
+          toast({
+            title: "Couldn’t create note",
+            description:
+              "Nothing was saved to Supabase. If you’re using an older schema, apply the new migration (or we’ll fall back to an empty date).",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
       }
     },
-    [editingNote, selectedDate, addNote, updateNote]
+    [editingNote, selectedDate, addNote, updateNote, toast]
   );
 
   const handleDeleteNote = useCallback(() => {
@@ -316,12 +399,22 @@ export function YearCalendar({
   }, [editingNote, deleteNote]);
 
   const handleMoveNote = useCallback(
-    (newDate: string) => {
+    async (newDate: string | null) => {
       if (editingNote) {
-        moveNote(editingNote.id, newDate, connections);
+        const moved = await moveNote(editingNote.id, newDate, connections);
+        if (!moved) {
+          toast({
+            title: "Couldn’t move note",
+            description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
       }
+      return false;
     },
-    [editingNote, moveNote, connections]
+    [editingNote, moveNote, connections, toast]
   );
 
   // Get all note IDs that have connections
@@ -418,6 +511,27 @@ export function YearCalendar({
         onZoomOut={zoomOut}
         onReset={resetView}
         scale={scale}
+      />
+
+      <InboxNotesPanel
+        notes={inboxNotes}
+        onNewNote={() => {
+          if (!userId) {
+            onAuthRequired?.();
+            return;
+          }
+          setSelectedDate(null);
+          setEditingNote(null);
+          setDialogOpen(true);
+        }}
+        onNoteClick={handleInboxNoteClick}
+        onDeleteNote={deleteNote}
+        onNoteHover={handleNoteHover}
+        onDropToInbox={handleInboxDrop}
+        onNoteDragStart={handleNoteDragStart}
+        onNoteDragEnd={handleNoteDragEnd}
+        draggedNoteId={draggedNoteId}
+        textOverflowMode={textOverflowMode}
       />
 
       <NoteDialog

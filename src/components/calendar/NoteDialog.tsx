@@ -13,9 +13,9 @@ interface NoteDialogProps {
   onOpenChange: (open: boolean) => void;
   date: string | null;
   existingNote?: StickyNote | null;
-  onSave: (text: string, color: StickyColor) => void;
+  onSave: (text: string, color: StickyColor) => Promise<boolean> | boolean;
   onDelete?: () => void;
-  onMove?: (newDate: string) => void;
+  onMove?: (newDate: string | null) => Promise<boolean> | boolean;
 }
 
 const colors: { value: StickyColor; className: string; label: string }[] = [
@@ -44,7 +44,7 @@ export function NoteDialog({
     if (existingNote) {
       setText(existingNote.text);
       setColor(existingNote.color);
-      setNewDate(existingNote.date);
+      setNewDate(existingNote.date ?? '');
     } else {
       setText('');
       setColor('yellow');
@@ -52,13 +52,18 @@ export function NoteDialog({
     }
   }, [existingNote, open, date]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (text.trim()) {
+      const normalizedExistingDate = existingNote?.date ?? null;
+      const normalizedNewDate = newDate.trim() ? newDate : null;
+
       // Check if date changed for existing note
-      if (existingNote && newDate !== existingNote.date && onMove) {
-        onMove(newDate);
+      if (existingNote && normalizedNewDate !== normalizedExistingDate && onMove) {
+        const moved = await onMove(normalizedNewDate);
+        if (moved === false) return;
       }
-      onSave(text.trim(), color);
+      const saved = await onSave(text.trim(), color);
+      if (saved === false) return;
       onOpenChange(false);
     }
   };
@@ -82,7 +87,9 @@ export function NoteDialog({
             {existingNote ? 'Edit Note' : 'Add Note'}
           </DialogTitle>
           {!existingNote && (
-            <p className="text-sm text-muted-foreground">{formatDateDisplay(date)}</p>
+            <p className="text-sm text-muted-foreground">
+              {date ? formatDateDisplay(date) : 'Inbox (no date yet)'}
+            </p>
           )}
         </DialogHeader>
 
@@ -92,7 +99,7 @@ export function NoteDialog({
             <div className="space-y-2">
               <Label htmlFor="note-date" className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CalendarIcon className="w-4 h-4" />
-                Move to date (connected notes will move too)
+                {existingNote.date ? 'Move to date' : 'Assign date'} (connected notes may move too)
               </Label>
               <Input
                 id="note-date"
