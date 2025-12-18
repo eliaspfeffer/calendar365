@@ -71,3 +71,10 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Supabase migrations (required for sharing)
+
+Calendar sharing (invite links + shared calendars) requires the SQL migrations in `calendar365/supabase/migrations`.
+
+- Local Supabase: run `supabase db reset` (or `supabase migration up`)
+- Hosted Supabase: run the SQL from `calendar365/supabase/migrations` in the SQL editor, then reload the API schema cache (Settings → API).

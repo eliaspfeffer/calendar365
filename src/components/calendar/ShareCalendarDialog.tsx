@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { shortId, type CalendarShareRole } from "@/lib/calendarSharing";
+import { isMissingTableOrSchemaCacheError } from "@/lib/supabaseErrorUtils";
 
 type MemberRow = {
   id: string;
@@ -51,6 +52,7 @@ export function ShareCalendarDialog({
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [links, setLinks] = useState<ShareLinkRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [schemaReady, setSchemaReady] = useState(true);
 
   const expiresAt = useMemo(() => {
     const days = Number(expiresInDays);
@@ -79,8 +81,22 @@ export function ShareCalendarDialog({
             .order("created_at", { ascending: false }),
         ]);
 
-      if (memberError) console.error("Error fetching members:", memberError);
-      if (linkError) console.error("Error fetching share links:", linkError);
+      const missingSchema =
+        isMissingTableOrSchemaCacheError(memberError) ||
+        isMissingTableOrSchemaCacheError(linkError);
+      setSchemaReady(!missingSchema);
+
+      if (missingSchema) {
+        toast({
+          title: "Sharing not set up yet",
+          description:
+            "Your Supabase project is missing the sharing tables (or the schema cache is stale). Apply the migration in calendar365/supabase/migrations and reload the API schema cache.",
+          variant: "destructive",
+        });
+      } else {
+        if (memberError) console.error("Error fetching members:", memberError);
+        if (linkError) console.error("Error fetching share links:", linkError);
+      }
 
       setMembers((memberData ?? []) as any);
       setLinks((linkData ?? []) as any);
@@ -88,9 +104,18 @@ export function ShareCalendarDialog({
     };
 
     fetchAll();
-  }, [open, ownerId]);
+  }, [open, ownerId, toast]);
 
   const handleCreateLink = async () => {
+    if (!schemaReady) {
+      toast({
+        title: "Sharing not available",
+        description:
+          "Run the Supabase migration in calendar365/supabase/migrations and reload the schema cache, then try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsLoading(true);
     const { data, error } = await supabase
       .from("calendar_share_links")
@@ -105,6 +130,16 @@ export function ShareCalendarDialog({
     setIsLoading(false);
 
     if (error) {
+      if (isMissingTableOrSchemaCacheError(error)) {
+        setSchemaReady(false);
+        toast({
+          title: "Sharing tables missing",
+          description:
+            "Your Supabase project hasn’t been migrated yet (or the schema cache is stale). Apply calendar365/supabase/migrations/20251218194500_8b2a8b6a-5f1e-4b83-9f49-7e1cb6a01f2a.sql and reload the API schema cache.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Couldn’t create share link",
         description: error.message,
@@ -204,10 +239,11 @@ export function ShareCalendarDialog({
                 placeholder="never"
                 value={expiresInDays}
                 onChange={(e) => setExpiresInDays(e.target.value)}
+                disabled={!schemaReady}
               />
             </div>
 
-            <Button onClick={handleCreateLink} disabled={isLoading}>
+            <Button onClick={handleCreateLink} disabled={isLoading || !schemaReady}>
               Create link
             </Button>
           </div>
