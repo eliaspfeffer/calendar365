@@ -122,6 +122,7 @@ function SingleYearGrid({
 interface YearCalendarProps {
   years: number[];
   userId: string | null;
+  calendarId: string | null;
   onAuthRequired?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
@@ -130,6 +131,7 @@ interface YearCalendarProps {
 export function YearCalendar({
   years,
   userId,
+  calendarId,
   onAuthRequired,
   textOverflowMode,
   calendarColor,
@@ -145,13 +147,13 @@ export function YearCalendar({
     moveNoteToCanvas,
     deleteNote,
     getNotesByDate,
-  } = useStickyNotes(userId);
+  } = useStickyNotes(userId, calendarId);
   const {
     connections,
     addConnection,
     getConnectedNotes,
     getConnectionsForNote,
-  } = useNoteConnections(userId);
+  } = useNoteConnections(userId, calendarId);
   const { toast } = useToast();
   const {
     scale,
