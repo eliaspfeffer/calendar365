@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,10 +13,14 @@ export default function Auth() {
   const [emailSent, setEmailSent] = useState(false);
   const { user, isLoading, signInWithMagicLink } = useAuth();
   const { toast } = useToast();
+  const location = useLocation();
+
+  const nextParam = new URLSearchParams(location.search).get('next');
+  const safeNext = nextParam && nextParam.startsWith('/') ? nextParam : '/';
 
   // Redirect if already logged in
   if (!isLoading && user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={safeNext} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

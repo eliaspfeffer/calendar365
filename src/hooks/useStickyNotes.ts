@@ -18,7 +18,7 @@ function addDaysToDate(dateStr: string, days: number): string {
   return date.toISOString().split('T')[0];
 }
 
-export function useStickyNotes(userId: string | null) {
+export function useStickyNotes(userId: string | null, calendarId: string | null) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -27,6 +27,7 @@ export function useStickyNotes(userId: string | null) {
       return supabase
         .from('sticky_notes')
         .insert({
+          calendar_id: calendarId!,
           user_id: userId,
           date,
           text,
@@ -35,7 +36,7 @@ export function useStickyNotes(userId: string | null) {
         .select()
         .single();
     },
-    [userId]
+    [calendarId, userId]
   );
 
   // Fetch notes from Supabase
@@ -46,12 +47,18 @@ export function useStickyNotes(userId: string | null) {
       return;
     }
 
+    if (!calendarId) {
+      setNotes([]);
+      setIsLoading(true);
+      return;
+    }
+
     const fetchNotes = async () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('sticky_notes')
         .select('*')
-        .eq('user_id', userId)
+        .eq('calendar_id', calendarId)
         .order('created_at', { ascending: true });
 
       if (error) {
@@ -60,6 +67,7 @@ export function useStickyNotes(userId: string | null) {
         // Map data to our StickyNote type
         const mappedNotes: StickyNote[] = (data || []).map((note) => ({
           id: note.id,
+          calendar_id: note.calendar_id,
           user_id: note.user_id,
           date: note.date,
           text: note.text,
@@ -71,10 +79,10 @@ export function useStickyNotes(userId: string | null) {
     };
 
     fetchNotes();
-  }, [userId]);
+  }, [userId, calendarId]);
 
   const addNote = useCallback(async (date: string | null, text: string, color: StickyColor) => {
-    if (!userId) return null;
+    if (!userId || !calendarId) return null;
 
     const { data, error } = await insertStickyNote(date, text, color);
 
@@ -88,6 +96,7 @@ export function useStickyNotes(userId: string | null) {
       }
       const newNote: StickyNote = {
         id: retry.data.id,
+        calendar_id: retry.data.calendar_id,
         user_id: retry.data.user_id,
         date: retry.data.date,
         text: retry.data.text,
@@ -104,6 +113,7 @@ export function useStickyNotes(userId: string | null) {
 
     const newNote: StickyNote = {
       id: data.id,
+      calendar_id: data.calendar_id,
       user_id: data.user_id,
       date: data.date,
       text: data.text,
@@ -112,7 +122,7 @@ export function useStickyNotes(userId: string | null) {
 
     setNotes((prev) => [...prev, newNote]);
     return newNote;
-  }, [userId, insertStickyNote]);
+  }, [userId, calendarId, insertStickyNote]);
 
   const updateNote = useCallback(async (id: string, text: string, color: StickyColor) => {
     if (!userId) return false;

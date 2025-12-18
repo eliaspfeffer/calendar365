@@ -14,8 +14,100 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_invites: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["calendar_member_role"]
+          token: string
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["calendar_member_role"]
+          token: string
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["calendar_member_role"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_invites_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_members: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          role: Database["public"]["Enums"]["calendar_member_role"]
+          user_id: string
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          role?: Database["public"]["Enums"]["calendar_member_role"]
+          user_id: string
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          role?: Database["public"]["Enums"]["calendar_member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_members_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendars: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       note_connections: {
         Row: {
+          calendar_id: string
           created_at: string
           id: string
           source_note_id: string
@@ -23,6 +115,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          calendar_id: string
           created_at?: string
           id?: string
           source_note_id: string
@@ -30,6 +123,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          calendar_id?: string
           created_at?: string
           id?: string
           source_note_id?: string
@@ -51,10 +145,18 @@ export type Database = {
             referencedRelation: "sticky_notes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "note_connections_calendar_id_fkey"
+            columns: ["calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendars"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sticky_notes: {
         Row: {
+          calendar_id: string
           color: string
           created_at: string
           date: string | null
@@ -64,6 +166,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          calendar_id: string
           color?: string
           created_at?: string
           date?: string | null
@@ -73,6 +176,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          calendar_id?: string
           color?: string
           created_at?: string
           date?: string | null
@@ -88,10 +192,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      accept_calendar_invite: {
+        Args: { p_token: string }
+        Returns: string
+      }
+      create_calendar: {
+        Args: { p_name: string }
+        Returns: string
+      }
+      create_calendar_invite: {
+        Args: {
+          p_calendar_id: string
+          p_expires_in_days?: number
+          p_role?: Database["public"]["Enums"]["calendar_member_role"]
+        }
+        Returns: string
+      }
+      ensure_default_calendar: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      calendar_member_role: "owner" | "editor" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never

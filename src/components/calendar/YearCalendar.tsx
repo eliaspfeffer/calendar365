@@ -121,6 +121,7 @@ function SingleYearGrid({
 interface YearCalendarProps {
   years: number[];
   userId: string | null;
+  calendarId: string | null;
   onAuthRequired?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
@@ -129,6 +130,7 @@ interface YearCalendarProps {
 export function YearCalendar({
   years,
   userId,
+  calendarId,
   onAuthRequired,
   textOverflowMode,
   calendarColor,
@@ -136,13 +138,13 @@ export function YearCalendar({
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const { notes, addNote, updateNote, moveNote, deleteNote, getNotesByDate } =
-    useStickyNotes(userId);
+    useStickyNotes(userId, calendarId);
   const {
     connections,
     addConnection,
     getConnectedNotes,
     getConnectionsForNote,
-  } = useNoteConnections(userId);
+  } = useNoteConnections(userId, calendarId);
   const { toast } = useToast();
   const {
     scale,
@@ -508,7 +510,7 @@ export function YearCalendar({
       )}
       style={
         calendarHeaderHsl
-          ? ({ ["--calendar-header" as any]: calendarHeaderHsl } as React.CSSProperties)
+          ? ({ "--calendar-header": calendarHeaderHsl } as React.CSSProperties)
           : undefined
       }
       onMouseDown={handleContainerMouseDown}
