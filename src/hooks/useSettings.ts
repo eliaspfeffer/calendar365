@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 
 export type TextOverflowMode = 'scroll' | 'truncate' | 'expand';
+export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'teal' | 'pink' | 'indigo';
 
 interface Settings {
   textOverflowMode: TextOverflowMode;
+  calendarColor: CalendarColor;
 }
 
 const SETTINGS_KEY = 'calendar365_settings';
 
 const defaultSettings: Settings = {
   textOverflowMode: 'expand',
+  calendarColor: 'blue',
 };
 
 export function useSettings() {

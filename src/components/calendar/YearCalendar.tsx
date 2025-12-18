@@ -1,15 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useCalendarData, formatDateKey } from '@/hooks/useCalendarData';
-import { useStickyNotes } from '@/hooks/useStickyNotes';
-import { useNoteConnections } from '@/hooks/useNoteConnections';
-import { useZoomPan } from '@/hooks/useZoomPan';
-import { CalendarCell } from './CalendarCell';
-import { NoteDialog } from './NoteDialog';
-import { ZoomControls } from './ZoomControls';
-import { ConnectionLines } from './ConnectionLines';
-import { StickyNote, StickyColor } from '@/types/calendar';
-import { TextOverflowMode } from '@/hooks/useSettings';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useCalendarData, formatDateKey } from "@/hooks/useCalendarData";
+import { useStickyNotes } from "@/hooks/useStickyNotes";
+import { useNoteConnections } from "@/hooks/useNoteConnections";
+import { useZoomPan } from "@/hooks/useZoomPan";
+import { CalendarCell } from "./CalendarCell";
+import { NoteDialog } from "./NoteDialog";
+import { ZoomControls } from "./ZoomControls";
+import { ConnectionLines } from "./ConnectionLines";
+import { StickyNote, StickyColor } from "@/types/calendar";
+import { TextOverflowMode } from "@/hooks/useSettings";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface SingleYearGridProps {
   year: number;
@@ -20,10 +21,15 @@ interface SingleYearGridProps {
   onDeleteNote: (id: string) => void;
   onNoteHover: (noteId: string | null) => void;
   onLinkClick?: (noteId: string) => void;
+  onNoteDragStart?: (noteId: string, e: React.DragEvent) => void;
+  onNoteDragEnd?: () => void;
+  onDrop?: (date: string, noteId: string) => void;
+  onDragOver?: (e: React.DragEvent) => void;
   textOverflowMode: TextOverflowMode;
   isLinkMode: boolean;
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
+  draggedNoteId?: string | null;
 }
 
 function SingleYearGrid({
@@ -35,10 +41,15 @@ function SingleYearGrid({
   onDeleteNote,
   onNoteHover,
   onLinkClick,
+  onNoteDragStart,
+  onNoteDragEnd,
+  onDrop,
+  onDragOver,
   textOverflowMode,
   isLinkMode,
   connectedNoteIds,
   highlightedNoteIds,
+  draggedNoteId,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -76,21 +87,28 @@ function SingleYearGrid({
                   onDeleteNote={onDeleteNote}
                   onNoteHover={onNoteHover}
                   onLinkClick={onLinkClick}
+                  onNoteDragStart={onNoteDragStart}
+                  onNoteDragEnd={onNoteDragEnd}
+                  onDrop={onDrop}
+                  onDragOver={onDragOver}
                   scale={scale}
                   textOverflowMode={textOverflowMode}
                   isLinkMode={isLinkMode}
                   connectedNoteIds={connectedNoteIds}
                   highlightedNoteIds={highlightedNoteIds}
+                  draggedNoteId={draggedNoteId}
                 />
               ))}
 
               {/* Empty cells to fill up to maxDays */}
-              {Array.from({ length: maxDays - monthDays.length }).map((_, i) => (
-                <div
-                  key={`empty-${monthIndex}-${i}`}
-                  className="min-w-[50px] h-[60px] border-r border-b border-calendar-grid bg-muted/30"
-                />
-              ))}
+              {Array.from({ length: maxDays - monthDays.length }).map(
+                (_, i) => (
+                  <div
+                    key={`empty-${monthIndex}-${i}`}
+                    className="min-w-[50px] h-[60px] border-r border-b border-calendar-grid bg-muted/30"
+                  />
+                )
+              )}
             </div>
           </div>
         ))}
@@ -106,11 +124,22 @@ interface YearCalendarProps {
   textOverflowMode: TextOverflowMode;
 }
 
-export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }: YearCalendarProps) {
+export function YearCalendar({
+  years,
+  userId,
+  onAuthRequired,
+  textOverflowMode,
+}: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { notes, addNote, updateNote, moveNote, deleteNote, getNotesByDate } = useStickyNotes(userId);
-  const { connections, addConnection, getConnectedNotes, getConnectionsForNote } = useNoteConnections(userId);
+  const { notes, addNote, updateNote, moveNote, deleteNote, getNotesByDate } =
+    useStickyNotes(userId);
+  const {
+    connections,
+    addConnection,
+    getConnectedNotes,
+    getConnectionsForNote,
+  } = useNoteConnections(userId);
   const { toast } = useToast();
   const {
     scale,
@@ -130,6 +159,7 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   const [isLinkMode, setIsLinkMode] = useState(false);
   const [linkSourceNoteId, setLinkSourceNoteId] = useState<string | null>(null);
+  const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
 
   // Track Command/Meta key state
   useEffect(() => {
@@ -146,12 +176,12 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
 
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
 
@@ -159,57 +189,112 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
-  const handleCellClick = useCallback((date: Date) => {
-    if (isDragging()) return;
-    if (isLinkMode) return; // Don't open dialog in link mode
-    if (!userId) {
-      onAuthRequired?.();
-      return;
-    }
-    setSelectedDate(formatDateKey(date));
-    setEditingNote(null);
-    setDialogOpen(true);
-  }, [userId, onAuthRequired, isDragging, isLinkMode]);
+  const handleCellClick = useCallback(
+    (date: Date) => {
+      if (isDragging()) return;
+      if (isLinkMode) return; // Don't open dialog in link mode
+      if (draggedNoteId) return; // Don't open dialog while dragging
+      if (!userId) {
+        onAuthRequired?.();
+        return;
+      }
+      setSelectedDate(formatDateKey(date));
+      setEditingNote(null);
+      setDialogOpen(true);
+    },
+    [userId, onAuthRequired, isDragging, isLinkMode, draggedNoteId]
+  );
 
-  const handleNoteClick = useCallback((note: StickyNote) => {
-    if (isDragging()) return;
-    if (isLinkMode) return; // Handled by onLinkClick
-    setSelectedDate(note.date);
-    setEditingNote(note);
-    setDialogOpen(true);
-  }, [isDragging, isLinkMode]);
+  const handleNoteClick = useCallback(
+    (note: StickyNote) => {
+      if (isDragging()) return;
+      if (isLinkMode) return; // Handled by onLinkClick
+      if (draggedNoteId) return; // Don't open dialog if we just dragged
+      setSelectedDate(note.date);
+      setEditingNote(note);
+      setDialogOpen(true);
+    },
+    [isDragging, isLinkMode, draggedNoteId]
+  );
 
-  const handleLinkClick = useCallback((noteId: string) => {
-    if (!linkSourceNoteId) {
-      // First note selected
-      setLinkSourceNoteId(noteId);
-      toast({
-        title: 'Link mode',
-        description: 'Now click another note to connect them (or the same note to cancel)',
-      });
-    } else if (linkSourceNoteId === noteId) {
-      // Same note clicked, cancel
-      setLinkSourceNoteId(null);
-      toast({
-        title: 'Link cancelled',
-      });
-    } else {
-      // Second note selected, create or remove connection
-      addConnection(linkSourceNoteId, noteId);
-      setLinkSourceNoteId(null);
-      toast({
-        title: 'Notes linked!',
-        description: 'Hover over either note to see the connection.',
-      });
-    }
-  }, [linkSourceNoteId, addConnection, toast]);
+  const handleLinkClick = useCallback(
+    (noteId: string) => {
+      if (!linkSourceNoteId) {
+        // First note selected
+        setLinkSourceNoteId(noteId);
+        toast({
+          title: "Link mode",
+          description:
+            "Now click another note to connect them (or the same note to cancel)",
+        });
+      } else if (linkSourceNoteId === noteId) {
+        // Same note clicked, cancel
+        setLinkSourceNoteId(null);
+        toast({
+          title: "Link cancelled",
+        });
+      } else {
+        // Second note selected, create or remove connection
+        addConnection(linkSourceNoteId, noteId);
+        setLinkSourceNoteId(null);
+        toast({
+          title: "Notes linked!",
+          description: "Hover over either note to see the connection.",
+        });
+      }
+    },
+    [linkSourceNoteId, addConnection, toast]
+  );
 
   const handleNoteHover = useCallback((noteId: string | null) => {
     setHoveredNoteId(noteId);
+  }, []);
+
+  const handleNoteDragStart = useCallback(
+    (noteId: string, e: React.DragEvent) => {
+      // Set dragged note ID immediately to prevent panning
+      setDraggedNoteId(noteId);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", noteId);
+    },
+    []
+  );
+
+  const handleNoteDragEnd = useCallback(() => {
+    // Small delay to ensure drag end is fully processed
+    setTimeout(() => {
+      setDraggedNoteId(null);
+    }, 0);
+  }, []);
+
+  const handleNoteDrop = useCallback(
+    (date: string, noteId: string) => {
+      if (!noteId) {
+        setDraggedNoteId(null);
+        return;
+      }
+      const note = notes.find((n) => n.id === noteId);
+      if (note && note.date !== date) {
+        moveNote(noteId, date, connections);
+        toast({
+          title: "Note moved",
+          description: `Note moved to ${new Date(date).toLocaleDateString()}`,
+        });
+      } else if (!note) {
+        console.warn("Note not found:", noteId);
+      }
+      setDraggedNoteId(null);
+    },
+    [notes, moveNote, connections, toast]
+  );
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
   }, []);
 
   const handleSaveNote = useCallback(
@@ -240,17 +325,42 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
   );
 
   // Get all note IDs that have connections
-  const connectedNoteIds = connections.flatMap((c) => [c.source_note_id, c.target_note_id]);
+  const connectedNoteIds = connections.flatMap((c) => [
+    c.source_note_id,
+    c.target_note_id,
+  ]);
   const uniqueConnectedNoteIds = [...new Set(connectedNoteIds)];
 
   // Get highlighted notes (connected to hovered note)
-  const highlightedNoteIds = hoveredNoteId ? [hoveredNoteId, ...getConnectedNotes(hoveredNoteId)] : [];
+  const highlightedNoteIds = hoveredNoteId
+    ? [hoveredNoteId, ...getConnectedNotes(hoveredNoteId)]
+    : [];
+
+  const handleContainerMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      // Don't start panning if clicking on a note or in link mode or if already dragging
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(".sticky-note") ||
+        isLinkMode ||
+        draggedNoteId
+      ) {
+        e.stopPropagation();
+        return;
+      }
+      handleMouseDown(e);
+    },
+    [handleMouseDown, isLinkMode, draggedNoteId]
+  );
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-screen overflow-hidden bg-muted cursor-grab active:cursor-grabbing relative"
-      onMouseDown={handleMouseDown}
+      className={cn(
+        "w-full h-screen overflow-hidden bg-muted relative",
+        draggedNoteId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
+      )}
+      onMouseDown={handleContainerMouseDown}
     >
       <div
         ref={contentRef}
@@ -272,10 +382,15 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
               onDeleteNote={deleteNote}
               onNoteHover={handleNoteHover}
               onLinkClick={handleLinkClick}
+              onNoteDragStart={handleNoteDragStart}
+              onNoteDragEnd={handleNoteDragEnd}
+              onDrop={handleNoteDrop}
+              onDragOver={handleDragOver}
               textOverflowMode={textOverflowMode}
               isLinkMode={isLinkMode}
               connectedNoteIds={uniqueConnectedNoteIds}
               highlightedNoteIds={highlightedNoteIds}
+              draggedNoteId={draggedNoteId}
             />
           ))}
         </div>
@@ -292,7 +407,9 @@ export function YearCalendar({ years, userId, onAuthRequired, textOverflowMode }
       {/* Link mode indicator */}
       {isLinkMode && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg z-50 animate-fade-in">
-          {linkSourceNoteId ? 'Click another note to link' : 'Click a note to start linking'}
+          {linkSourceNoteId
+            ? "Click another note to link"
+            : "Click a note to start linking"}
         </div>
       )}
 
