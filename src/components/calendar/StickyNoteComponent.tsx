@@ -18,6 +18,7 @@ interface StickyNoteComponentProps {
   isConnected: boolean;
   isHighlighted: boolean;
   isDragging?: boolean;
+  variant?: "full" | "stacked";
 }
 
 const colorClasses: Record<StickyColor, string> = {
@@ -43,12 +44,16 @@ export function StickyNoteComponent({
   isConnected,
   isHighlighted,
   isDragging = false,
+  variant = "full",
 }: StickyNoteComponentProps) {
   const hasDraggedRef = useRef(false);
 
+  const effectiveOverflowMode: TextOverflowMode =
+    variant === "stacked" ? "truncate" : textOverflowMode;
+
   // Counteract zoomed-out scales so note text stays legible without growing the note itself
   const getReadableFontSize = () => {
-    const baseSize = 12;
+    const baseSize = variant === "stacked" ? 10 : 12;
     if (scale < 1) {
       const compensated = baseSize / scale;
       return Math.min(28, Math.max(baseSize, compensated));
@@ -57,7 +62,7 @@ export function StickyNoteComponent({
   };
 
   const getReadableIconSize = () => {
-    const baseSize = 12;
+    const baseSize = variant === "stacked" ? 10 : 12;
     if (scale < 1) {
       const compensated = baseSize / scale;
       return Math.min(20, Math.max(baseSize, compensated));
@@ -85,6 +90,7 @@ export function StickyNoteComponent({
       e.stopPropagation();
       onLinkClick(note.id);
     } else {
+      e.stopPropagation();
       onClick();
     }
   };
@@ -120,7 +126,7 @@ export function StickyNoteComponent({
   };
 
   const getOverflowStyles = () => {
-    switch (textOverflowMode) {
+    switch (effectiveOverflowMode) {
       case "scroll":
         return "overflow-y-auto max-h-[80px]";
       case "truncate":
@@ -132,9 +138,9 @@ export function StickyNoteComponent({
   };
 
   const getTextStyles = () => {
-    switch (textOverflowMode) {
+    switch (effectiveOverflowMode) {
       case "truncate":
-        return "line-clamp-2";
+        return variant === "stacked" ? "line-clamp-1" : "line-clamp-2";
       case "scroll":
       case "expand":
       default:
@@ -147,7 +153,8 @@ export function StickyNoteComponent({
       data-note-id={note.id}
       draggable={!isLinkMode}
       className={cn(
-        "sticky-note absolute inset-1 p-1 rounded-sm cursor-pointer animate-pop-in group",
+        "sticky-note rounded-sm cursor-pointer animate-pop-in group",
+        variant === "full" ? "absolute inset-1 p-1" : "relative w-full px-1 py-0.5 h-[18px]",
         colorClasses[note.color],
         getOverflowStyles(),
         isLinkMode && "ring-2 ring-primary ring-offset-1 cursor-crosshair",
@@ -174,9 +181,14 @@ export function StickyNoteComponent({
         className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black/10 rounded-full z-10"
         style={{ fontSize: `${iconFontSize}px` }}
       >
-        <X className="w-3 h-3 text-foreground/60" />
+        <X
+          className={cn(
+            "text-foreground/60",
+            variant === "stacked" ? "w-2.5 h-2.5" : "w-3 h-3"
+          )}
+        />
       </button>
-      {isConnected && (
+      {variant === "full" && isConnected && (
         <div className="absolute bottom-0.5 right-0.5">
           <Link className="w-2.5 h-2.5 text-foreground/40" />
         </div>
