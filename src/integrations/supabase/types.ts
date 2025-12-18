@@ -57,7 +57,7 @@ export type Database = {
         Row: {
           color: string
           created_at: string
-          date: string
+          date: string | null
           id: string
           text: string
           updated_at: string
@@ -66,7 +66,7 @@ export type Database = {
         Insert: {
           color?: string
           created_at?: string
-          date: string
+          date?: string | null
           id?: string
           text: string
           updated_at?: string
@@ -75,7 +75,7 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string
-          date?: string
+          date?: string | null
           id?: string
           text?: string
           updated_at?: string

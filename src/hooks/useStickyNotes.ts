@@ -21,6 +21,22 @@ export function useStickyNotes(userId: string | null) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const insertStickyNote = useCallback(
+    async (date: string | null, text: string, color: StickyColor) => {
+      return supabase
+        .from('sticky_notes')
+        .insert({
+          user_id: userId,
+          date,
+          text,
+          color,
+        })
+        .select()
+        .single();
+    },
+    [userId]
+  );
+
   // Fetch notes from Supabase
   useEffect(() => {
     if (!userId) {
@@ -55,19 +71,29 @@ export function useStickyNotes(userId: string | null) {
     fetchNotes();
   }, [userId]);
 
-  const addNote = useCallback(async (date: string, text: string, color: StickyColor) => {
+  const addNote = useCallback(async (date: string | null, text: string, color: StickyColor) => {
     if (!userId) return null;
 
-    const { data, error } = await supabase
-      .from('sticky_notes')
-      .insert({
-        user_id: userId,
-        date,
-        text,
-        color,
-      })
-      .select()
-      .single();
+    const { data, error } = await insertStickyNote(date, text, color);
+
+    // Back-compat: if the DB hasn't been migrated yet and `date` is NOT NULL,
+    // retry undated notes as empty string.
+    if (error && date === null && error.code === '23502') {
+      const retry = await insertStickyNote('', text, color);
+      if (retry.error) {
+        console.error('Error adding note:', retry.error);
+        return null;
+      }
+      const newNote: StickyNote = {
+        id: retry.data.id,
+        user_id: retry.data.user_id,
+        date: retry.data.date,
+        text: retry.data.text,
+        color: retry.data.color as StickyColor,
+      };
+      setNotes((prev) => [...prev, newNote]);
+      return newNote;
+    }
 
     if (error) {
       console.error('Error adding note:', error);
@@ -84,7 +110,7 @@ export function useStickyNotes(userId: string | null) {
 
     setNotes((prev) => [...prev, newNote]);
     return newNote;
-  }, [userId]);
+  }, [userId, insertStickyNote]);
 
   const updateNote = useCallback(async (id: string, text: string, color: StickyColor) => {
     const { error } = await supabase
@@ -94,7 +120,7 @@ export function useStickyNotes(userId: string | null) {
 
     if (error) {
       console.error('Error updating note:', error);
-      return;
+      return false;
     }
 
     setNotes((prev) =>
@@ -102,14 +128,14 @@ export function useStickyNotes(userId: string | null) {
         note.id === id ? { ...note, text, color } : note
       )
     );
+    return true;
   }, []);
 
-  const moveNote = useCallback(async (id: string, newDate: string, connections: NoteConnection[]) => {
+  const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[]) => {
     const noteToMove = notes.find((n) => n.id === id);
-    if (!noteToMove) return;
+    if (!noteToMove) return false;
 
-    const daysDiff = getDaysDifference(noteToMove.date, newDate);
-    if (daysDiff === 0) return;
+    if (noteToMove.date === newDate) return;
 
     // Get all connected note IDs
     const connectedNoteIds: string[] = [];
@@ -121,26 +147,50 @@ export function useStickyNotes(userId: string | null) {
       }
     });
 
+    const canComputeDiff = Boolean(noteToMove.date) && Boolean(newDate);
+    const daysDiff = canComputeDiff
+      ? getDaysDifference(noteToMove.date as string, newDate as string)
+      : 0;
+
     // Move the main note
     const { error: mainError } = await supabase
       .from('sticky_notes')
       .update({ date: newDate })
       .eq('id', id);
 
-    if (mainError) {
-      console.error('Error moving note:', mainError);
-      return;
+    // Back-compat: if the DB hasn't been migrated yet and `date` is NOT NULL,
+    // retry clearing the date as empty string.
+    if (mainError && newDate === null && mainError.code === '23502') {
+      const { error: retryError } = await supabase
+        .from('sticky_notes')
+        .update({ date: '' })
+        .eq('id', id);
+      if (retryError) {
+        console.error('Error moving note:', retryError);
+        return false;
+      }
+      setNotes((prev) =>
+        prev.map((note) => (note.id === id ? { ...note, date: '' } : note))
+      );
+      return true;
     }
 
-    // Move connected notes
-    for (const connectedId of connectedNoteIds) {
-      const connectedNote = notes.find((n) => n.id === connectedId);
-      if (connectedNote) {
-        const newConnectedDate = addDaysToDate(connectedNote.date, daysDiff);
-        await supabase
-          .from('sticky_notes')
-          .update({ date: newConnectedDate })
-          .eq('id', connectedId);
+    if (mainError) {
+      console.error('Error moving note:', mainError);
+      return false;
+    }
+
+    // Move connected notes (only when both old & new dates are set)
+    if (canComputeDiff && daysDiff !== 0) {
+      for (const connectedId of connectedNoteIds) {
+        const connectedNote = notes.find((n) => n.id === connectedId);
+        if (connectedNote?.date) {
+          const newConnectedDate = addDaysToDate(connectedNote.date, daysDiff);
+          await supabase
+            .from('sticky_notes')
+            .update({ date: newConnectedDate })
+            .eq('id', connectedId);
+        }
       }
     }
 
@@ -150,12 +200,13 @@ export function useStickyNotes(userId: string | null) {
         if (note.id === id) {
           return { ...note, date: newDate };
         }
-        if (connectedNoteIds.includes(note.id)) {
+        if (canComputeDiff && daysDiff !== 0 && connectedNoteIds.includes(note.id) && note.date) {
           return { ...note, date: addDaysToDate(note.date, daysDiff) };
         }
         return note;
       })
     );
+    return true;
   }, [notes]);
 
   const deleteNote = useCallback(async (id: string) => {
