@@ -46,6 +46,28 @@ export function StickyNoteComponent({
 }: StickyNoteComponentProps) {
   const hasDraggedRef = useRef(false);
 
+  // Counteract zoomed-out scales so note text stays legible without growing the note itself
+  const getReadableFontSize = () => {
+    const baseSize = 12;
+    if (scale < 1) {
+      const compensated = baseSize / scale;
+      return Math.min(28, Math.max(baseSize, compensated));
+    }
+    return baseSize;
+  };
+
+  const getReadableIconSize = () => {
+    const baseSize = 12;
+    if (scale < 1) {
+      const compensated = baseSize / scale;
+      return Math.min(20, Math.max(baseSize, compensated));
+    }
+    return baseSize;
+  };
+
+  const noteFontSize = getReadableFontSize();
+  const iconFontSize = getReadableIconSize();
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(note.id);
@@ -140,7 +162,9 @@ export function StickyNoteComponent({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{
-        fontSize: `${Math.max(8, 10 * scale)}px`,
+        fontSize: `${noteFontSize}px`,
+        lineHeight: 1.2,
+        letterSpacing: "-0.01em",
         userSelect: "none",
         WebkitUserSelect: "none",
       }}
@@ -148,7 +172,7 @@ export function StickyNoteComponent({
       <button
         onClick={handleDelete}
         className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black/10 rounded-full z-10"
-        style={{ fontSize: `${Math.max(10, 12 * scale)}px` }}
+        style={{ fontSize: `${iconFontSize}px` }}
       >
         <X className="w-3 h-3 text-foreground/60" />
       </button>
@@ -159,7 +183,7 @@ export function StickyNoteComponent({
       )}
       <p
         className={cn(
-          "font-medium text-foreground/80 leading-tight pr-3",
+          "font-medium text-foreground/90 leading-tight pr-3",
           getTextStyles()
         )}
         style={{ wordBreak: "break-word" }}
