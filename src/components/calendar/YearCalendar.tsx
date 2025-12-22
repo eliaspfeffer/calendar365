@@ -12,6 +12,7 @@ import { StickyNoteComponent } from "./StickyNoteComponent";
 import { StickyNote, StickyColor } from "@/types/calendar";
 import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
 interface SingleYearGridProps {
@@ -324,6 +325,22 @@ export function YearCalendar({
     setHoveredNoteId(noteId);
   }, []);
 
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = text;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.focus();
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+  }, []);
+
   const handleNoteDragStart = useCallback(
     (noteId: string, e: React.DragEvent) => {
       // Set dragged note ID immediately to prevent panning
@@ -354,10 +371,24 @@ export function YearCalendar({
       const note = notes.find((n) => n.id === noteId);
       if (note && note.date !== date) {
         const moved = await moveNote(noteId, date, connections);
-        if (!moved) {
+        if (!moved.ok) {
+          const err = moved.error;
+          const details = err?.message
+            ? `${err.message}${err.code ? ` (${err.code})` : ""}`
+            : null;
           toast({
             title: "Couldn’t move note",
-            description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+            description: details
+              ? `The change wasn’t saved: ${details}`
+              : "The change wasn’t saved. Check your Supabase schema/migrations.",
+            action: (
+              <ToastAction
+                altText="Copy error"
+                onClick={() => copyToClipboard(details ?? "Couldn’t move note (no error details).")}
+              >
+                Copy error
+              </ToastAction>
+            ),
             variant: "destructive",
           });
           setDraggedNoteId(null);
@@ -372,7 +403,7 @@ export function YearCalendar({
       }
       setDraggedNoteId(null);
     },
-    [notes, moveNote, connections, toast, onAuthRequired, userId]
+    [notes, moveNote, connections, toast, onAuthRequired, userId, copyToClipboard]
   );
 
   const handleInboxDrop = useCallback(
@@ -385,10 +416,24 @@ export function YearCalendar({
       if (!note) return;
       if (!note.date) return;
       const moved = await moveNote(noteId, null, connections);
-      if (!moved) {
+      if (!moved.ok) {
+        const err = moved.error;
+        const details = err?.message
+          ? `${err.message}${err.code ? ` (${err.code})` : ""}`
+          : null;
         toast({
           title: "Couldn’t move to Inbox",
-          description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+          description: details
+            ? `The change wasn’t saved: ${details}`
+            : "The change wasn’t saved. Check your Supabase schema/migrations.",
+          action: (
+            <ToastAction
+              altText="Copy error"
+              onClick={() => copyToClipboard(details ?? "Couldn’t move to Inbox (no error details).")}
+            >
+              Copy error
+            </ToastAction>
+          ),
           variant: "destructive",
         });
         setDraggedNoteId(null);
@@ -400,7 +445,7 @@ export function YearCalendar({
       });
       setDraggedNoteId(null);
     },
-    [notes, moveNote, connections, toast, onAuthRequired, userId]
+    [notes, moveNote, connections, toast, onAuthRequired, userId, copyToClipboard]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -479,13 +524,16 @@ export function YearCalendar({
       if (isDragging()) return;
       if (isLinkMode) return;
       if (draggedNoteId) return;
+      if (dialogOpen) return;
 
       const target = e.target as HTMLElement;
       if (
         target.closest(".year-calendar-grid") ||
         target.closest(".inbox-notes-panel") ||
         target.closest(".zoom-controls") ||
-        target.closest(".sticky-note")
+        target.closest(".sticky-note") ||
+        target.closest('[data-radix-dialog-content]') ||
+        target.closest('[role="dialog"]')
       ) {
         return;
       }
@@ -503,7 +551,7 @@ export function YearCalendar({
       setNewNotePosition(point);
       setDialogOpen(true);
     },
-    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, onAuthRequired, userId]
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, onAuthRequired, userId, dialogOpen]
   );
 
   const handleSaveNote = useCallback(
@@ -531,10 +579,12 @@ export function YearCalendar({
           selectedDate ? null : newNotePosition
         );
         if (!created) {
+          const hint = calendarId
+            ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
+            : "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations.";
           toast({
             title: "Couldn’t create note",
-            description:
-              "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes).",
+            description: hint,
             variant: "destructive",
           });
           return false;
@@ -565,10 +615,24 @@ export function YearCalendar({
       }
       if (editingNote) {
         const moved = await moveNote(editingNote.id, newDate, connections);
-        if (!moved) {
+        if (!moved.ok) {
+          const err = moved.error;
+          const details = err?.message
+            ? `${err.message}${err.code ? ` (${err.code})` : ""}`
+            : null;
           toast({
             title: "Couldn’t move note",
-            description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+            description: details
+              ? `The change wasn’t saved: ${details}`
+              : "The change wasn’t saved. Check your Supabase schema/migrations.",
+            action: (
+              <ToastAction
+                altText="Copy error"
+                onClick={() => copyToClipboard(details ?? "Couldn’t move note (no error details).")}
+              >
+                Copy error
+              </ToastAction>
+            ),
             variant: "destructive",
           });
           return false;
@@ -577,7 +641,7 @@ export function YearCalendar({
       }
       return false;
     },
-    [editingNote, moveNote, connections, toast, onAuthRequired, userId]
+    [editingNote, moveNote, connections, toast, onAuthRequired, userId, copyToClipboard]
   );
 
   // Get all note IDs that have connections
@@ -598,6 +662,9 @@ export function YearCalendar({
       const target = e.target as HTMLElement;
       if (
         target.closest(".sticky-note") ||
+        target.closest('[data-radix-dialog-content]') ||
+        target.closest('[role="dialog"]') ||
+        dialogOpen ||
         isLinkMode ||
         draggedNoteId
       ) {
@@ -606,7 +673,7 @@ export function YearCalendar({
       }
       handleMouseDown(e);
     },
-    [handleMouseDown, isLinkMode, draggedNoteId]
+    [handleMouseDown, isLinkMode, draggedNoteId, dialogOpen]
   );
 
   const calendarHeaderHsl =

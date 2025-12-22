@@ -16,6 +16,10 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
     const err = error as { code?: string; message?: string; details?: string };
     if (!err) return false;
     if (err.code === "42703") return true; // undefined_column
+    if (err.code === "PGRST204") {
+      const msg = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
+      return msg.includes("calendar_id") && msg.includes("schema cache");
+    }
     const msg = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
     return msg.includes("calendar_id") && msg.includes("does not exist");
   }, []);
