@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { StickyNote, StickyColor, NoteConnection } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { exampleNotes } from '@/data/exampleCalendar';
 
 // Helper to calculate day difference between two dates
@@ -22,21 +23,57 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  type StickyNotesInsert = Database["public"]["Tables"]["sticky_notes"]["Insert"];
+  type StickyNotesRow = Database["public"]["Tables"]["sticky_notes"]["Row"];
+  type StickyNotesRowLike = Omit<StickyNotesRow, "calendar_id"> & { calendar_id?: string };
+
+  const isMissingCalendarIdColumn = useCallback((error: unknown) => {
+    const err = error as { code?: string; message?: string; details?: string };
+    if (!err) return false;
+    if (err.code === "42703") return true; // undefined_column
+    const msg = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
+    return msg.includes("calendar_id") && msg.includes("does not exist");
+  }, []);
+
   const insertStickyNote = useCallback(
     async (date: string | null, text: string, color: StickyColor) => {
+      const base = {
+        user_id: userId,
+        date,
+        text,
+        color,
+      };
+
+      // Prefer inserting with `calendar_id` when available (new schema).
+      if (calendarId) {
+        const withCalendar = await supabase
+          .from("sticky_notes")
+          .insert({ ...(base as unknown as StickyNotesInsert), calendar_id: calendarId } as StickyNotesInsert)
+          .select()
+          .single();
+
+        if (!withCalendar.error) return withCalendar;
+
+        // Back-compat: older schemas don't have `calendar_id`.
+        if (isMissingCalendarIdColumn(withCalendar.error)) {
+          return supabase
+            .from("sticky_notes")
+            .insert(base as unknown as StickyNotesInsert)
+            .select()
+            .single();
+        }
+
+        return withCalendar;
+      }
+
+      // Legacy schema (no calendars): insert without `calendar_id`.
       return supabase
-        .from('sticky_notes')
-        .insert({
-          calendar_id: calendarId!,
-          user_id: userId,
-          date,
-          text,
-          color,
-        })
+        .from("sticky_notes")
+        .insert(base as unknown as StickyNotesInsert)
         .select()
         .single();
     },
-    [calendarId, userId]
+    [calendarId, userId, isMissingCalendarIdColumn]
   );
 
   // Fetch notes from Supabase
@@ -47,56 +84,71 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       return;
     }
 
-    if (!calendarId) {
-      setNotes([]);
-      setIsLoading(true);
-      return;
-    }
-
     const fetchNotes = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('sticky_notes')
-        .select('*')
-        .eq('calendar_id', calendarId)
-        .order('created_at', { ascending: true });
+      const primary = calendarId
+        ? await supabase.from("sticky_notes").select("*").eq("calendar_id", calendarId).order("created_at", { ascending: true })
+        : await supabase.from("sticky_notes").select("*").eq("user_id", userId).order("created_at", { ascending: true });
 
-      if (error) {
-        console.error('Error fetching notes:', error);
+      if (primary.error && calendarId && isMissingCalendarIdColumn(primary.error)) {
+        // Back-compat: older schemas don't have calendars; fall back to user-owned notes.
+        const legacy = await supabase.from("sticky_notes").select("*").eq("user_id", userId).order("created_at", { ascending: true });
+        if (legacy.error) {
+          console.error("Error fetching notes (legacy):", legacy.error);
+          setNotes([]);
+        } else {
+          const rows = (legacy.data ?? []) as unknown as StickyNotesRowLike[];
+          const mapped: StickyNote[] = rows.map((note) => ({
+            id: note.id,
+            calendar_id: note.calendar_id ?? calendarId ?? "",
+            user_id: note.user_id,
+            date: note.date,
+            text: note.text,
+            color: note.color as StickyColor,
+          }));
+          setNotes(mapped);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (primary.error) {
+        console.error("Error fetching notes:", primary.error);
+        setNotes([]);
       } else {
-        // Map data to our StickyNote type
-        const mappedNotes: StickyNote[] = (data || []).map((note) => ({
+        const rows = (primary.data ?? []) as unknown as StickyNotesRowLike[];
+        const mapped: StickyNote[] = rows.map((note) => ({
           id: note.id,
-          calendar_id: note.calendar_id,
+          calendar_id: note.calendar_id ?? calendarId ?? "",
           user_id: note.user_id,
           date: note.date,
           text: note.text,
           color: note.color as StickyColor,
         }));
-        setNotes(mappedNotes);
+        setNotes(mapped);
       }
       setIsLoading(false);
     };
 
     fetchNotes();
-  }, [userId, calendarId]);
+  }, [userId, calendarId, isMissingCalendarIdColumn]);
 
   const addNote = useCallback(async (date: string | null, text: string, color: StickyColor) => {
-    if (!userId || !calendarId) return null;
+    if (!userId) return null;
 
     const { data, error } = await insertStickyNote(date, text, color);
 
-    // Back-compat: if the DB hasn't been migrated yet and `date` is NOT NULL,
+    // Back-compat: if the DB hasn't been migrated yet and `date` is still NOT NULL,
     // retry undated notes as empty string.
-    if (error && date === null && error.code === '23502') {
-      const retry = await insertStickyNote('', text, color);
+    if (error && date === null && error.code === "23502") {
+      const retry = await insertStickyNote("", text, color);
       if (retry.error) {
         console.error('Error adding note:', retry.error);
         return null;
       }
       const newNote: StickyNote = {
         id: retry.data.id,
-        calendar_id: retry.data.calendar_id,
+        calendar_id: ((retry.data as unknown as StickyNotesRowLike).calendar_id ?? calendarId ?? ""),
         user_id: retry.data.user_id,
         date: retry.data.date,
         text: retry.data.text,
@@ -113,7 +165,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
 
     const newNote: StickyNote = {
       id: data.id,
-      calendar_id: data.calendar_id,
+      calendar_id: ((data as unknown as StickyNotesRowLike).calendar_id ?? calendarId ?? ""),
       user_id: data.user_id,
       date: data.date,
       text: data.text,

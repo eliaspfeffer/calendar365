@@ -36,6 +36,11 @@ npm i
 npm run dev
 ```
 
+## Supabase setup (required for login + saving)
+
+- Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in your environment.
+- Apply the SQL migrations in `calendar365/supabase/migrations` (especially the shared calendars migration), otherwise logged-in calendars/notes may appear empty.
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).
