@@ -31,22 +31,37 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
   type StickyNotesInsert = Database["public"]["Tables"]["sticky_notes"]["Insert"];
   type StickyNotesRow = Database["public"]["Tables"]["sticky_notes"]["Row"];
   type StickyNotesRowLike = Omit<StickyNotesRow, "calendar_id"> & { calendar_id?: string };
+  type SupabaseErrorLike = { code?: string; message?: string; details?: string; hint?: string };
 
-  const isMissingCalendarIdColumn = useCallback((error: unknown) => {
-    const err = error as { code?: string; message?: string; details?: string };
+  const isMissingColumn = useCallback((error: unknown, column: string) => {
+    const err = error as SupabaseErrorLike | null | undefined;
     if (!err) return false;
-    if (err.code === "42703") return true; // undefined_column
-    const msg = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
-    return msg.includes("calendar_id") && msg.includes("does not exist");
+    const msg = `${err.message ?? ""} ${err.details ?? ""} ${err.hint ?? ""}`.toLowerCase();
+    const col = column.toLowerCase();
+    if (err.code === "42703") {
+      return msg.includes(col) && msg.includes("does not exist");
+    }
+    if (err.code === "PGRST204") {
+      return msg.includes(col) && msg.includes("schema cache");
+    }
+    return (
+      (msg.includes(col) && msg.includes("does not exist")) ||
+      (msg.includes("could not find") && msg.includes(col) && msg.includes("schema cache"))
+    );
   }, []);
 
+  const isMissingCalendarIdColumn = useCallback((error: unknown) => {
+    return isMissingColumn(error, "calendar_id");
+  }, [isMissingColumn]);
+
   const insertStickyNote = useCallback(
-    async (date: string | null, text: string, color: StickyColor) => {
+    async (date: string | null, text: string, color: StickyColor, position?: NotePosition | null) => {
       const base = {
         user_id: userId,
         date,
         text,
         color,
+        ...(position ? { pos_x: position.x, pos_y: position.y } : {}),
       };
 
       // Prefer inserting with `calendar_id` when available (new schema).
@@ -147,102 +162,79 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       color: StickyColor,
       position?: NotePosition | null
     ) => {
-      if (!userId || !calendarId) return null;
+      if (!userId) return null;
 
-      const { data, error } = await insertStickyNote(date, text, color, position);
+      // Legacy mode (older schema) works without calendars.
+      // Newer schemas enforce calendar_id, in which case Supabase will error and we show a migration hint upstream.
 
-    // Back-compat: if the DB hasn't been migrated yet (pos_x/pos_y missing),
-    // retry without the position fields.
-    if (error && position && error.code === '42703') {
-      const retry = await insertStickyNote(date, text, color, null);
-      if (retry.error) {
-        console.error('Error adding note:', retry.error);
+      // Try to insert with the best available shape, then progressively degrade for older schemas:
+      // - drop position if pos_x/pos_y missing
+      // - coerce undated notes to empty string if `date` is still NOT NULL
+      let currentDate: string | null = date;
+      let currentPosition: NotePosition | null | undefined = position;
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const result = await insertStickyNote(currentDate, text, color, currentPosition);
+        const { data, error } = result as typeof result & { error?: { code?: string } | null };
+
+        if (!error && data) {
+          const row = data as unknown as StickyNotesRowLike & { pos_x?: number | null; pos_y?: number | null };
+          const newNote: StickyNote = {
+            id: row.id,
+            calendar_id: row.calendar_id ?? calendarId ?? "",
+            user_id: row.user_id,
+            date: row.date,
+            text: row.text,
+            color: row.color as StickyColor,
+            pos_x: row.pos_x ?? null,
+            pos_y: row.pos_y ?? null,
+          };
+          setNotes((prev) => [...prev, newNote]);
+          return newNote;
+        }
+
+        // Undefined column (older schema): drop position fields and retry once.
+        if (currentPosition && (isMissingColumn(error, "pos_x") || isMissingColumn(error, "pos_y"))) {
+          currentPosition = null;
+          continue;
+        }
+
+        // Not-null violation (older schema): undated notes must use empty string.
+        if (error?.code === "23502" && currentDate === null) {
+          currentDate = "";
+          continue;
+        }
+
+        console.error("Error adding note:", error);
         return null;
       }
-      const newNote: StickyNote = {
-        id: retry.data.id,
-        calendar_id: retry.data.calendar_id,
-        user_id: retry.data.user_id,
-        date: retry.data.date,
-        text: retry.data.text,
-        color: retry.data.color as StickyColor,
-        pos_x: retry.data.pos_x ?? null,
-        pos_y: retry.data.pos_y ?? null,
-      };
-      setNotes((prev) => [...prev, newNote]);
-      return newNote;
-    }
 
-    // Back-compat: if the DB hasn't been migrated yet and `date` is still NOT NULL,
-    // retry undated notes as empty string.
-    if (error && date === null && error.code === '23502') {
-      const retry = await insertStickyNote('', text, color, position);
-      if (retry.error) {
-        console.error('Error adding note:', retry.error);
-        return null;
-      }
-      const newNote: StickyNote = {
-        id: retry.data.id,
-        calendar_id: ((retry.data as unknown as StickyNotesRowLike).calendar_id ?? calendarId ?? ""),
-        user_id: retry.data.user_id,
-        date: retry.data.date,
-        text: retry.data.text,
-        color: retry.data.color as StickyColor,
-        pos_x: retry.data.pos_x ?? null,
-        pos_y: retry.data.pos_y ?? null,
-      };
-      setNotes((prev) => [...prev, newNote]);
-      return newNote;
-    }
-
-    if (error) {
-      console.error('Error adding note:', error);
       return null;
-    }
-
-    const newNote: StickyNote = {
-      id: data.id,
-      calendar_id: ((data as unknown as StickyNotesRowLike).calendar_id ?? calendarId ?? ""),
-      user_id: data.user_id,
-      date: data.date,
-      text: data.text,
-      color: data.color as StickyColor,
-      pos_x: data.pos_x ?? null,
-      pos_y: data.pos_y ?? null,
-    };
-
-      setNotes((prev) => [...prev, newNote]);
-      return newNote;
     },
-    [userId, calendarId, insertStickyNote]
+    [userId, calendarId, insertStickyNote, isMissingColumn]
   );
 
-  const updateNote = useCallback(async (id: string, text: string, color: StickyColor) => {
-    if (!userId) return false;
-    const { error } = await supabase
-      .from('sticky_notes')
-      .update({ text, color })
-      .eq('id', id);
+  const updateNote = useCallback(
+    async (id: string, text: string, color: StickyColor) => {
+      if (!userId) return false;
+      const { error } = await supabase.from("sticky_notes").update({ text, color }).eq("id", id);
 
-    if (error) {
-      console.error('Error updating note:', error);
-      return false;
-    }
+      if (error) {
+        console.error("Error updating note:", error);
+        return false;
+      }
 
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id ? { ...note, text, color } : note
-      )
-    );
-    return true;
-  }, [userId]);
+      setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, text, color } : note)));
+      return true;
+    },
+    [userId]
+  );
 
   const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[]) => {
-    if (!userId) return false;
-    const noteToMove = notes.find((n) => n.id === id);
-    if (!noteToMove) return false;
+    if (!userId) return { ok: false as const, error: { message: "Not signed in" } satisfies SupabaseErrorLike };
+    const noteToMove = notes.find((n) => n.id === id) ?? null;
 
-    if (noteToMove.date === newDate) return;
+    if (noteToMove && noteToMove.date === newDate) return { ok: true as const };
 
     // Get all connected note IDs
     const connectedNoteIds: string[] = [];
@@ -254,43 +246,63 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       }
     });
 
-    const canComputeDiff = Boolean(noteToMove.date) && Boolean(newDate);
+    const canComputeDiff = Boolean(noteToMove?.date) && Boolean(newDate);
     const daysDiff = canComputeDiff
-      ? getDaysDifference(noteToMove.date as string, newDate as string)
+      ? getDaysDifference(noteToMove?.date as string, newDate as string)
       : 0;
 
     // Move the main note
-    const { error: mainError } = await supabase
+    const primary = await supabase
       .from('sticky_notes')
       .update({ date: newDate, pos_x: null, pos_y: null })
       .eq('id', id);
+    let mainError = primary.error;
+
+    // Back-compat: older schemas don't have pos_x/pos_y.
+    if (mainError && (isMissingColumn(mainError, "pos_x") || isMissingColumn(mainError, "pos_y"))) {
+      const retry = await supabase
+        .from("sticky_notes")
+        .update({ date: newDate })
+        .eq("id", id);
+      mainError = retry.error;
+    }
 
     // Back-compat: if the DB hasn't been migrated yet and `date` is NOT NULL,
     // retry clearing the date as empty string.
     if (mainError && newDate === null && mainError.code === '23502') {
-      const { error: retryError } = await supabase
-        .from('sticky_notes')
-        .update({ date: '', pos_x: null, pos_y: null })
-        .eq('id', id);
+      // Prefer clearing pos fields if available; otherwise update just the date.
+      const retry = await supabase
+        .from("sticky_notes")
+        .update({ date: "", pos_x: null, pos_y: null })
+        .eq("id", id);
+      const retryError =
+        retry.error && (isMissingColumn(retry.error, "pos_x") || isMissingColumn(retry.error, "pos_y"))
+          ? (
+              await supabase
+                .from("sticky_notes")
+                .update({ date: "" })
+                .eq("id", id)
+            ).error
+          : retry.error;
       if (retryError) {
         console.error('Error moving note:', retryError);
-        return false;
+        return { ok: false as const, error: retryError as unknown as SupabaseErrorLike };
       }
       setNotes((prev) =>
         prev.map((note) =>
           note.id === id ? { ...note, date: '', pos_x: null, pos_y: null } : note
         )
       );
-      return true;
+      return { ok: true as const };
     }
 
     if (mainError) {
       console.error('Error moving note:', mainError);
-      return false;
+      return { ok: false as const, error: mainError as unknown as SupabaseErrorLike };
     }
 
     // Move connected notes (only when both old & new dates are set)
-    if (canComputeDiff && daysDiff !== 0) {
+    if (noteToMove && canComputeDiff && daysDiff !== 0) {
       for (const connectedId of connectedNoteIds) {
         const connectedNote = notes.find((n) => n.id === connectedId);
         if (connectedNote?.date) {
@@ -309,14 +321,14 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
         if (note.id === id) {
           return { ...note, date: newDate, pos_x: null, pos_y: null };
         }
-        if (canComputeDiff && daysDiff !== 0 && connectedNoteIds.includes(note.id) && note.date) {
+        if (noteToMove && canComputeDiff && daysDiff !== 0 && connectedNoteIds.includes(note.id) && note.date) {
           return { ...note, date: addDaysToDate(note.date, daysDiff) };
         }
         return note;
       })
     );
-    return true;
-  }, [notes, userId]);
+    return { ok: true as const };
+  }, [notes, userId, isMissingColumn]);
 
   const moveNoteToCanvas = useCallback(async (id: string, position: NotePosition) => {
     if (!userId) return false;
@@ -330,7 +342,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
 
     // Back-compat: if the DB hasn't been migrated yet (pos_x/pos_y missing),
     // degrade to an inbox note without positioning.
-    if (error && error.code === '42703') {
+    if (error && (isMissingColumn(error, "pos_x") || isMissingColumn(error, "pos_y"))) {
       const { error: retryError } = await supabase
         .from('sticky_notes')
         .update({ date: null })
@@ -377,7 +389,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       )
     );
     return true;
-  }, [notes, userId]);
+  }, [notes, userId, isMissingColumn]);
 
   const setNoteCanvasPosition = useCallback(async (id: string, position: NotePosition) => {
     if (!userId) return false;
@@ -388,6 +400,12 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       .from('sticky_notes')
       .update({ pos_x: position.x, pos_y: position.y })
       .eq('id', id);
+
+    // Back-compat: older schemas don't have pos_x/pos_y; keep the note unpositioned.
+    if (error && (isMissingColumn(error, "pos_x") || isMissingColumn(error, "pos_y"))) {
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, pos_x: null, pos_y: null } : n)));
+      return true;
+    }
 
     if (error) {
       console.error('Error updating note position:', error);
@@ -400,7 +418,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       )
     );
     return true;
-  }, [notes, userId]);
+  }, [notes, userId, isMissingColumn]);
 
   const deleteNote = useCallback(async (id: string) => {
     if (!userId) return;
