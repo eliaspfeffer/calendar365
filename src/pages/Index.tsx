@@ -27,6 +27,8 @@ const Index = () => {
     byId,
     isLoading: calendarsLoading,
     defaultCalendarId,
+    schemaStatus: calendarsSchemaStatus,
+    schemaError: calendarsSchemaError,
     createCalendar,
     createInvite,
   } = useCalendars(user?.id || null);
@@ -46,11 +48,21 @@ const Index = () => {
     if (calendarsLoading) return;
     if (!hasWarnedAboutCalendars.current && calendars.length === 0) {
       hasWarnedAboutCalendars.current = true;
-      toast({
-        title: "No calendars found",
-        description: "If you just enabled Supabase, apply the latest migrations (shared calendars).",
-        variant: "destructive",
-      });
+      if (calendarsSchemaStatus === "missing") {
+        toast({
+          title: "Kalender-Funktion nicht verfügbar",
+          description:
+            calendarsSchemaError ??
+            "Bitte die neuesten Supabase-Migrationen anwenden (shared calendars).",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Keine Kalender gefunden",
+          description: "Wenn du Supabase gerade aktiviert hast: bitte die neuesten Migrationen anwenden (shared calendars).",
+          variant: "destructive",
+        });
+      }
     }
     const ids = new Set(calendars.map((c) => c.id));
     const current = settings.activeCalendarId;
@@ -59,7 +71,17 @@ const Index = () => {
     if (fallback && fallback !== current) {
       updateSettings({ activeCalendarId: fallback });
     }
-  }, [user, calendarsLoading, calendars, defaultCalendarId, settings.activeCalendarId, updateSettings, toast]);
+  }, [
+    user,
+    calendarsLoading,
+    calendars,
+    defaultCalendarId,
+    calendarsSchemaStatus,
+    calendarsSchemaError,
+    settings.activeCalendarId,
+    updateSettings,
+    toast,
+  ]);
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -109,7 +131,19 @@ const Index = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCreateCalendarDialogOpen(true)}
+            onClick={() => {
+              if (calendarsSchemaStatus === "missing") {
+                toast({
+                  title: "Kalender-Funktion nicht verfügbar",
+                  description:
+                    calendarsSchemaError ??
+                    "Bitte die neuesten Supabase-Migrationen anwenden (shared calendars).",
+                  variant: "destructive",
+                });
+                return;
+              }
+              setCreateCalendarDialogOpen(true);
+            }}
             className="bg-background/80 backdrop-blur-sm"
             title="Neuen Kalender erstellen"
           >
@@ -185,9 +219,9 @@ const Index = () => {
         open={createCalendarDialogOpen}
         onOpenChange={setCreateCalendarDialogOpen}
         onCreate={async (name) => {
-          const id = await createCalendar(name);
-          if (id) updateSettings({ activeCalendarId: id });
-          return id;
+          const result = await createCalendar(name);
+          if (result.id) updateSettings({ activeCalendarId: result.id });
+          return result;
         }}
       />
 

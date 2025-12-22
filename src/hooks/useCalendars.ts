@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type CalendarMemberRole = "owner" | "editor" | "viewer";
+export type CalendarsSchemaStatus = "unknown" | "ready" | "missing" | "error";
 
 export interface CalendarSummary {
   id: string;
@@ -10,24 +11,65 @@ export interface CalendarSummary {
   role: CalendarMemberRole;
 }
 
+export interface CreateCalendarResult {
+  id: string | null;
+  error?: string;
+}
+
+function isCalendarsSchemaMissingError(error: unknown) {
+  const code = (error as { code?: string } | null)?.code;
+  const message = (error as { message?: string; details?: string; hint?: string } | null)?.message;
+  const details = (error as { message?: string; details?: string; hint?: string } | null)?.details;
+  const hint = (error as { message?: string; details?: string; hint?: string } | null)?.hint;
+
+  if (code === "PGRST202" || code === "42P01") return true;
+
+  const haystack = `${message ?? ""} ${details ?? ""} ${hint ?? ""}`.toLowerCase();
+  if (haystack.includes("schema cache")) return true;
+  if (haystack.includes("could not find the function")) return true;
+  if (haystack.includes("relation") && haystack.includes("does not exist")) return true;
+  if (haystack.includes("function") && haystack.includes("does not exist")) return true;
+  return false;
+}
+
 export function useCalendars(userId: string | null) {
   const [calendars, setCalendars] = useState<CalendarSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [defaultCalendarId, setDefaultCalendarId] = useState<string | null>(null);
+  const [schemaStatus, setSchemaStatus] = useState<CalendarsSchemaStatus>("unknown");
+  const [schemaError, setSchemaError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!userId) {
       setCalendars([]);
       setDefaultCalendarId(null);
+      setSchemaStatus("unknown");
+      setSchemaError(null);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
+    setSchemaStatus("unknown");
+    setSchemaError(null);
 
     const ensured = await supabase.rpc("ensure_default_calendar");
     if (ensured.error) {
       console.error("Error ensuring default calendar:", ensured.error);
+      if (isCalendarsSchemaMissingError(ensured.error)) {
+        const errCode = (ensured.error as { code?: string } | null)?.code;
+        setCalendars([]);
+        setDefaultCalendarId(null);
+        setSchemaStatus("missing");
+        setSchemaError(
+          errCode === "PGRST202"
+            ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Im Supabase Dashboard: Settings → API → Reload schema, dann Seite neu laden."
+            : "Supabase-Kalenderschema fehlt. Bitte die neuesten Migrationen anwenden (shared calendars)."
+        );
+        setIsLoading(false);
+        return;
+      }
+      setSchemaStatus("error");
     } else {
       setDefaultCalendarId(ensured.data);
     }
@@ -40,6 +82,18 @@ export function useCalendars(userId: string | null) {
     if (error) {
       console.error("Error fetching calendars:", error);
       setCalendars([]);
+      if (isCalendarsSchemaMissingError(error)) {
+        const errCode = (error as { code?: string } | null)?.code;
+        setDefaultCalendarId(null);
+        setSchemaStatus("missing");
+        setSchemaError(
+          errCode === "PGRST202"
+            ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Im Supabase Dashboard: Settings → API → Reload schema, dann Seite neu laden."
+            : "Supabase-Kalenderschema fehlt. Bitte die neuesten Migrationen anwenden (shared calendars)."
+        );
+      } else {
+        setSchemaStatus("error");
+      }
       setIsLoading(false);
       return;
     }
@@ -60,6 +114,7 @@ export function useCalendars(userId: string | null) {
       .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
     setCalendars(mapped);
+    setSchemaStatus("ready");
     setIsLoading(false);
   }, [userId]);
 
@@ -68,15 +123,31 @@ export function useCalendars(userId: string | null) {
   }, [refresh]);
 
   const createCalendar = useCallback(
-    async (name: string) => {
-      if (!userId) return null;
+    async (name: string): Promise<CreateCalendarResult> => {
+      if (!userId) return { id: null, error: "Nicht angemeldet." };
       const { data, error } = await supabase.rpc("create_calendar", { p_name: name });
       if (error) {
         console.error("Error creating calendar:", error);
-        return null;
+        if (isCalendarsSchemaMissingError(error)) {
+          const errCode = (error as { code?: string } | null)?.code;
+          setSchemaStatus("missing");
+          setSchemaError(
+            errCode === "PGRST202"
+              ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Im Supabase Dashboard: Settings → API → Reload schema, dann Seite neu laden."
+              : "Supabase-Kalenderschema fehlt. Bitte die neuesten Migrationen anwenden (shared calendars)."
+          );
+          return {
+            id: null,
+            error:
+              errCode === "PGRST202"
+                ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Bitte Schema neu laden und erneut versuchen."
+                : "Kalender-Funktion nicht verfügbar. Bitte Supabase-Migrationen anwenden.",
+          };
+        }
+        return { id: null, error: error.message || "Unbekannter Fehler." };
       }
       await refresh();
-      return data;
+      return { id: data, error: undefined };
     },
     [userId, refresh]
   );
@@ -114,5 +185,5 @@ export function useCalendars(userId: string | null) {
 
   const byId = useMemo(() => new Map(calendars.map((c) => [c.id, c])), [calendars]);
 
-  return { calendars, byId, isLoading, defaultCalendarId, refresh, createCalendar, createInvite, acceptInvite };
+  return { calendars, byId, isLoading, defaultCalendarId, schemaStatus, schemaError, refresh, createCalendar, createInvite, acceptInvite };
 }
