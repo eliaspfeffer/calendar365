@@ -534,7 +534,7 @@ export function YearCalendar({
           toast({
             title: "Couldn’t create note",
             description:
-              "Nothing was saved to Supabase. If you’re using an older schema, apply the new migration (or we’ll fall back to an empty date).",
+              "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes).",
             variant: "destructive",
           });
           return false;

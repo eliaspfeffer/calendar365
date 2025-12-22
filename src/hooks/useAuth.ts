@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -8,6 +8,13 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setSession(null);
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -18,16 +25,27 @@ export function useAuth() {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error getting session:", err);
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signInWithMagicLink = async (email: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.") };
+    }
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signInWithOtp({
@@ -37,12 +55,15 @@ export function useAuth() {
       },
     });
 
-    return { error };
+    return { error: error ?? null };
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) {
+      return { error: null };
+    }
     const { error } = await supabase.auth.signOut();
-    return { error };
+    return { error: error ?? null };
   };
 
   return {

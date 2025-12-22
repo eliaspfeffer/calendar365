@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { YearCalendar } from '@/components/calendar/YearCalendar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +16,7 @@ const Index = () => {
   const { user, isLoading, signOut } = useAuth();
   const { settings, updateSettings } = useSettings();
   const { toast } = useToast();
+  const hasWarnedAboutCalendars = useRef(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -43,6 +44,14 @@ const Index = () => {
   useEffect(() => {
     if (!user) return;
     if (calendarsLoading) return;
+    if (!hasWarnedAboutCalendars.current && calendars.length === 0) {
+      hasWarnedAboutCalendars.current = true;
+      toast({
+        title: "No calendars found",
+        description: "If you just enabled Supabase, apply the latest migrations (shared calendars).",
+        variant: "destructive",
+      });
+    }
     const ids = new Set(calendars.map((c) => c.id));
     const current = settings.activeCalendarId;
     if (current && ids.has(current)) return;
@@ -50,7 +59,7 @@ const Index = () => {
     if (fallback && fallback !== current) {
       updateSettings({ activeCalendarId: fallback });
     }
-  }, [user, calendarsLoading, calendars, defaultCalendarId, settings.activeCalendarId, updateSettings]);
+  }, [user, calendarsLoading, calendars, defaultCalendarId, settings.activeCalendarId, updateSettings, toast]);
 
   const handleSignOut = async () => {
     const { error } = await signOut();

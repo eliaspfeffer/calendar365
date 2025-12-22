@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Mail, Loader2, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { isSupabaseConfigured } from '@/integrations/supabase/client';
 
 interface LoginDialogProps {
   open: boolean;
@@ -71,6 +72,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!isSupabaseConfigured && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                Supabase isn’t configured. Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> to enable sign-in.
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -80,10 +86,10 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isLoading || !isSupabaseConfigured}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || !isSupabaseConfigured}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
