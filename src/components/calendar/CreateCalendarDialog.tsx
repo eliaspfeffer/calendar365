@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 interface CreateCalendarDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (name: string) => Promise<string | null>;
+  onCreate: (name: string) => Promise<{ id: string | null; error?: string }>;
 }
 
 export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCalendarDialogProps) {
@@ -23,10 +23,14 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
   const handleCreate = async () => {
     const trimmed = name.trim();
     setIsCreating(true);
-    const id = await onCreate(trimmed);
+    const { id, error } = await onCreate(trimmed);
     setIsCreating(false);
     if (!id) {
-      toast({ title: "Kalender konnte nicht erstellt werden", variant: "destructive" });
+      toast({
+        title: "Kalender konnte nicht erstellt werden",
+        description: error,
+        variant: "destructive",
+      });
       return;
     }
     toast({ title: "Kalender erstellt" });
@@ -61,4 +65,3 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
     </Dialog>
   );
 }
-
