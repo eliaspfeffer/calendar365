@@ -3,6 +3,7 @@ import { YearCalendar } from '@/components/calendar/YearCalendar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
+import { useGoogleCalendarSync } from "@/hooks/useGoogleCalendarSync";
 import { LogOut, Loader2, LogIn, Settings, Share2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
@@ -58,6 +59,13 @@ const Index = () => {
     createCalendar,
     createInvite,
   } = useCalendars(user?.id || null);
+
+  const years = useMemo(() => [2025, 2026], []);
+  const googleSync = useGoogleCalendarSync({
+    years,
+    enabled: settings.googleSyncEnabled,
+    selectedCalendarIds: settings.googleSelectedCalendarIds ?? [],
+  });
 
   const effectiveCalendarId = useMemo(() => {
     if (!user) return null;
@@ -459,7 +467,7 @@ const Index = () => {
       </div>
       
       <YearCalendar 
-        years={[2025, 2026]} 
+        years={years}
         userId={user?.id || null}
         visibleCalendarIds={effectiveVisibleCalendarIds}
         activeCalendarId={effectiveCalendarId}
@@ -469,6 +477,7 @@ const Index = () => {
         alwaysShowArrows={settings.alwaysShowArrows}
         calendarOptions={editableVisibleCalendars}
         calendarDefaultNoteColorById={calendarDefaultNoteColorById}
+        googleEventsByDate={settings.googleSyncEnabled ? googleSync.eventsByDate : null}
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
@@ -485,6 +494,23 @@ const Index = () => {
         onShareBaseUrlChange={(url) => updateSettings({ shareBaseUrl: url })}
         accountEmail={user?.email ?? null}
         onDeleteAccount={user ? handleDeleteAccount : undefined}
+        googleSyncAvailable={googleSync.isAvailable}
+        googleSyncEnabled={settings.googleSyncEnabled}
+        onGoogleSyncEnabledChange={(enabled) => updateSettings({ googleSyncEnabled: enabled })}
+        googleConnected={googleSync.isConnected}
+        googleConnecting={googleSync.isConnecting}
+        onGoogleConnect={googleSync.connect}
+        onGoogleDisconnect={() => {
+          googleSync.disconnect();
+          updateSettings({ googleSelectedCalendarIds: null });
+        }}
+        googleCalendars={googleSync.calendars}
+        googleSelectedCalendarIds={settings.googleSelectedCalendarIds ?? []}
+        onGoogleSelectedCalendarIdsChange={(ids) => updateSettings({ googleSelectedCalendarIds: ids })}
+        googleSyncing={googleSync.isSyncing}
+        googleLastSyncAt={googleSync.lastSyncAt}
+        googleError={googleSync.error}
+        onGoogleRefresh={googleSync.refresh}
       />
 
       <CreateCalendarDialog

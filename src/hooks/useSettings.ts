@@ -10,6 +10,8 @@ interface Settings {
   activeCalendarId: string | null;
   shareBaseUrl: string | null;
   visibleCalendarIds: string[] | null;
+  googleSyncEnabled: boolean;
+  googleSelectedCalendarIds: string[] | null;
 }
 
 const SETTINGS_KEY = 'calendar365_settings';
@@ -21,6 +23,8 @@ const defaultSettings: Settings = {
   activeCalendarId: null,
   shareBaseUrl: null,
   visibleCalendarIds: null,
+  googleSyncEnabled: false,
+  googleSelectedCalendarIds: null,
 };
 
 export function useSettings() {

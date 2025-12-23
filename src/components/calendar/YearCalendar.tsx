@@ -15,11 +15,13 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { coerceStickyColor } from "@/lib/stickyNoteColors";
+import type { GoogleCalendarDayEvent } from "@/types/googleCalendar";
 
 interface SingleYearGridProps {
   year: number;
   scale: number;
   getNotesByDate: (date: string) => StickyNote[];
+  getEventsByDate?: (date: string) => GoogleCalendarDayEvent[];
   onCellClick: (date: Date) => void;
   onNoteClick: (note: StickyNote) => void;
   onDeleteNote: (id: string) => void;
@@ -41,6 +43,7 @@ function SingleYearGrid({
   year,
   scale,
   getNotesByDate,
+  getEventsByDate,
   onCellClick,
   onNoteClick,
   onDeleteNote,
@@ -88,6 +91,7 @@ function SingleYearGrid({
                   key={formatDateKey(day.date)}
                   day={day}
                   notes={getNotesByDate(formatDateKey(day.date))}
+                  events={getEventsByDate?.(formatDateKey(day.date)) ?? []}
                   onCellClick={() => onCellClick(day.date)}
                   onNoteClick={onNoteClick}
                   onDeleteNote={onDeleteNote}
@@ -135,6 +139,7 @@ interface YearCalendarProps {
   alwaysShowArrows?: boolean;
   calendarOptions?: Array<{ id: string; name: string }>;
   calendarDefaultNoteColorById?: Record<string, StickyColor>;
+  googleEventsByDate?: Record<string, GoogleCalendarDayEvent[]> | null;
 }
 
 export function YearCalendar({
@@ -148,6 +153,7 @@ export function YearCalendar({
   alwaysShowArrows = false,
   calendarOptions,
   calendarDefaultNoteColorById,
+  googleEventsByDate,
 }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -192,6 +198,11 @@ export function YearCalendar({
 
   const inboxNotes = notes.filter((n) => !n.date && (n.pos_x == null || n.pos_y == null));
   const canvasNotes = notes.filter((n) => !n.date && n.pos_x != null && n.pos_y != null);
+
+  const getGoogleEventsByDate = useCallback(
+    (dateKey: string) => googleEventsByDate?.[dateKey] ?? [],
+    [googleEventsByDate]
+  );
 
   useEffect(() => {
     if (dialogOpen) return;
@@ -759,6 +770,7 @@ export function YearCalendar({
               year={year}
               scale={scale}
               getNotesByDate={getNotesByDate}
+              getEventsByDate={getGoogleEventsByDate}
               onCellClick={handleCellClick}
               onNoteClick={handleNoteClick}
               onDeleteNote={(id) => {

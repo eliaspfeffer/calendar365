@@ -11,6 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +38,20 @@ interface SettingsDialogProps {
   onShareBaseUrlChange: (url: string | null) => void;
   accountEmail?: string | null;
   onDeleteAccount?: () => Promise<{ error: Error | null }>;
+  googleSyncAvailable?: boolean;
+  googleSyncEnabled?: boolean;
+  onGoogleSyncEnabledChange?: (enabled: boolean) => void;
+  googleConnected?: boolean;
+  googleConnecting?: boolean;
+  onGoogleConnect?: () => void;
+  onGoogleDisconnect?: () => void;
+  googleCalendars?: Array<{ id: string; summary: string; primary?: boolean }>;
+  googleSelectedCalendarIds?: string[];
+  onGoogleSelectedCalendarIdsChange?: (ids: string[]) => void;
+  googleSyncing?: boolean;
+  googleLastSyncAt?: Date | null;
+  googleError?: string | null;
+  onGoogleRefresh?: () => void;
 }
 
 const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
@@ -62,6 +78,20 @@ export function SettingsDialog({
   onShareBaseUrlChange,
   accountEmail,
   onDeleteAccount,
+  googleSyncAvailable,
+  googleSyncEnabled,
+  onGoogleSyncEnabledChange,
+  googleConnected,
+  googleConnecting,
+  onGoogleConnect,
+  onGoogleDisconnect,
+  googleCalendars,
+  googleSelectedCalendarIds,
+  onGoogleSelectedCalendarIdsChange,
+  googleSyncing,
+  googleLastSyncAt,
+  googleError,
+  onGoogleRefresh,
 }: SettingsDialogProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
@@ -87,116 +117,217 @@ export function SettingsDialog({
           </DialogHeader>
           <div className="min-h-0 space-y-6 overflow-y-auto py-4 pr-2">
             <div className="space-y-3">
-            <Label className="text-base font-medium" htmlFor="share-base-url">
-              Public share base URL
-            </Label>
-            <Input
-              id="share-base-url"
-              value={shareBaseUrl ?? ""}
-              onChange={(e) => onShareBaseUrlChange(e.target.value || null)}
-              placeholder="https://calendar.example.com"
-              inputMode="url"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            <p className="text-sm text-muted-foreground">
-              Optional. Used when generating public share links (custom domains). Leave empty to use the current site URL.
-            </p>
+              <Label className="text-base font-medium" htmlFor="share-base-url">
+                Public share base URL
+              </Label>
+              <Input
+                id="share-base-url"
+                value={shareBaseUrl ?? ''}
+                onChange={(e) => onShareBaseUrlChange(e.target.value || null)}
+                placeholder="https://calendar.example.com"
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <p className="text-sm text-muted-foreground">
+                Optional. Used when generating public share links (custom domains). Leave empty to use the current site
+                URL.
+              </p>
             </div>
+
             <div className="space-y-3">
-            <Label className="text-base font-medium">Calendar Color</Label>
-            <div className="grid grid-cols-4 gap-3">
-              {calendarColors.map((color) => (
-                <button
-                  key={color.value}
-                  type="button"
-                  onClick={() => onCalendarColorChange(color.value)}
-                  className={`relative h-12 w-full rounded-md border-2 transition-all ${
-                    calendarColor === color.value
-                      ? 'border-foreground ring-2 ring-offset-2 ring-offset-background ring-foreground'
-                      : 'border-border hover:border-foreground/50'
-                  }`}
-                  style={{ backgroundColor: `hsl(${color.hsl})` }}
-                  aria-label={`Select ${color.label} color`}
-                >
-                  {calendarColor === color.value && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg
-                        className="h-6 w-6 text-primary-foreground"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+              <Label className="text-base font-medium">Calendar Color</Label>
+              <div className="grid grid-cols-4 gap-3">
+                {calendarColors.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    onClick={() => onCalendarColorChange(color.value)}
+                    className={`relative h-12 w-full rounded-md border-2 transition-all ${
+                      calendarColor === color.value
+                        ? 'border-foreground ring-2 ring-offset-2 ring-offset-background ring-foreground'
+                        : 'border-border hover:border-foreground/50'
+                    }`}
+                    style={{ backgroundColor: `hsl(${color.hsl})` }}
+                    aria-label={`Select ${color.label} color`}
+                  >
+                    {calendarColor === color.value && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <svg
+                          className="h-6 w-6 text-primary-foreground"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">Choose a color for the calendar header</p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium" htmlFor="always-show-arrows">
+                    Always show arrows
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Show note connection arrows even when you aren’t hovering a note.
+                  </p>
+                </div>
+                <Switch
+                  id="always-show-arrows"
+                  checked={alwaysShowArrows}
+                  onCheckedChange={onAlwaysShowArrowsChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Sticky Note Text Overflow</Label>
+              <RadioGroup
+                value={textOverflowMode}
+                onValueChange={(value) => onTextOverflowModeChange(value as TextOverflowMode)}
+                className="space-y-3"
+              >
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="scroll" id="scroll" className="mt-1" />
+                  <Label htmlFor="scroll" className="cursor-pointer">
+                    <div className="font-medium">Overflow with scroll</div>
+                    <div className="text-sm text-muted-foreground">
+                      Note expands beyond cell and becomes scrollable. Calendar grid stays fixed.
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="truncate" id="truncate" className="mt-1" />
+                  <Label htmlFor="truncate" className="cursor-pointer">
+                    <div className="font-medium">Truncate with ellipsis</div>
+                    <div className="text-sm text-muted-foreground">
+                      Text cuts off with &quot;...&quot; - click to see full note in dialog.
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="expand" id="expand" className="mt-1" />
+                  <Label htmlFor="expand" className="cursor-pointer">
+                    <div className="font-medium">Expand cell</div>
+                    <div className="text-sm text-muted-foreground">
+                      Calendar cell expands to fit all text (current default).
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <Separator />
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium" htmlFor="google-sync-enabled">
+                    Google Calendar sync
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Show your Google Calendar entries directly inside the year view (live refresh while the app is
+                    open).
+                  </p>
+                </div>
+                <Switch
+                  id="google-sync-enabled"
+                  checked={!!googleSyncEnabled}
+                  onCheckedChange={(checked) => onGoogleSyncEnabledChange?.(checked)}
+                  disabled={!googleSyncAvailable}
+                />
+              </div>
+              {!googleSyncAvailable ? (
+                <p className="text-sm text-muted-foreground">
+                  Configure <span className="font-mono">VITE_GOOGLE_CLIENT_ID</span> to enable Google Calendar sync.
+                </p>
+              ) : !googleSyncEnabled ? (
+                <p className="text-sm text-muted-foreground">Turn this on to connect and start syncing.</p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!googleConnected ? (
+                      <Button type="button" onClick={onGoogleConnect} disabled={googleConnecting}>
+                        {googleConnecting ? 'Connecting…' : 'Connect Google'}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button type="button" variant="outline" onClick={onGoogleDisconnect}>
+                          Disconnect
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={onGoogleRefresh}
+                          disabled={!!googleSyncing}
+                        >
+                          {googleSyncing ? 'Refreshing…' : 'Refresh now'}
+                        </Button>
+                      </>
+                    )}
+                    {googleLastSyncAt && (
+                      <span className="text-xs text-muted-foreground">
+                        Last sync: {googleLastSyncAt.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+
+                  {googleError && <p className="text-sm text-destructive">{googleError}</p>}
+
+                  {googleConnected && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Calendars to sync</Label>
+                      <ScrollArea className="h-40 rounded-md border">
+                        <div className="p-3 space-y-2">
+                          {(googleCalendars ?? []).length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No calendars found.</p>
+                          ) : (
+                            (googleCalendars ?? []).map((cal) => {
+                              const selected = (googleSelectedCalendarIds ?? []).includes(cal.id);
+                              return (
+                                <div key={cal.id} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`google-cal-${cal.id}`}
+                                    checked={selected}
+                                    onCheckedChange={(checked) => {
+                                      const current = googleSelectedCalendarIds ?? [];
+                                      const next = checked
+                                        ? Array.from(new Set([...current, cal.id]))
+                                        : current.filter((id) => id !== cal.id);
+                                      onGoogleSelectedCalendarIdsChange?.(next);
+                                    }}
+                                  />
+                                  <Label htmlFor={`google-cal-${cal.id}`} className="cursor-pointer flex-1">
+                                    {cal.summary}
+                                    {cal.primary ? ' (primary)' : ''}
+                                  </Label>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </ScrollArea>
+                      <p className="text-xs text-muted-foreground">
+                        Only synced in this browser. Leave the app open to keep it refreshed.
+                      </p>
                     </div>
                   )}
-                </button>
-              ))}
+                </div>
+              )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              Choose a color for the calendar header
-            </p>
-            </div>
-            <div className="space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <Label className="text-base font-medium" htmlFor="always-show-arrows">
-                  Always show arrows
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Show note connection arrows even when you aren’t hovering a note.
-                </p>
-              </div>
-              <Switch
-                id="always-show-arrows"
-                checked={alwaysShowArrows}
-                onCheckedChange={onAlwaysShowArrowsChange}
-              />
-            </div>
-            </div>
-            <div className="space-y-3">
-            <Label className="text-base font-medium">Sticky Note Text Overflow</Label>
-            <RadioGroup
-              value={textOverflowMode}
-              onValueChange={(value) => onTextOverflowModeChange(value as TextOverflowMode)}
-              className="space-y-3"
-            >
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="scroll" id="scroll" className="mt-1" />
-                <Label htmlFor="scroll" className="cursor-pointer">
-                  <div className="font-medium">Overflow with scroll</div>
-                  <div className="text-sm text-muted-foreground">
-                    Note expands beyond cell and becomes scrollable. Calendar grid stays fixed.
-                  </div>
-                </Label>
-              </div>
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="truncate" id="truncate" className="mt-1" />
-                <Label htmlFor="truncate" className="cursor-pointer">
-                  <div className="font-medium">Truncate with ellipsis</div>
-                  <div className="text-sm text-muted-foreground">
-                    Text cuts off with "..." - click to see full note in dialog.
-                  </div>
-                </Label>
-              </div>
-              <div className="flex items-start space-x-3">
-                <RadioGroupItem value="expand" id="expand" className="mt-1" />
-                <Label htmlFor="expand" className="cursor-pointer">
-                  <div className="font-medium">Expand cell</div>
-                  <div className="text-sm text-muted-foreground">
-                    Calendar cell expands to fit all text (current default).
-                  </div>
-                </Label>
-              </div>
-            </RadioGroup>
-            </div>
+
             {onDeleteAccount && (
               <>
                 <Separator />
@@ -225,7 +356,7 @@ export function SettingsDialog({
                 </div>
               </>
             )}
-        </div>
+          </div>
       </DialogContent>
     </Dialog>
       {onDeleteAccount && (

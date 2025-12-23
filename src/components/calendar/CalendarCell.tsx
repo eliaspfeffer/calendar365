@@ -4,10 +4,13 @@ import { cn } from "@/lib/utils";
 import { TextOverflowMode } from "@/hooks/useSettings";
 import { formatDateKey } from "@/hooks/useCalendarData";
 import { Plus } from "lucide-react";
+import type { GoogleCalendarDayEvent } from "@/types/googleCalendar";
+import { GoogleEventItem } from "@/components/calendar/GoogleEventItem";
 
 interface CalendarCellProps {
   day: CalendarDay;
   notes: StickyNote[];
+  events?: GoogleCalendarDayEvent[];
   onCellClick: () => void;
   onNoteClick: (note: StickyNote) => void;
   onDeleteNote: (id: string) => void;
@@ -29,6 +32,7 @@ interface CalendarCellProps {
 export function CalendarCell({
   day,
   notes,
+  events = [],
   onCellClick,
   onNoteClick,
   onDeleteNote,
@@ -48,6 +52,9 @@ export function CalendarCell({
 }: CalendarCellProps) {
   const dateKey = formatDateKey(day.date);
   const isExpandMode = textOverflowMode === "expand";
+  const maxEvents = isExpandMode ? 3 : 2;
+  const visibleEvents = events.slice(0, maxEvents);
+  const hiddenEventCount = Math.max(0, events.length - visibleEvents.length);
 
   const handleDragOver = (e: React.DragEvent) => {
     if (readOnly) return;
@@ -127,6 +134,18 @@ export function CalendarCell({
 
       {isExpandMode ? (
         <div className="pt-4 px-1 pb-1 flex flex-col gap-1">
+          {visibleEvents.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {visibleEvents.map((ev) => (
+                <GoogleEventItem key={`${ev.calendarId}:${ev.id}:${ev.dayKey}`} event={ev} />
+              ))}
+              {hiddenEventCount > 0 && (
+                <div className="px-1 text-[10px] leading-tight text-muted-foreground">
+                  +{hiddenEventCount} more
+                </div>
+              )}
+            </div>
+          )}
           {notes.map((note) => (
             <StickyNoteComponent
               key={note.id}
@@ -149,28 +168,54 @@ export function CalendarCell({
           ))}
         </div>
       ) : notes.length <= 1 ? (
-        notes.map((note) => (
-          <StickyNoteComponent
-            key={note.id}
-            note={note}
-            onDelete={onDeleteNote}
-            onClick={() => onNoteClick(note)}
-            onHover={onNoteHover}
-            onLinkClick={onLinkClick}
-            onDragStart={onNoteDragStart}
-            onDragEnd={onNoteDragEnd}
-            scale={scale}
-            textOverflowMode={textOverflowMode}
-            isLinkMode={isLinkMode}
-            isConnected={connectedNoteIds.includes(note.id)}
-            isHighlighted={highlightedNoteIds.includes(note.id)}
-            isDragging={draggedNoteId === note.id}
-            variant="full"
-            readOnly={readOnly}
-          />
-        ))
+        <div className="absolute left-1 right-1 bottom-1 top-4 flex flex-col gap-1">
+          {visibleEvents.map((ev) => (
+            <GoogleEventItem
+              key={`${ev.calendarId}:${ev.id}:${ev.dayKey}`}
+              event={ev}
+              compact
+            />
+          ))}
+          {hiddenEventCount > 0 && (
+            <div className="px-1 text-[10px] leading-tight text-muted-foreground">
+              +{hiddenEventCount} more
+            </div>
+          )}
+          {notes.map((note) => (
+            <StickyNoteComponent
+              key={note.id}
+              note={note}
+              onDelete={onDeleteNote}
+              onClick={() => onNoteClick(note)}
+              onHover={onNoteHover}
+              onLinkClick={onLinkClick}
+              onDragStart={onNoteDragStart}
+              onDragEnd={onNoteDragEnd}
+              scale={scale}
+              textOverflowMode={textOverflowMode}
+              isLinkMode={isLinkMode}
+              isConnected={connectedNoteIds.includes(note.id)}
+              isHighlighted={highlightedNoteIds.includes(note.id)}
+              isDragging={draggedNoteId === note.id}
+              variant="full"
+              readOnly={readOnly}
+            />
+          ))}
+        </div>
       ) : (
         <div className="absolute left-1 right-1 bottom-1 top-4 flex flex-col gap-1">
+          {visibleEvents.map((ev) => (
+            <GoogleEventItem
+              key={`${ev.calendarId}:${ev.id}:${ev.dayKey}`}
+              event={ev}
+              compact
+            />
+          ))}
+          {hiddenEventCount > 0 && (
+            <div className="px-1 text-[10px] leading-tight text-muted-foreground">
+              +{hiddenEventCount} more
+            </div>
+          )}
           {notes.map((note) => (
             <StickyNoteComponent
               key={note.id}
