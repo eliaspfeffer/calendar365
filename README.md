@@ -43,8 +43,8 @@ npm run dev
 
 ## Legal pages (Imprint / Privacy)
 
-- The app includes `/imprint` and `/privacy`.
-- Configure contact details via env vars (optional): `VITE_LEGAL_PROVIDER_NAME`, `VITE_LEGAL_PROVIDER_ADDRESS` (newline-separated), `VITE_LEGAL_PHONE`, `VITE_LEGAL_EMAIL`, `VITE_LEGAL_WEBSITE`.
+- The app includes `/imprint` and `/privacy` as a popup modal (with a close button).
+- Configure contact details via env vars (see `.env.example`): `VITE_LEGAL_PROVIDER_NAME`, `VITE_LEGAL_PROVIDER_ADDRESS` (newline-separated), `VITE_LEGAL_PHONE`, `VITE_LEGAL_EMAIL`, `VITE_LEGAL_WEBSITE`.
 
 **Edit a file directly in GitHub**
 
