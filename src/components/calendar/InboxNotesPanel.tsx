@@ -80,9 +80,9 @@ export function InboxNotesPanel({
           </div>
         ) : (
           <ScrollArea className="h-[280px] pr-3">
-            <div className="space-y-2">
+            <div className="space-y-1">
               {notes.map((note) => (
-                <div key={note.id} className="relative h-[86px]">
+                <div key={note.id} className="relative h-[64px]">
                   <StickyNoteComponent
                     note={note}
                     onDelete={onDeleteNote}
