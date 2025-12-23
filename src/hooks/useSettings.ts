@@ -6,6 +6,7 @@ export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'te
 interface Settings {
   textOverflowMode: TextOverflowMode;
   calendarColor: CalendarColor;
+  alwaysShowArrows: boolean;
   activeCalendarId: string | null;
   shareBaseUrl: string | null;
   visibleCalendarIds: string[] | null;
@@ -16,6 +17,7 @@ const SETTINGS_KEY = 'calendar365_settings';
 const defaultSettings: Settings = {
   textOverflowMode: 'expand',
   calendarColor: 'blue',
+  alwaysShowArrows: false,
   activeCalendarId: null,
   shareBaseUrl: null,
   visibleCalendarIds: null,

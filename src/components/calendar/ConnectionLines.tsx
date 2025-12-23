@@ -5,6 +5,7 @@ interface ConnectionLinesProps {
   connections: NoteConnection[];
   notes: StickyNote[];
   hoveredNoteId: string | null;
+  showAll?: boolean;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -17,6 +18,7 @@ export function ConnectionLines({
   connections,
   notes,
   hoveredNoteId,
+  showAll = false,
   containerRef,
 }: ConnectionLinesProps) {
   const [positions, setPositions] = useState<Map<string, Position>>(new Map());
@@ -70,12 +72,13 @@ export function ConnectionLines({
     };
   }, [notes, containerRef]);
 
-  // Filter connections to show only those related to hovered note
-  const visibleConnections = hoveredNoteId
-    ? connections.filter(
-        (c) => c.source_note_id === hoveredNoteId || c.target_note_id === hoveredNoteId
-      )
-    : [];
+  const visibleConnections = showAll
+    ? connections
+    : hoveredNoteId
+      ? connections.filter(
+          (c) => c.source_note_id === hoveredNoteId || c.target_note_id === hoveredNoteId
+        )
+      : [];
 
   if (visibleConnections.length === 0) return null;
 

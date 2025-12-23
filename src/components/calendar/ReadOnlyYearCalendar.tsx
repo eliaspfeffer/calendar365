@@ -15,6 +15,7 @@ interface ReadOnlyYearCalendarProps {
   connections: NoteConnection[];
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
+  alwaysShowArrows?: boolean;
 }
 
 function SingleYearGridReadOnly({
@@ -92,6 +93,7 @@ export function ReadOnlyYearCalendar({
   connections,
   textOverflowMode,
   calendarColor,
+  alwaysShowArrows = false,
 }: ReadOnlyYearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -230,7 +232,13 @@ export function ReadOnlyYearCalendar({
           </div>
         )}
 
-        <ConnectionLines connections={connections} notes={notes} hoveredNoteId={hoveredNoteId} containerRef={contentRef} />
+        <ConnectionLines
+          connections={connections}
+          notes={notes}
+          hoveredNoteId={hoveredNoteId}
+          showAll={alwaysShowArrows}
+          containerRef={contentRef}
+        />
       </div>
 
       <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetView} scale={scale} />

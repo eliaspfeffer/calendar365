@@ -7,6 +7,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
 
 interface SettingsDialogProps {
@@ -16,6 +17,8 @@ interface SettingsDialogProps {
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
   calendarColor: CalendarColor;
   onCalendarColorChange: (color: CalendarColor) => void;
+  alwaysShowArrows: boolean;
+  onAlwaysShowArrowsChange: (alwaysShowArrows: boolean) => void;
   shareBaseUrl: string | null;
   onShareBaseUrlChange: (url: string | null) => void;
 }
@@ -38,6 +41,8 @@ export function SettingsDialog({
   onTextOverflowModeChange,
   calendarColor,
   onCalendarColorChange,
+  alwaysShowArrows,
+  onAlwaysShowArrowsChange,
   shareBaseUrl,
   onShareBaseUrlChange,
 }: SettingsDialogProps) {
@@ -105,6 +110,23 @@ export function SettingsDialog({
             <p className="text-sm text-muted-foreground">
               Choose a color for the calendar header
             </p>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-base font-medium" htmlFor="always-show-arrows">
+                  Always show arrows
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Show note connection arrows even when you aren’t hovering a note.
+                </p>
+              </div>
+              <Switch
+                id="always-show-arrows"
+                checked={alwaysShowArrows}
+                onCheckedChange={onAlwaysShowArrowsChange}
+              />
+            </div>
           </div>
           <div className="space-y-3">
             <Label className="text-base font-medium">Sticky Note Text Overflow</Label>
