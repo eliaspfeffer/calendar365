@@ -10,6 +10,18 @@ const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5; // pixels moved before considered a drag
 
+function normalizeWheelDelta(e: WheelEvent) {
+  let { deltaX, deltaY } = e;
+  if (e.deltaMode === 1) {
+    deltaX *= 16;
+    deltaY *= 16;
+  } else if (e.deltaMode === 2) {
+    deltaX *= window.innerWidth;
+    deltaY *= window.innerHeight;
+  }
+  return { deltaX, deltaY };
+}
+
 export function useZoomPan() {
   const [state, setState] = useState<ZoomPanState>({
     scale: 0.6,
@@ -23,21 +35,35 @@ export function useZoomPan() {
   const startTranslate = useRef({ x: 0, y: 0 });
 
   const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-
     const target = e.currentTarget as HTMLElement | null;
     if (!target) return;
 
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    
+    const isZoomGesture = e.ctrlKey;
+    const { deltaX, deltaY } = normalizeWheelDelta(e);
+
+    e.preventDefault();
+
+    if (!isZoomGesture) {
+      setState((prev) => ({
+        ...prev,
+        translateX: prev.translateX - deltaX,
+        translateY: prev.translateY - deltaY,
+      }));
+      return;
+    }
+
+    const delta = deltaY > 0 ? 0.9 : 1.1;
+
     setState((prev) => {
-      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale * delta));
-      
-      // Zoom toward cursor position
+      const newScale = Math.max(
+        MIN_SCALE,
+        Math.min(MAX_SCALE, prev.scale * delta)
+      );
+
       const rect = target.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      
+
       const scaleRatio = newScale / prev.scale;
       const newTranslateX = x - (x - prev.translateX) * scaleRatio;
       const newTranslateY = y - (y - prev.translateY) * scaleRatio;
