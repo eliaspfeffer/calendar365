@@ -54,7 +54,7 @@ export function InboxNotesPanel({
   return (
     <Card
       className={cn(
-        "inbox-notes-panel fixed bottom-6 left-6 w-[340px] shadow-lg border border-border bg-card/90 backdrop-blur-sm z-50",
+        "inbox-notes-panel fixed bottom-20 right-6 w-[340px] shadow-lg border border-border bg-card/90 backdrop-blur-sm z-50",
         draggedNoteId && "ring-2 ring-primary"
       )}
       onMouseDown={(e) => e.stopPropagation()}
