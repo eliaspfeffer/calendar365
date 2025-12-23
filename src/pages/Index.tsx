@@ -108,23 +108,15 @@ const Index = () => {
   useEffect(() => {
     if (!user) return;
     if (calendarsLoading) return;
-    if (!hasWarnedAboutCalendars.current && calendars.length === 0) {
+    if (!hasWarnedAboutCalendars.current && calendars.length === 0 && calendarsSchemaStatus === "missing") {
       hasWarnedAboutCalendars.current = true;
-      if (calendarsSchemaStatus === "missing") {
-        toast({
-          title: "Kalender-Funktion nicht verfügbar",
-          description:
-            calendarsSchemaError ??
-            "Bitte die neuesten Supabase-Migrationen anwenden (shared calendars).",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Keine Kalender gefunden",
-          description: "Wenn du Supabase gerade aktiviert hast: bitte die neuesten Migrationen anwenden (shared calendars).",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Kalender-Funktion nicht verfügbar",
+        description:
+          calendarsSchemaError ??
+          "Bitte die neuesten Supabase-Migrationen anwenden (shared calendars).",
+        variant: "destructive",
+      });
     }
     const ids = new Set(calendars.map((c) => c.id));
     const current = settings.activeCalendarId;
