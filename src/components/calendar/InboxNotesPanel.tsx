@@ -79,7 +79,7 @@ export function InboxNotesPanel({
             Add a note here, or drag one off the calendar to park it without a date.
           </div>
         ) : (
-          <ScrollArea className="h-[280px] pr-3">
+          <ScrollArea className="max-h-[280px] pr-3">
             <div className="space-y-0">
               {notes.map((note) => (
                 <StickyNoteComponent
