@@ -2,6 +2,8 @@
 
 A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 
+![Demo](demo.png)
+
 ## Features
 
 - 365‑day year grid with zoom/pan
@@ -19,11 +21,13 @@ npm run dev
 ```
 
 Other useful commands:
+
 ```sh
 npm run lint
 npm run build
 npm run preview
 ```
+
 ## Legal pages (Imprint / Privacy)
 
 - The app includes `/imprint` and `/privacy` as a popup modal (with a close button).
