@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { StickyColor, StickyNote } from '@/types/calendar';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { STICKY_NOTE_COLORS } from '@/lib/stickyNoteColors';
 
 interface NoteDialogProps {
   open: boolean;
@@ -16,16 +18,11 @@ interface NoteDialogProps {
   onSave: (text: string, color: StickyColor) => Promise<boolean> | boolean;
   onDelete?: () => void;
   onMove?: (newDate: string | null) => Promise<boolean> | boolean;
+  calendarOptions?: Array<{ id: string; name: string }>;
+  calendarId?: string | null;
+  onCalendarChange?: (calendarId: string) => void;
+  defaultColor?: StickyColor;
 }
-
-const colors: { value: StickyColor; className: string; label: string }[] = [
-  { value: 'yellow', className: 'bg-sticky-yellow', label: 'Yellow' },
-  { value: 'pink', className: 'bg-sticky-pink', label: 'Pink' },
-  { value: 'green', className: 'bg-sticky-green', label: 'Green' },
-  { value: 'blue', className: 'bg-sticky-blue', label: 'Blue' },
-  { value: 'orange', className: 'bg-sticky-orange', label: 'Orange' },
-  { value: 'purple', className: 'bg-sticky-purple', label: 'Purple' },
-];
 
 export function NoteDialog({
   open,
@@ -35,22 +32,36 @@ export function NoteDialog({
   onSave,
   onDelete,
   onMove,
+  calendarOptions,
+  calendarId,
+  onCalendarChange,
+  defaultColor,
 }: NoteDialogProps) {
   const [text, setText] = useState('');
   const [color, setColor] = useState<StickyColor>('yellow');
+  const [colorTouched, setColorTouched] = useState(false);
   const [newDate, setNewDate] = useState<string>('');
 
   useEffect(() => {
     if (existingNote) {
       setText(existingNote.text);
       setColor(existingNote.color);
+      setColorTouched(true);
       setNewDate(existingNote.date ?? '');
     } else {
       setText('');
-      setColor('yellow');
+      setColor(defaultColor ?? 'yellow');
+      setColorTouched(false);
       setNewDate(date || '');
     }
-  }, [existingNote, open, date]);
+  }, [existingNote, open, date, defaultColor]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (existingNote) return;
+    if (colorTouched) return;
+    setColor(defaultColor ?? 'yellow');
+  }, [defaultColor, open, existingNote, colorTouched]);
 
   const handleSave = async () => {
     if (text.trim()) {
@@ -105,6 +116,24 @@ export function NoteDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {!existingNote && calendarOptions && calendarId && onCalendarChange && (
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Calendar</Label>
+              <Select value={calendarId} onValueChange={onCalendarChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose calendar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {calendarOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Date picker for existing notes */}
           {existingNote && (
             <div className="space-y-2">
@@ -123,10 +152,13 @@ export function NoteDialog({
           )}
 
           <div className="flex gap-2 justify-center">
-            {colors.map((c) => (
+            {STICKY_NOTE_COLORS.map((c) => (
               <button
                 key={c.value}
-                onClick={() => setColor(c.value)}
+                onClick={() => {
+                  setColor(c.value);
+                  setColorTouched(true);
+                }}
                 className={cn(
                   'w-8 h-8 rounded-full transition-all border-2',
                   c.className,

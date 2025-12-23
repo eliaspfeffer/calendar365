@@ -9,6 +9,7 @@ export interface CalendarSummary {
   name: string;
   owner_id: string;
   role: CalendarMemberRole;
+  default_note_color?: string | null;
 }
 
 export interface CreateCalendarResult {
@@ -30,6 +31,18 @@ function isCalendarsSchemaMissingError(error: unknown) {
   if (haystack.includes("relation") && haystack.includes("does not exist")) return true;
   if (haystack.includes("function") && haystack.includes("does not exist")) return true;
   return false;
+}
+
+function isMissingCalendarsColumn(error: unknown, column: string) {
+  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  if (!err) return false;
+  const col = column.toLowerCase();
+  const code = err.code;
+  const haystack = `${err.message ?? ""} ${err.details ?? ""} ${err.hint ?? ""}`.toLowerCase();
+
+  if (code === "42703") return haystack.includes(col); // undefined_column
+  if (code === "PGRST204") return haystack.includes(col) && haystack.includes("schema cache");
+  return haystack.includes(col) && haystack.includes("does not exist");
 }
 
 export function useCalendars(userId: string | null) {
@@ -74,10 +87,19 @@ export function useCalendars(userId: string | null) {
       setDefaultCalendarId(ensured.data);
     }
 
-    const { data, error } = await supabase
+    const primary = await supabase
       .from("calendar_members")
-      .select("role, calendars ( id, name, owner_id )")
+      .select("role, calendars ( id, name, owner_id, default_note_color )")
       .eq("user_id", userId);
+
+    // Back-compat: older schemas don't have `calendars.default_note_color`.
+    const { data, error } =
+      primary.error && isMissingCalendarsColumn(primary.error, "default_note_color")
+        ? await supabase
+            .from("calendar_members")
+            .select("role, calendars ( id, name, owner_id )")
+            .eq("user_id", userId)
+        : primary;
 
     if (error) {
       console.error("Error fetching calendars:", error);
@@ -98,7 +120,11 @@ export function useCalendars(userId: string | null) {
       return;
     }
 
-    const rows = (data as unknown as Array<{ role: CalendarMemberRole; calendars: { id: string; name: string; owner_id: string } | null }>) || [];
+    const rows =
+      (data as unknown as Array<{
+        role: CalendarMemberRole;
+        calendars: { id: string; name: string; owner_id: string; default_note_color?: string | null } | null;
+      }>) || [];
     const mapped: CalendarSummary[] = rows
       .map((row) => {
         const cal = row.calendars;
@@ -108,6 +134,7 @@ export function useCalendars(userId: string | null) {
           name: cal.name,
           owner_id: cal.owner_id,
           role: row.role as CalendarMemberRole,
+          default_note_color: cal.default_note_color ?? null,
         };
       })
       .filter((x): x is CalendarSummary => Boolean(x))
@@ -123,9 +150,21 @@ export function useCalendars(userId: string | null) {
   }, [refresh]);
 
   const createCalendar = useCallback(
-    async (name: string): Promise<CreateCalendarResult> => {
+    async (name: string, defaultNoteColor?: string): Promise<CreateCalendarResult> => {
       if (!userId) return { id: null, error: "Nicht angemeldet." };
-      const { data, error } = await supabase.rpc("create_calendar", { p_name: name });
+      const attemptWithColor = await supabase.rpc("create_calendar", {
+        p_name: name,
+        ...(defaultNoteColor ? { p_default_note_color: defaultNoteColor } : {}),
+      });
+      let data = attemptWithColor.data;
+      let error = attemptWithColor.error;
+
+      // Back-compat: older DB function signature may not support p_default_note_color.
+      if (error && `${error.message ?? ""}`.toLowerCase().includes("p_default_note_color")) {
+        const retry = await supabase.rpc("create_calendar", { p_name: name });
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) {
         console.error("Error creating calendar:", error);
         if (isCalendarsSchemaMissingError(error)) {

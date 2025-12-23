@@ -24,7 +24,11 @@ function addDaysToDate(dateStr: string, days: number): string {
   return date.toISOString().split('T')[0];
 }
 
-export function useStickyNotes(userId: string | null, calendarId: string | null) {
+export function useStickyNotes(
+  userId: string | null,
+  calendarIds: string[] | null,
+  defaultInsertCalendarId: string | null
+) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,7 +59,13 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
   }, [isMissingColumn]);
 
   const insertStickyNote = useCallback(
-    async (date: string | null, text: string, color: StickyColor, position?: NotePosition | null) => {
+    async (
+      date: string | null,
+      text: string,
+      color: StickyColor,
+      position: NotePosition | null | undefined,
+      insertCalendarId: string | null
+    ) => {
       const base = {
         user_id: userId,
         date,
@@ -64,11 +74,13 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
         ...(position ? { pos_x: position.x, pos_y: position.y } : {}),
       };
 
+      const targetCalendarId = insertCalendarId ?? defaultInsertCalendarId ?? null;
+
       // Prefer inserting with `calendar_id` when available (new schema).
-      if (calendarId) {
+      if (targetCalendarId) {
         const withCalendar = await supabase
           .from("sticky_notes")
-          .insert({ ...(base as unknown as StickyNotesInsert), calendar_id: calendarId } as StickyNotesInsert)
+          .insert({ ...(base as unknown as StickyNotesInsert), calendar_id: targetCalendarId } as StickyNotesInsert)
           .select()
           .single();
 
@@ -93,7 +105,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
         .select()
         .single();
     },
-    [calendarId, userId, isMissingCalendarIdColumn]
+    [defaultInsertCalendarId, userId, isMissingCalendarIdColumn]
   );
 
   // Fetch notes from Supabase
@@ -106,11 +118,11 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
 
     const fetchNotes = async () => {
       setIsLoading(true);
-      const primary = calendarId
-        ? await supabase.from("sticky_notes").select("*").eq("calendar_id", calendarId).order("created_at", { ascending: true })
+      const primary = calendarIds && calendarIds.length > 0
+        ? await supabase.from("sticky_notes").select("*").in("calendar_id", calendarIds).order("created_at", { ascending: true })
         : await supabase.from("sticky_notes").select("*").eq("user_id", userId).order("created_at", { ascending: true });
 
-      if (primary.error && calendarId && isMissingCalendarIdColumn(primary.error)) {
+      if (primary.error && calendarIds && calendarIds.length > 0 && isMissingCalendarIdColumn(primary.error)) {
         // Back-compat: older schemas don't have calendars; fall back to user-owned notes.
         const legacy = await supabase.from("sticky_notes").select("*").eq("user_id", userId).order("created_at", { ascending: true });
         if (legacy.error) {
@@ -120,7 +132,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
           const rows = (legacy.data ?? []) as unknown as StickyNotesRowLike[];
           const mapped: StickyNote[] = rows.map((note) => ({
             id: note.id,
-            calendar_id: note.calendar_id ?? calendarId ?? "",
+            calendar_id: note.calendar_id ?? "",
             user_id: note.user_id,
             date: note.date,
             text: note.text,
@@ -139,7 +151,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
         const rows = (primary.data ?? []) as unknown as StickyNotesRowLike[];
         const mapped: StickyNote[] = rows.map((note) => ({
           id: note.id,
-          calendar_id: note.calendar_id ?? calendarId ?? "",
+          calendar_id: note.calendar_id ?? "",
           user_id: note.user_id,
           date: note.date,
           text: note.text,
@@ -153,14 +165,15 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
     };
 
     fetchNotes();
-  }, [userId, calendarId, isMissingCalendarIdColumn]);
+  }, [userId, calendarIds, isMissingCalendarIdColumn]);
 
   const addNote = useCallback(
     async (
       date: string | null,
       text: string,
       color: StickyColor,
-      position?: NotePosition | null
+      position: NotePosition | null | undefined,
+      insertCalendarId: string | null
     ) => {
       if (!userId) return null;
 
@@ -174,14 +187,14 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
       let currentPosition: NotePosition | null | undefined = position;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const result = await insertStickyNote(currentDate, text, color, currentPosition);
+        const result = await insertStickyNote(currentDate, text, color, currentPosition, insertCalendarId);
         const { data, error } = result as typeof result & { error?: { code?: string } | null };
 
         if (!error && data) {
           const row = data as unknown as StickyNotesRowLike & { pos_x?: number | null; pos_y?: number | null };
           const newNote: StickyNote = {
             id: row.id,
-            calendar_id: row.calendar_id ?? calendarId ?? "",
+            calendar_id: row.calendar_id ?? "",
             user_id: row.user_id,
             date: row.date,
             text: row.text,
@@ -211,7 +224,7 @@ export function useStickyNotes(userId: string | null, calendarId: string | null)
 
       return null;
     },
-    [userId, calendarId, insertStickyNote, isMissingColumn]
+    [userId, insertStickyNote, isMissingColumn]
   );
 
   const updateNote = useCallback(

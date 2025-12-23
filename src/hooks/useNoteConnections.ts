@@ -4,7 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { exampleConnections } from '@/data/exampleCalendar';
 
-export function useNoteConnections(userId: string | null, calendarId: string | null) {
+export function useNoteConnections(
+  userId: string | null,
+  calendarIds: string[] | null,
+  defaultInsertCalendarId: string | null
+) {
   const [connections, setConnections] = useState<NoteConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -34,11 +38,11 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
 
     const fetchConnections = async () => {
       setIsLoading(true);
-      const primary = calendarId
-        ? await supabase.from("note_connections").select("*").eq("calendar_id", calendarId)
+      const primary = calendarIds && calendarIds.length > 0
+        ? await supabase.from("note_connections").select("*").in("calendar_id", calendarIds)
         : await supabase.from("note_connections").select("*").eq("user_id", userId);
 
-      if (primary.error && calendarId && isMissingCalendarIdColumn(primary.error)) {
+      if (primary.error && calendarIds && calendarIds.length > 0 && isMissingCalendarIdColumn(primary.error)) {
         const legacy = await supabase.from("note_connections").select("*").eq("user_id", userId);
         if (legacy.error) {
           console.error("Error fetching connections (legacy):", legacy.error);
@@ -47,7 +51,7 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
           const rows = (legacy.data ?? []) as unknown as NoteConnectionsRowLike[];
           const mapped: NoteConnection[] = rows.map((conn) => ({
             id: conn.id,
-            calendar_id: conn.calendar_id ?? calendarId ?? "",
+            calendar_id: conn.calendar_id ?? "",
             user_id: conn.user_id,
             source_note_id: conn.source_note_id,
             target_note_id: conn.target_note_id,
@@ -65,7 +69,7 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
         const rows = (primary.data ?? []) as unknown as NoteConnectionsRowLike[];
         const mapped: NoteConnection[] = rows.map((conn) => ({
           id: conn.id,
-          calendar_id: conn.calendar_id ?? calendarId ?? "",
+          calendar_id: conn.calendar_id ?? "",
           user_id: conn.user_id,
           source_note_id: conn.source_note_id,
           target_note_id: conn.target_note_id,
@@ -76,7 +80,7 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
     };
 
     fetchConnections();
-  }, [userId, calendarId, isMissingCalendarIdColumn]);
+  }, [userId, calendarIds, isMissingCalendarIdColumn]);
 
   const deleteConnection = useCallback(async (id: string) => {
     if (!userId) return;
@@ -93,7 +97,7 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
     setConnections((prev) => prev.filter((c) => c.id !== id));
   }, [userId]);
 
-  const addConnection = useCallback(async (sourceNoteId: string, targetNoteId: string) => {
+  const addConnection = useCallback(async (sourceNoteId: string, targetNoteId: string, insertCalendarId: string | null) => {
     if (!userId) return null;
 
     // Check if connection already exists (in either direction)
@@ -115,17 +119,19 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
       target_note_id: targetNoteId,
     };
 
-    const primary = calendarId
+    const targetCalendarId = insertCalendarId ?? defaultInsertCalendarId ?? null;
+
+    const primary = targetCalendarId
       ? await supabase
           .from("note_connections")
-          .insert({ ...(base as unknown as NoteConnectionsInsert), calendar_id: calendarId } as NoteConnectionsInsert)
+          .insert({ ...(base as unknown as NoteConnectionsInsert), calendar_id: targetCalendarId } as NoteConnectionsInsert)
           .select()
           .single()
       : await supabase.from("note_connections").insert(base as unknown as NoteConnectionsInsert).select().single();
 
     // Back-compat: older schemas don't have `calendar_id`.
     const { data, error } =
-      primary.error && calendarId && isMissingCalendarIdColumn(primary.error)
+      primary.error && targetCalendarId && isMissingCalendarIdColumn(primary.error)
         ? await supabase.from("note_connections").insert(base as unknown as NoteConnectionsInsert).select().single()
         : primary;
 
@@ -136,7 +142,7 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
 
     const newConnection: NoteConnection = {
       id: data.id,
-      calendar_id: ((data as unknown as NoteConnectionsRowLike).calendar_id ?? calendarId ?? ""),
+      calendar_id: ((data as unknown as NoteConnectionsRowLike).calendar_id ?? ""),
       user_id: data.user_id,
       source_note_id: data.source_note_id,
       target_note_id: data.target_note_id,
@@ -144,7 +150,7 @@ export function useNoteConnections(userId: string | null, calendarId: string | n
 
     setConnections((prev) => [...prev, newConnection]);
     return newConnection;
-  }, [userId, calendarId, connections, deleteConnection, isMissingCalendarIdColumn]);
+  }, [userId, defaultInsertCalendarId, connections, deleteConnection, isMissingCalendarIdColumn]);
 
   const getConnectedNotes = useCallback(
     (noteId: string): string[] => {
