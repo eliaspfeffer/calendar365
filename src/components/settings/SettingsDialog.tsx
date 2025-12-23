@@ -9,6 +9,19 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useMemo, useState } from 'react';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -21,6 +34,8 @@ interface SettingsDialogProps {
   onAlwaysShowArrowsChange: (alwaysShowArrows: boolean) => void;
   shareBaseUrl: string | null;
   onShareBaseUrlChange: (url: string | null) => void;
+  accountEmail?: string | null;
+  onDeleteAccount?: () => Promise<{ error: Error | null }>;
 }
 
 const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
@@ -45,14 +60,32 @@ export function SettingsDialog({
   onAlwaysShowArrowsChange,
   shareBaseUrl,
   onShareBaseUrlChange,
+  accountEmail,
+  onDeleteAccount,
 }: SettingsDialogProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const canDeleteAccount = useMemo(() => {
+    if (!onDeleteAccount) return false;
+    return deleteConfirmation.trim().toUpperCase() === 'DELETE';
+  }, [deleteConfirmation, onDeleteAccount]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-6 py-4">
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && (deleteDialogOpen || isDeletingAccount)) return;
+          onOpenChange(nextOpen);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
           <div className="space-y-3">
             <Label className="text-base font-medium" htmlFor="share-base-url">
               Public share base URL
@@ -164,8 +197,98 @@ export function SettingsDialog({
               </div>
             </RadioGroup>
           </div>
+          {onDeleteAccount && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <div className="text-base font-medium text-destructive">Danger zone</div>
+                  <p className="text-sm text-muted-foreground">
+                    Delete your account and all private data stored in Supabase. This cannot be undone.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    setDeleteConfirmation('');
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  Delete account
+                </Button>
+                {accountEmail && (
+                  <p className="text-xs text-muted-foreground">
+                    Signed in as <span className="font-medium">{accountEmail}</span>
+                  </p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+      {onDeleteAccount && (
+        <AlertDialog
+          open={deleteDialogOpen}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && isDeletingAccount) return;
+            setDeleteDialogOpen(nextOpen);
+            if (!nextOpen) setDeleteConfirmation('');
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete your account and all private data (notes, calendars, shares, invites).
+                Type <span className="font-medium">DELETE</span> to confirm.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="delete-account-confirmation">Confirmation</Label>
+              <Input
+                id="delete-account-confirmation"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                placeholder="Type DELETE"
+                autoCapitalize="characters"
+                autoComplete="off"
+                disabled={isDeletingAccount}
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button variant="outline" disabled={isDeletingAccount}>
+                  Cancel
+                </Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button
+                  variant="destructive"
+                  disabled={!canDeleteAccount || isDeletingAccount}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!onDeleteAccount) return;
+                    if (!canDeleteAccount) return;
+                    setIsDeletingAccount(true);
+                    try {
+                      const { error } = await onDeleteAccount();
+                      if (error) return;
+                      setDeleteDialogOpen(false);
+                      onOpenChange(false);
+                    } finally {
+                      setIsDeletingAccount(false);
+                    }
+                  }}
+                >
+                  {isDeletingAccount ? 'Deleting…' : 'Delete account'}
+                </Button>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </>
   );
 }

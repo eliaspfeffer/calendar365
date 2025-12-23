@@ -260,7 +260,7 @@ export type Database = {
         Returns: string
       }
       create_calendar: {
-        Args: { p_name: string }
+        Args: { p_default_note_color?: string; p_name: string }
         Returns: string
       }
       create_calendar_invite: {
@@ -270,6 +270,10 @@ export type Database = {
           p_role?: Database["public"]["Enums"]["calendar_member_role"]
         }
         Returns: string
+      }
+      delete_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       ensure_default_calendar: {
         Args: Record<PropertyKey, never>

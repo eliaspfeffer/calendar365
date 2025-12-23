@@ -45,6 +45,7 @@ const Index = () => {
   const [pendingDeleteNoteCount, setPendingDeleteNoteCount] = useState<number | null>(null);
   const [isLoadingDeleteNoteCount, setIsLoadingDeleteNoteCount] = useState(false);
   const [isDeletingCalendar, setIsDeletingCalendar] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const {
     calendars,
@@ -162,6 +163,41 @@ const Index = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return { error: new Error("Not signed in") };
+
+    setIsDeletingAccount(true);
+    const { error } = await supabase.rpc("delete_account");
+    if (error) {
+      setIsDeletingAccount(false);
+      toast({
+        title: "Couldn’t delete account",
+        description: error.message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+
+    localStorage.removeItem("calendar365_settings");
+
+    const signOutResult = await signOut();
+    if (signOutResult.error) {
+      // If the user is already deleted, auth signOut may fail. Ensure local tokens are cleared anyway.
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          localStorage.removeItem(key);
+        }
+      }
+    }
+
+    setIsDeletingAccount(false);
+    toast({ title: "Account deleted" });
+    window.location.href = "/";
+    return { error: null };
   };
 
   const handleAuthRequired = () => {
@@ -447,6 +483,8 @@ const Index = () => {
         onAlwaysShowArrowsChange={(alwaysShowArrows) => updateSettings({ alwaysShowArrows })}
         shareBaseUrl={settings.shareBaseUrl}
         onShareBaseUrlChange={(url) => updateSettings({ shareBaseUrl: url })}
+        accountEmail={user?.email ?? null}
+        onDeleteAccount={user ? handleDeleteAccount : undefined}
       />
 
       <CreateCalendarDialog
