@@ -7,7 +7,7 @@ import { LogOut, Loader2, LogIn, Settings, Share2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
-import { useCalendars } from '@/hooks/useCalendars';
+import { useCalendars, type CalendarSummary } from '@/hooks/useCalendars';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarShareDialog } from '@/components/calendar/CalendarShareDialog';
 import { CreateCalendarDialog } from '@/components/calendar/CreateCalendarDialog';
@@ -15,10 +15,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Layers } from 'lucide-react';
+import { Layers, Trash2 } from 'lucide-react';
 import { STICKY_NOTE_COLORS, coerceStickyColor } from '@/lib/stickyNoteColors';
 import type { StickyColor } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
@@ -29,6 +39,12 @@ const Index = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [createCalendarDialogOpen, setCreateCalendarDialogOpen] = useState(false);
+  const [calendarVisibilityPopoverOpen, setCalendarVisibilityPopoverOpen] = useState(false);
+  const [deleteCalendarDialogOpen, setDeleteCalendarDialogOpen] = useState(false);
+  const [calendarPendingDelete, setCalendarPendingDelete] = useState<CalendarSummary | null>(null);
+  const [pendingDeleteNoteCount, setPendingDeleteNoteCount] = useState<number | null>(null);
+  const [isLoadingDeleteNoteCount, setIsLoadingDeleteNoteCount] = useState(false);
+  const [isDeletingCalendar, setIsDeletingCalendar] = useState(false);
 
   const {
     calendars,
@@ -152,6 +168,69 @@ const Index = () => {
     setLoginDialogOpen(true);
   };
 
+  const requestDeleteCalendar = async (calendar: CalendarSummary) => {
+    if (!user) return;
+
+    setCalendarVisibilityPopoverOpen(false);
+    setCalendarPendingDelete(calendar);
+    setPendingDeleteNoteCount(null);
+    setIsLoadingDeleteNoteCount(true);
+    setDeleteCalendarDialogOpen(true);
+
+    const { count, error } = await supabase
+      .from("sticky_notes")
+      .select("id", { count: "exact", head: true })
+      .eq("calendar_id", calendar.id);
+
+    setIsLoadingDeleteNoteCount(false);
+
+    if (error) {
+      toast({
+        title: "Couldn’t count notes",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPendingDeleteNoteCount(count ?? 0);
+  };
+
+  const confirmDeleteCalendar = async () => {
+    if (!calendarPendingDelete) return;
+    setIsDeletingCalendar(true);
+
+    const { error } = await supabase.from("calendars").delete().eq("id", calendarPendingDelete.id);
+
+    setIsDeletingCalendar(false);
+
+    if (error) {
+      toast({
+        title: "Couldn’t delete calendar",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const updates: Partial<typeof settings> = {};
+    if (settings.activeCalendarId === calendarPendingDelete.id) {
+      updates.activeCalendarId = null;
+    }
+    if (settings.visibleCalendarIds) {
+      const nextVisible = settings.visibleCalendarIds.filter((id) => id !== calendarPendingDelete.id);
+      updates.visibleCalendarIds = nextVisible.length > 0 ? nextVisible : null;
+    }
+    if (Object.keys(updates).length > 0) updateSettings(updates);
+
+    setDeleteCalendarDialogOpen(false);
+    setCalendarPendingDelete(null);
+    setPendingDeleteNoteCount(null);
+
+    await refreshCalendars();
+    toast({ title: "Calendar deleted" });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -182,7 +261,7 @@ const Index = () => {
             </SelectContent>
           </Select>
 
-          <Popover>
+          <Popover open={calendarVisibilityPopoverOpen} onOpenChange={setCalendarVisibilityPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -228,22 +307,42 @@ const Index = () => {
                           onCheckedChange={(v) => toggleCalendarVisibility(c.id, Boolean(v))}
                         />
                         <div className="flex-1 truncate">{c.name}</div>
-                        {c.role === "owner" && (
-                          <div className="flex items-center gap-1">
-                            {STICKY_NOTE_COLORS.map((col) => (
-                              <button
-                                key={col.value}
-                                className={[
-                                  "h-4 w-4 rounded-full border",
-                                  col.className,
-                                  col.value === currentColor ? "border-foreground" : "border-transparent opacity-70 hover:opacity-100",
-                                ].join(" ")}
-                                title={`Default: ${col.label}`}
-                                onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {c.role === "owner" && (
+                            <>
+                              {STICKY_NOTE_COLORS.map((col) => (
+                                <button
+                                  key={col.value}
+                                  className={[
+                                    "h-4 w-4 rounded-full border",
+                                    col.className,
+                                    col.value === currentColor
+                                      ? "border-foreground"
+                                      : "border-transparent opacity-70 hover:opacity-100",
+                                  ].join(" ")}
+                                  title={`Default: ${col.label}`}
+                                  onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
+                                />
+                              ))}
+                              {c.id !== defaultCalendarId && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  title="Delete calendar"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    requestDeleteCalendar(c);
+                                  }}
+                                  disabled={isDeletingCalendar}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -371,6 +470,59 @@ const Index = () => {
           return token;
         }}
       />
+
+      <AlertDialog
+        open={deleteCalendarDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && isDeletingCalendar) return;
+          setDeleteCalendarDialogOpen(open);
+          if (!open) {
+            setCalendarPendingDelete(null);
+            setPendingDeleteNoteCount(null);
+            setIsLoadingDeleteNoteCount(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete calendar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {calendarPendingDelete ? (
+                <>
+                  This will permanently delete{" "}
+                  {isLoadingDeleteNoteCount
+                    ? "…"
+                    : pendingDeleteNoteCount === null
+                      ? "an unknown number of notes"
+                      : `${pendingDeleteNoteCount} ${pendingDeleteNoteCount === 1 ? "note" : "notes"}`}{" "}
+                  from “{calendarPendingDelete.name}”.{pendingDeleteNoteCount === null ? " Try again." : ""}
+                </>
+              ) : (
+                "This will permanently delete this calendar and its notes."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="outline" disabled={isDeletingCalendar}>
+                Cancel
+              </Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                disabled={isDeletingCalendar || isLoadingDeleteNoteCount || pendingDeleteNoteCount === null}
+                onClick={(e) => {
+                  e.preventDefault();
+                  confirmDeleteCalendar();
+                }}
+              >
+                {isDeletingCalendar ? "Deleting…" : "Delete"}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
