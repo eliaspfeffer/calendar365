@@ -132,6 +132,7 @@ interface YearCalendarProps {
   onAuthRequired?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
+  alwaysShowArrows?: boolean;
   calendarOptions?: Array<{ id: string; name: string }>;
   calendarDefaultNoteColorById?: Record<string, StickyColor>;
 }
@@ -144,6 +145,7 @@ export function YearCalendar({
   onAuthRequired,
   textOverflowMode,
   calendarColor,
+  alwaysShowArrows = false,
   calendarOptions,
   calendarDefaultNoteColorById,
 }: YearCalendarProps) {
@@ -827,6 +829,7 @@ export function YearCalendar({
           connections={connections}
           notes={notes}
           hoveredNoteId={hoveredNoteId}
+          showAll={alwaysShowArrows}
           containerRef={contentRef}
         />
       </div>

@@ -430,6 +430,7 @@ const Index = () => {
         onAuthRequired={handleAuthRequired}
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
+        alwaysShowArrows={settings.alwaysShowArrows}
         calendarOptions={editableVisibleCalendars}
         calendarDefaultNoteColorById={calendarDefaultNoteColorById}
       />
@@ -442,6 +443,8 @@ const Index = () => {
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
         calendarColor={settings.calendarColor}
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
+        alwaysShowArrows={settings.alwaysShowArrows}
+        onAlwaysShowArrowsChange={(alwaysShowArrows) => updateSettings({ alwaysShowArrows })}
         shareBaseUrl={settings.shareBaseUrl}
         onShareBaseUrlChange={(url) => updateSettings({ shareBaseUrl: url })}
       />
