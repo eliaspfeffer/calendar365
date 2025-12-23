@@ -97,7 +97,7 @@ export function ReadOnlyYearCalendar({
 }: ReadOnlyYearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { scale, translateX, translateY, handleWheel, handleMouseDown, zoomIn, zoomOut, resetView, isDragging } = useZoomPan();
+  const { scale, translateX, translateY, handleWheel, handlePointerDown, zoomIn, zoomOut, resetView, isDragging } = useZoomPan();
 
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
 
@@ -122,17 +122,17 @@ export function ReadOnlyYearCalendar({
     return () => container.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
-  const handleContainerMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handleContainerPointerDown = useCallback(
+    (e: React.PointerEvent) => {
       if (isDragging()) return;
       const target = e.target as HTMLElement;
-      if (target.closest(".sticky-note")) {
+      if (target.closest(".sticky-note") || target.closest(".zoom-controls")) {
         e.stopPropagation();
         return;
       }
-      handleMouseDown(e);
+      handlePointerDown(e);
     },
-    [handleMouseDown, isDragging]
+    [handlePointerDown, isDragging]
   );
 
   const connectedNoteIds = useMemo(() => {
@@ -177,9 +177,12 @@ export function ReadOnlyYearCalendar({
   return (
     <div
       ref={containerRef}
-      className={cn("w-full h-screen overflow-hidden bg-muted relative cursor-grab active:cursor-grabbing", isDragging() && "cursor-grabbing")}
+      className={cn(
+        "w-full h-screen overflow-hidden bg-muted relative cursor-grab active:cursor-grabbing touch-none",
+        isDragging() && "cursor-grabbing"
+      )}
       style={{ "--calendar-header": calendarHeaderHsl } as React.CSSProperties}
-      onMouseDown={handleContainerMouseDown}
+      onPointerDown={handleContainerPointerDown}
     >
       <div
         ref={contentRef}

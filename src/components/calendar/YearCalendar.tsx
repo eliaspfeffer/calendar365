@@ -173,7 +173,7 @@ export function YearCalendar({
     translateX,
     translateY,
     handleWheel,
-    handleMouseDown,
+    handlePointerDown,
     zoomIn,
     zoomOut,
     resetView,
@@ -686,12 +686,14 @@ export function YearCalendar({
     ? [hoveredNoteId, ...getConnectedNotes(hoveredNoteId)]
     : [];
 
-  const handleContainerMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handleContainerPointerDown = useCallback(
+    (e: React.PointerEvent) => {
       // Don't start panning if clicking on a note or in link mode or if already dragging
       const target = e.target as HTMLElement;
       if (
         target.closest(".sticky-note") ||
+        target.closest(".inbox-notes-panel") ||
+        target.closest(".zoom-controls") ||
         target.closest('[data-radix-dialog-content]') ||
         target.closest('[role="dialog"]') ||
         dialogOpen ||
@@ -701,9 +703,9 @@ export function YearCalendar({
         e.stopPropagation();
         return;
       }
-      handleMouseDown(e);
+      handlePointerDown(e);
     },
-    [handleMouseDown, isLinkMode, draggedNoteId, dialogOpen]
+    [handlePointerDown, isLinkMode, draggedNoteId, dialogOpen]
   );
 
   const calendarHeaderHsl =
@@ -729,7 +731,7 @@ export function YearCalendar({
     <div
       ref={containerRef}
       className={cn(
-        "w-full h-screen overflow-hidden bg-muted relative",
+        "w-full h-screen overflow-hidden bg-muted relative touch-none",
         draggedNoteId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
       )}
       style={
@@ -737,7 +739,7 @@ export function YearCalendar({
           ? ({ "--calendar-header": calendarHeaderHsl } as React.CSSProperties)
           : undefined
       }
-      onMouseDown={handleContainerMouseDown}
+      onPointerDown={handleContainerPointerDown}
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
       onClick={handleCanvasClick}
