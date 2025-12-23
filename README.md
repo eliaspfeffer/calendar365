@@ -1,78 +1,55 @@
-# Welcome to your Lovable project
+# Big Year Calendar (365 Calendar)
 
-## Project info
+A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- 365‑day year grid with zoom/pan
+- Sticky notes per day
+- Optional sign-in + sync via Supabase
+- Shared calendars / public sharing (when Supabase is configured)
 
-There are several ways of editing your application.
+## Local development
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Prereqs: Node.js 18+ and npm (or Bun).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm install
 npm run dev
 ```
 
-## Supabase setup (required for login + saving)
+Other useful commands:
 
-- Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in your environment.
-- Apply the SQL migrations in `calendar365/supabase/migrations` (especially the shared calendars migration), otherwise logged-in calendars/notes may appear empty.
+```sh
+npm run lint
+npm run build
+npm run preview
+```
 
-**Edit a file directly in GitHub**
+## Environment variables (Supabase)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Without Supabase env vars, the app still runs, but sign-in and persistence are disabled.
 
-**Use GitHub Codespaces**
+Create `.env.local`:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```env
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_ANON_KEY
+```
 
-## What technologies are used for this project?
+## Database migrations (Supabase)
 
-This project is built with:
+Apply the SQL migrations in `supabase/migrations` to your Supabase project (includes shared calendars and sharing-related tables/policies).
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+If you use the Supabase CLI, a typical flow is:
 
-## How can I deploy this project?
+```sh
+supabase link --project-ref YOUR_PROJECT_REF
+supabase db push
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Tech stack
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Vite + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (auth + data)

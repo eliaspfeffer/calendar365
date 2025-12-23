@@ -79,25 +79,25 @@ export function InboxNotesPanel({
             Add a note here, or drag one off the calendar to park it without a date.
           </div>
         ) : (
-          <ScrollArea className="h-[280px] pr-3">
-            <div className="space-y-2">
+          <ScrollArea className="max-h-[280px] pr-3">
+            <div className="space-y-0">
               {notes.map((note) => (
-                <div key={note.id} className="relative h-[86px]">
-                  <StickyNoteComponent
-                    note={note}
-                    onDelete={onDeleteNote}
-                    onClick={() => onNoteClick(note)}
-                    onHover={onNoteHover}
-                    scale={1}
-                    textOverflowMode={textOverflowMode}
-                    isLinkMode={false}
-                    isConnected={false}
-                    isHighlighted={false}
-                    onDragStart={onNoteDragStart}
-                    onDragEnd={onNoteDragEnd}
-                    isDragging={draggedNoteId === note.id}
-                  />
-                </div>
+                <StickyNoteComponent
+                  key={note.id}
+                  note={note}
+                  onDelete={onDeleteNote}
+                  onClick={() => onNoteClick(note)}
+                  onHover={onNoteHover}
+                  scale={1}
+                  textOverflowMode={textOverflowMode}
+                  isLinkMode={false}
+                  isConnected={false}
+                  isHighlighted={false}
+                  onDragStart={onNoteDragStart}
+                  onDragEnd={onNoteDragEnd}
+                  isDragging={draggedNoteId === note.id}
+                  variant="list"
+                />
               ))}
             </div>
           </ScrollArea>
