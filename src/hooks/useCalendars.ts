@@ -33,6 +33,18 @@ function isCalendarsSchemaMissingError(error: unknown) {
   return false;
 }
 
+function isMissingCalendarsColumn(error: unknown, column: string) {
+  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  if (!err) return false;
+  const col = column.toLowerCase();
+  const code = err.code;
+  const haystack = `${err.message ?? ""} ${err.details ?? ""} ${err.hint ?? ""}`.toLowerCase();
+
+  if (code === "42703") return haystack.includes(col); // undefined_column
+  if (code === "PGRST204") return haystack.includes(col) && haystack.includes("schema cache");
+  return haystack.includes(col) && haystack.includes("does not exist");
+}
+
 export function useCalendars(userId: string | null) {
   const [calendars, setCalendars] = useState<CalendarSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -75,10 +87,19 @@ export function useCalendars(userId: string | null) {
       setDefaultCalendarId(ensured.data);
     }
 
-    const { data, error } = await supabase
+    const primary = await supabase
       .from("calendar_members")
       .select("role, calendars ( id, name, owner_id, default_note_color )")
       .eq("user_id", userId);
+
+    // Back-compat: older schemas don't have `calendars.default_note_color`.
+    const { data, error } =
+      primary.error && isMissingCalendarsColumn(primary.error, "default_note_color")
+        ? await supabase
+            .from("calendar_members")
+            .select("role, calendars ( id, name, owner_id )")
+            .eq("user_id", userId)
+        : primary;
 
     if (error) {
       console.error("Error fetching calendars:", error);
