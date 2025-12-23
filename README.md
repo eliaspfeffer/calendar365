@@ -41,6 +41,11 @@ npm run dev
 - Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in your environment.
 - Apply the SQL migrations in `calendar365/supabase/migrations` (especially the shared calendars migration), otherwise logged-in calendars/notes may appear empty.
 
+## Legal pages (Imprint / Privacy)
+
+- The app includes `/imprint` and `/privacy`.
+- Configure contact details via env vars (optional): `VITE_LEGAL_PROVIDER_NAME`, `VITE_LEGAL_PROVIDER_ADDRESS` (newline-separated), `VITE_LEGAL_PHONE`, `VITE_LEGAL_EMAIL`, `VITE_LEGAL_WEBSITE`.
+
 **Edit a file directly in GitHub**
 
 - Navigate to the desired file(s).
