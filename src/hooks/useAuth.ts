@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
+import { getPublicSiteOrigin } from '@/lib/url';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -46,7 +47,7 @@ export function useAuth() {
     if (!isSupabaseConfigured) {
       return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.") };
     }
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${getPublicSiteOrigin()}/`;
     
     const { error } = await supabase.auth.signInWithOtp({
       email,
