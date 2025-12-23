@@ -31,6 +31,8 @@ export function InboxNotesPanel({
   draggedNoteId,
   textOverflowMode,
 }: InboxNotesPanelProps) {
+  const isEmpty = notes.length === 0;
+
   const handleDragOver = (e: React.DragEvent) => {
     const types = e.dataTransfer.types;
     if (types.includes("text/plain") || draggedNoteId) {
@@ -54,50 +56,62 @@ export function InboxNotesPanel({
   return (
     <Card
       className={cn(
-        "inbox-notes-panel fixed bottom-6 left-6 w-[340px] shadow-lg border border-border bg-card/90 backdrop-blur-sm z-50",
+        "inbox-notes-panel fixed bottom-6 left-6 shadow-lg border border-border bg-card/90 backdrop-blur-sm z-50",
+        isEmpty ? "w-[260px]" : "w-[340px]",
         draggedNoteId && "ring-2 ring-primary"
       )}
       onMouseDown={(e) => e.stopPropagation()}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div className="flex items-center justify-between px-4 pt-4 pb-3">
+      <div
+        className={cn(
+          "flex items-center justify-between",
+          isEmpty ? "px-3 pt-3 pb-2" : "px-4 pt-4 pb-3"
+        )}
+      >
         <div>
-          <div className="font-display text-xl tracking-wide">Inbox</div>
-          <div className="text-xs text-muted-foreground">
+          <div className={cn("font-display tracking-wide", isEmpty ? "text-lg" : "text-xl")}>
+            Inbox
+          </div>
+          <div className={cn("text-muted-foreground", isEmpty ? "text-[11px]" : "text-xs")}>
             {notes.length} {notes.length === 1 ? "note" : "notes"} (undated)
           </div>
         </div>
-        <Button size="sm" onClick={onNewNote}>
+        <Button
+          size="sm"
+          className={cn(isEmpty && "h-8 px-2 text-xs")}
+          onClick={onNewNote}
+        >
           New
         </Button>
       </div>
 
-      <div className="px-4 pb-4">
-        {notes.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+      <div className={cn(isEmpty ? "px-3 pb-3" : "px-4 pb-4")}>
+        {isEmpty ? (
+          <div className="rounded-md border border-dashed border-border px-2 py-2 text-xs leading-snug text-muted-foreground">
             Add a note here, or drag one off the calendar to park it without a date.
           </div>
         ) : (
           <ScrollArea className="h-[280px] pr-3">
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1">
               {notes.map((note) => (
-                <div key={note.id} className="relative h-[86px]">
-                  <StickyNoteComponent
-                    note={note}
-                    onDelete={onDeleteNote}
-                    onClick={() => onNoteClick(note)}
-                    onHover={onNoteHover}
-                    scale={1}
-                    textOverflowMode={textOverflowMode}
-                    isLinkMode={false}
-                    isConnected={false}
-                    isHighlighted={false}
-                    onDragStart={onNoteDragStart}
-                    onDragEnd={onNoteDragEnd}
-                    isDragging={draggedNoteId === note.id}
-                  />
-                </div>
+                <StickyNoteComponent
+                  key={note.id}
+                  note={note}
+                  onDelete={onDeleteNote}
+                  onClick={() => onNoteClick(note)}
+                  onHover={onNoteHover}
+                  scale={1}
+                  textOverflowMode={textOverflowMode}
+                  isLinkMode={false}
+                  isConnected={false}
+                  isHighlighted={false}
+                  onDragStart={onNoteDragStart}
+                  onDragEnd={onNoteDragEnd}
+                  isDragging={draggedNoteId === note.id}
+                  variant="list"
+                />
               ))}
             </div>
           </ScrollArea>
