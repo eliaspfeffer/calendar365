@@ -23,6 +23,7 @@ interface CalendarCellProps {
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
   draggedNoteId?: string | null;
+  readOnly?: boolean;
 }
 
 export function CalendarCell({
@@ -43,11 +44,13 @@ export function CalendarCell({
   connectedNoteIds,
   highlightedNoteIds,
   draggedNoteId,
+  readOnly = false,
 }: CalendarCellProps) {
   const dateKey = formatDateKey(day.date);
   const isExpandMode = textOverflowMode === "expand";
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (readOnly) return;
     // Check if we're dragging a note by looking at dataTransfer types
     const types = e.dataTransfer.types;
     if (types.includes("text/plain") || draggedNoteId) {
@@ -59,6 +62,7 @@ export function CalendarCell({
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    if (readOnly) return;
     // Get the note ID from dataTransfer or from draggedNoteId
     let noteId = draggedNoteId;
     if (!noteId) {
@@ -74,15 +78,16 @@ export function CalendarCell({
   return (
     <div
       className={cn(
-        "calendar-cell min-w-[50px] relative cursor-pointer group",
+        "calendar-cell min-w-[50px] relative group",
+        !readOnly && "cursor-pointer",
         isExpandMode ? "min-h-[60px]" : "h-[60px]",
         day.isWeekend && "bg-calendar-weekend/50",
         day.isToday && "ring-2 ring-inset ring-primary",
         draggedNoteId && "ring-2 ring-primary ring-offset-1 bg-primary/5"
       )}
-      onClick={onCellClick}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onClick={readOnly ? undefined : onCellClick}
+      onDragOver={readOnly ? undefined : handleDragOver}
+      onDrop={readOnly ? undefined : handleDrop}
     >
       <div className="absolute top-0.5 left-1 right-1 flex items-center justify-between z-10">
         <span
@@ -102,19 +107,21 @@ export function CalendarCell({
           >
             {day.dayOfMonth}
           </span>
-          <button
-            type="button"
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-foreground/10"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onCellClick();
-            }}
-            aria-label="Add note"
-            title="Add note"
-          >
-            <Plus className="w-3 h-3 text-foreground/60" />
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-foreground/10"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onCellClick();
+              }}
+              aria-label="Add note"
+              title="Add note"
+            >
+              <Plus className="w-3 h-3 text-foreground/60" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -137,6 +144,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="list"
+              readOnly={readOnly}
             />
           ))}
         </div>
@@ -158,6 +166,7 @@ export function CalendarCell({
             isHighlighted={highlightedNoteIds.includes(note.id)}
             isDragging={draggedNoteId === note.id}
             variant="full"
+            readOnly={readOnly}
           />
         ))
       ) : (
@@ -179,6 +188,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="list"
+              readOnly={readOnly}
             />
           ))}
         </div>

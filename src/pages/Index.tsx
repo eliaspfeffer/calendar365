@@ -213,6 +213,8 @@ const Index = () => {
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
         calendarColor={settings.calendarColor}
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
+        shareBaseUrl={settings.shareBaseUrl}
+        onShareBaseUrlChange={(url) => updateSettings({ shareBaseUrl: url })}
       />
 
       <CreateCalendarDialog
@@ -229,6 +231,7 @@ const Index = () => {
         open={shareDialogOpen}
         onOpenChange={setShareDialogOpen}
         calendar={activeCalendar}
+        shareBaseUrl={settings.shareBaseUrl}
         onCreateInvite={async (role, expiresInDays) => {
           if (!activeCalendar) return null;
           const token = await createInvite(activeCalendar.id, role, expiresInDays);

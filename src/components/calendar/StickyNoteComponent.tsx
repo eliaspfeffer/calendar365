@@ -19,6 +19,7 @@ interface StickyNoteComponentProps {
   isHighlighted: boolean;
   isDragging?: boolean;
   variant?: "full" | "list";
+  readOnly?: boolean;
 }
 
 const colorClasses: Record<StickyColor, string> = {
@@ -45,6 +46,7 @@ export function StickyNoteComponent({
   isHighlighted,
   isDragging = false,
   variant = "full",
+  readOnly = false,
 }: StickyNoteComponentProps) {
   const hasDraggedRef = useRef(false);
 
@@ -71,11 +73,13 @@ export function StickyNoteComponent({
   const iconFontSize = getReadableIconSize();
 
   const handleDelete = (e: React.MouseEvent) => {
+    if (readOnly) return;
     e.stopPropagation();
     onDelete(note.id);
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    if (readOnly) return;
     // Prevent click if we just dragged
     if (hasDraggedRef.current) {
       hasDraggedRef.current = false;
@@ -100,6 +104,10 @@ export function StickyNoteComponent({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    if (readOnly) {
+      e.preventDefault();
+      return;
+    }
     if (isLinkMode) {
       e.preventDefault();
       return;
@@ -113,6 +121,7 @@ export function StickyNoteComponent({
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
+    if (readOnly) return;
     e.stopPropagation();
     hasDraggedRef.current = true;
     // Reset after a short delay to allow click prevention
@@ -148,14 +157,15 @@ export function StickyNoteComponent({
   return (
     <div
       data-note-id={note.id}
-      draggable={!isLinkMode}
+      draggable={!readOnly && !isLinkMode}
       className={cn(
         "sticky-note rounded-sm cursor-pointer animate-pop-in group",
         variant === "full" ? "absolute inset-1 p-1" : "relative w-full p-1",
         colorClasses[note.color],
         getOverflowStyles(),
         isLinkMode && "ring-2 ring-primary ring-offset-1 cursor-crosshair",
-        !isLinkMode && !isDragging && "cursor-grab",
+        !readOnly && !isLinkMode && !isDragging && "cursor-grab",
+        readOnly && "cursor-default",
         isHighlighted && "ring-2 ring-primary shadow-lg shadow-primary/30",
         isDragging && "opacity-50 cursor-grabbing z-50"
       )}
@@ -169,22 +179,19 @@ export function StickyNoteComponent({
         fontSize: `${noteFontSize}px`,
         lineHeight: 1.2,
         letterSpacing: "-0.01em",
-        userSelect: "none",
-        WebkitUserSelect: "none",
+        userSelect: readOnly ? "text" : "none",
+        WebkitUserSelect: readOnly ? "text" : "none",
       }}
     >
-      <button
-        onClick={handleDelete}
-        className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black/10 rounded-full z-10"
-        style={{ fontSize: `${iconFontSize}px` }}
-      >
-        <X
-          className={cn(
-            "text-foreground/60",
-            "w-3 h-3"
-          )}
-        />
-      </button>
+      {!readOnly && (
+        <button
+          onClick={handleDelete}
+          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-black/10 rounded-full z-10"
+          style={{ fontSize: `${iconFontSize}px` }}
+        >
+          <X className={cn("text-foreground/60", "w-3 h-3")} />
+        </button>
+      )}
       {variant === "full" && isConnected && (
         <div className="absolute bottom-0.5 right-0.5">
           <Link className="w-2.5 h-2.5 text-foreground/40" />
