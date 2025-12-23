@@ -1,0 +1,7 @@
+Sign in to Calendar365
+
+Use this link to sign in (expires soon):
+{{ .ConfirmationURL }}
+
+Didn’t request this? Ignore this email.
+
