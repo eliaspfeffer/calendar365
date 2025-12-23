@@ -81,6 +81,16 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
     return `${publicLink}#pw=${encodeURIComponent(publicPassword)}`;
   }, [publicLink, publicPasswordEnabled, publicPassword]);
 
+  const isRenamingExistingPublicLink = useMemo(() => {
+    if (!publicShare?.slug) return false;
+    const normalizedNext = publicSlug
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/(^-+)|(-+$)/g, "");
+    return Boolean(normalizedNext) && normalizedNext !== publicShare.slug;
+  }, [publicShare?.slug, publicSlug]);
+
   const handleCreate = async () => {
     if (!calendar) return;
     if (!canShare) return;
@@ -237,6 +247,11 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
                   spellCheck={false}
                 />
                 <p className="text-xs text-muted-foreground">Erlaubt: a–z, 0–9 und „-“ (3–64 Zeichen).</p>
+                {isRenamingExistingPublicLink ? (
+                  <p className="text-xs text-muted-foreground">
+                    Hinweis: Wenn du den Link-Namen änderst, wird der bisherige Link überschrieben und ist danach ungültig.
+                  </p>
+                ) : null}
               </div>
 
               <div className="grid gap-2">

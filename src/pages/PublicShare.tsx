@@ -185,7 +185,13 @@ export default function PublicShare() {
   if (info?.requires_password && notes === null && connections === null) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="w-full max-w-sm space-y-4">
+        <form
+          className="w-full max-w-sm space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            loadSnapshot(password || null);
+          }}
+        >
           <div>
             <h1 className="text-xl font-semibold">{info.calendar_name}</h1>
             <p className="text-sm text-muted-foreground">Dieser Kalender ist passwortgeschützt.</p>
@@ -202,10 +208,10 @@ export default function PublicShare() {
             {passwordError ? <p className="text-sm text-destructive">{passwordError}</p> : null}
           </div>
 
-          <Button onClick={() => loadSnapshot(password || null)} disabled={isLoading || !password}>
+          <Button type="submit" disabled={isLoading || !password}>
             {isLoading ? "Lade…" : "Öffnen"}
           </Button>
-        </div>
+        </form>
       </div>
     );
   }
@@ -216,4 +222,3 @@ export default function PublicShare() {
 
   return <ReadOnlyYearCalendar years={years} notes={notes} connections={connections} textOverflowMode="expand" />;
 }
-
