@@ -19,12 +19,15 @@ npm run dev
 ```
 
 Other useful commands:
-
 ```sh
 npm run lint
 npm run build
 npm run preview
 ```
+## Legal pages (Imprint / Privacy)
+
+- The app includes `/imprint` and `/privacy` as a popup modal (with a close button).
+- Configure contact details via env vars (see `.env.example`): `VITE_LEGAL_PROVIDER_NAME`, `VITE_LEGAL_PROVIDER_ADDRESS` (newline-separated), `VITE_LEGAL_PHONE`, `VITE_LEGAL_EMAIL`, `VITE_LEGAL_WEBSITE`.
 
 ## Environment variables (Supabase)
 
