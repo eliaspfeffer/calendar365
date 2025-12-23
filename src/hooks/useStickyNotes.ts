@@ -3,6 +3,7 @@ import { StickyNote, StickyColor, NoteConnection } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { exampleNotes } from '@/data/exampleCalendar';
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns';
 
 interface NotePosition {
   x: number;
@@ -11,17 +12,17 @@ interface NotePosition {
 
 // Helper to calculate day difference between two dates
 function getDaysDifference(date1: string, date2: string): number {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  const diffTime = d2.getTime() - d1.getTime();
-  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+  const d1 = parseISO(date1);
+  const d2 = parseISO(date2);
+  if (!isValid(d1) || !isValid(d2)) return 0;
+  return differenceInCalendarDays(d2, d1);
 }
 
 // Helper to add days to a date string
 function addDaysToDate(dateStr: string, days: number): string {
-  const date = new Date(dateStr);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  const date = parseISO(dateStr);
+  if (!isValid(date)) return dateStr;
+  return format(addDays(date, days), 'yyyy-MM-dd');
 }
 
 export function useStickyNotes(

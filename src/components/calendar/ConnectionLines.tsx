@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StickyNote, NoteConnection } from '@/types/calendar';
+import { differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 
 interface ConnectionLinesProps {
   connections: NoteConnection[];
@@ -22,6 +23,7 @@ export function ConnectionLines({
   containerRef,
 }: ConnectionLinesProps) {
   const [positions, setPositions] = useState<Map<string, Position>>(new Map());
+  const notesById = new Map(notes.map((n) => [n.id, n] as const));
 
   useEffect(() => {
     const updatePositions = () => {
@@ -108,9 +110,20 @@ export function ConnectionLines({
 
         if (!sourcePos || !targetPos) return null;
 
+        const sourceDate = notesById.get(connection.source_note_id)?.date ?? null;
+        const targetDate = notesById.get(connection.target_note_id)?.date ?? null;
+
         const dx = targetPos.x - sourcePos.x;
         const dy = targetPos.y - sourcePos.y;
         const length = Math.sqrt(dx * dx + dy * dy);
+
+        const dayDistance = (() => {
+          if (!sourceDate || !targetDate) return null;
+          const d1 = parseISO(sourceDate);
+          const d2 = parseISO(targetDate);
+          if (!isValid(d1) || !isValid(d2)) return null;
+          return Math.abs(differenceInCalendarDays(d2, d1));
+        })();
         
         // Shorten line to not overlap with notes
         const padding = 20;
@@ -142,7 +155,7 @@ export function ConnectionLines({
               textAnchor="middle"
               className="font-medium"
             >
-              {Math.round(length / 50)}d
+              {(dayDistance ?? Math.round(length / 50))}d
             </text>
           </g>
         );
