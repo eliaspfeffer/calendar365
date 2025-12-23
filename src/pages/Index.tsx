@@ -39,6 +39,7 @@ const Index = () => {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [createCalendarDialogOpen, setCreateCalendarDialogOpen] = useState(false);
+  const [calendarVisibilityPopoverOpen, setCalendarVisibilityPopoverOpen] = useState(false);
   const [deleteCalendarDialogOpen, setDeleteCalendarDialogOpen] = useState(false);
   const [calendarPendingDelete, setCalendarPendingDelete] = useState<CalendarSummary | null>(null);
   const [pendingDeleteNoteCount, setPendingDeleteNoteCount] = useState<number | null>(null);
@@ -170,6 +171,7 @@ const Index = () => {
   const requestDeleteCalendar = async (calendar: CalendarSummary) => {
     if (!user) return;
 
+    setCalendarVisibilityPopoverOpen(false);
     setCalendarPendingDelete(calendar);
     setPendingDeleteNoteCount(null);
     setIsLoadingDeleteNoteCount(true);
@@ -253,34 +255,13 @@ const Index = () => {
             <SelectContent>
               {calendars.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate">{c.name}</span>
-                    {c.role === "owner" && c.id !== defaultCalendarId && (
-                      <button
-                        type="button"
-                        className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label={`Delete calendar ${c.name}`}
-                        title="Delete calendar"
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          requestDeleteCalendar(c);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                  {c.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Popover>
+          <Popover open={calendarVisibilityPopoverOpen} onOpenChange={setCalendarVisibilityPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -326,22 +307,42 @@ const Index = () => {
                           onCheckedChange={(v) => toggleCalendarVisibility(c.id, Boolean(v))}
                         />
                         <div className="flex-1 truncate">{c.name}</div>
-                        {c.role === "owner" && (
-                          <div className="flex items-center gap-1">
-                            {STICKY_NOTE_COLORS.map((col) => (
-                              <button
-                                key={col.value}
-                                className={[
-                                  "h-4 w-4 rounded-full border",
-                                  col.className,
-                                  col.value === currentColor ? "border-foreground" : "border-transparent opacity-70 hover:opacity-100",
-                                ].join(" ")}
-                                title={`Default: ${col.label}`}
-                                onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {c.role === "owner" && (
+                            <>
+                              {STICKY_NOTE_COLORS.map((col) => (
+                                <button
+                                  key={col.value}
+                                  className={[
+                                    "h-4 w-4 rounded-full border",
+                                    col.className,
+                                    col.value === currentColor
+                                      ? "border-foreground"
+                                      : "border-transparent opacity-70 hover:opacity-100",
+                                  ].join(" ")}
+                                  title={`Default: ${col.label}`}
+                                  onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
+                                />
+                              ))}
+                              {c.id !== defaultCalendarId && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  title="Delete calendar"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    requestDeleteCalendar(c);
+                                  }}
+                                  disabled={isDeletingCalendar}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
