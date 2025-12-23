@@ -1,6 +1,7 @@
 -- Public calendar shares with optional password protection
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Supabase typically installs extensions into the `extensions` schema.
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 CREATE TABLE IF NOT EXISTS public.calendar_public_shares (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -168,7 +169,7 @@ BEGIN
   ELSIF p_password IS NULL OR btrim(p_password) = '' THEN
     next_hash := NULL; -- keep as-is on update via COALESCE below
   ELSE
-    next_hash := crypt(p_password, gen_salt('bf', 10));
+    next_hash := extensions.crypt(p_password, extensions.gen_salt('bf', 10));
   END IF;
 
   BEGIN
@@ -289,7 +290,7 @@ BEGIN
   IF share_row.password_hash IS NOT NULL THEN
     ip := public._public_share_request_ip();
     IF ip IS NOT NULL THEN
-      ip_hash := digest(ip || '|' || share_row.id::TEXT, 'sha256');
+      ip_hash := extensions.digest(ip || '|' || share_row.id::TEXT, 'sha256');
     ELSE
       ip_hash := NULL;
     END IF;
@@ -306,7 +307,7 @@ BEGIN
       RAISE EXCEPTION 'too many attempts';
     END IF;
 
-    IF p_password IS NULL OR crypt(p_password, share_row.password_hash) <> share_row.password_hash THEN
+    IF p_password IS NULL OR extensions.crypt(p_password, share_row.password_hash) <> share_row.password_hash THEN
       INSERT INTO public.calendar_public_share_attempts (share_id, ip_hash, success)
       VALUES (share_row.id, ip_hash, FALSE);
       RAISE EXCEPTION 'invalid password';
