@@ -55,6 +55,15 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
+## Custom magic-link email (Supabase Auth)
+
+Supabase sends the magic-link email using its Auth email template.
+
+- Go to Supabase Dashboard → Authentication → Templates → `Magic Link`
+- Set the subject to: `Sign in to Calendar365`
+- Paste `supabase/email-templates/magic-link.html` as the template body (uses `{{ .ConfirmationURL }}`)
+- Optional: keep `supabase/email-templates/magic-link.txt` as a plaintext fallback reference
+
 ## Tech stack
 
 - Vite + React + TypeScript
