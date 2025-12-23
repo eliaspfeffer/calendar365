@@ -268,7 +268,7 @@ DECLARE
   share_row public.calendar_public_shares%ROWTYPE;
   cal_name TEXT;
   ip TEXT;
-  ip_hash BYTEA;
+  v_ip_hash BYTEA;
   failed_count INT;
 BEGIN
   safe_slug := public._normalize_public_share_slug(p_slug);
@@ -290,16 +290,16 @@ BEGIN
   IF share_row.password_hash IS NOT NULL THEN
     ip := public._public_share_request_ip();
     IF ip IS NOT NULL THEN
-      ip_hash := extensions.digest(ip || '|' || share_row.id::TEXT, 'sha256');
+      v_ip_hash := extensions.digest(ip || '|' || share_row.id::TEXT, 'sha256');
     ELSE
-      ip_hash := NULL;
+      v_ip_hash := NULL;
     END IF;
 
     SELECT count(*)::INT
     INTO failed_count
     FROM public.calendar_public_share_attempts a
     WHERE a.share_id = share_row.id
-      AND (ip_hash IS NULL OR a.ip_hash = ip_hash)
+      AND (v_ip_hash IS NULL OR a.ip_hash = v_ip_hash)
       AND a.success = FALSE
       AND a.attempted_at > now() - interval '15 minutes';
 
@@ -309,12 +309,12 @@ BEGIN
 
     IF p_password IS NULL OR extensions.crypt(p_password, share_row.password_hash) <> share_row.password_hash THEN
       INSERT INTO public.calendar_public_share_attempts (share_id, ip_hash, success)
-      VALUES (share_row.id, ip_hash, FALSE);
+      VALUES (share_row.id, v_ip_hash, FALSE);
       RAISE EXCEPTION 'invalid password';
     END IF;
 
     INSERT INTO public.calendar_public_share_attempts (share_id, ip_hash, success)
-    VALUES (share_row.id, ip_hash, TRUE);
+    VALUES (share_row.id, v_ip_hash, TRUE);
   END IF;
 
   SELECT c.name INTO cal_name
