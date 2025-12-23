@@ -81,6 +81,63 @@ export type Database = {
           },
         ]
       }
+      calendar_public_share_attempts: {
+        Row: {
+          attempted_at: string
+          id: number
+          ip_hash: string | null
+          share_id: string
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          id?: number
+          ip_hash?: string | null
+          share_id: string
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          id?: number
+          ip_hash?: string | null
+          share_id?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
+      calendar_public_shares: {
+        Row: {
+          calendar_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          password_hash: string | null
+          revoked_at: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          calendar_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          password_hash?: string | null
+          revoked_at?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          calendar_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          password_hash?: string | null
+          revoked_at?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       calendars: {
         Row: {
           created_at: string
@@ -217,6 +274,41 @@ export type Database = {
       ensure_default_calendar: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_calendar_public_share_settings: {
+        Args: { p_calendar_id: string }
+        Returns: {
+          has_password: boolean
+          is_enabled: boolean
+          slug: string
+        }[]
+      }
+      get_public_calendar_share_info: {
+        Args: { p_slug: string }
+        Returns: {
+          calendar_name: string
+          requires_password: boolean
+        }[]
+      }
+      get_public_calendar_share_snapshot: {
+        Args: { p_password?: string | null; p_slug: string }
+        Returns: Json
+      }
+      revoke_calendar_public_share: {
+        Args: { p_calendar_id: string }
+        Returns: boolean
+      }
+      set_calendar_public_share: {
+        Args: {
+          p_calendar_id: string
+          p_password?: string | null
+          p_remove_password?: boolean
+          p_slug: string
+        }
+        Returns: {
+          has_password: boolean
+          slug: string
+        }[]
       }
     }
     Enums: {

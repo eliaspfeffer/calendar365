@@ -33,6 +33,7 @@ interface SingleYearGridProps {
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
   draggedNoteId?: string | null;
+  readOnly?: boolean;
 }
 
 function SingleYearGrid({
@@ -53,6 +54,7 @@ function SingleYearGrid({
   connectedNoteIds,
   highlightedNoteIds,
   draggedNoteId,
+  readOnly = false,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -100,6 +102,7 @@ function SingleYearGrid({
                   connectedNoteIds={connectedNoteIds}
                   highlightedNoteIds={highlightedNoteIds}
                   draggedNoteId={draggedNoteId}
+                  readOnly={readOnly}
                 />
               ))}
 

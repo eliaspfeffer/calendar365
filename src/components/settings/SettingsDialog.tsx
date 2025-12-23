@@ -4,6 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
@@ -15,6 +16,8 @@ interface SettingsDialogProps {
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
   calendarColor: CalendarColor;
   onCalendarColorChange: (color: CalendarColor) => void;
+  shareBaseUrl: string | null;
+  onShareBaseUrlChange: (url: string | null) => void;
 }
 
 const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
@@ -35,6 +38,8 @@ export function SettingsDialog({
   onTextOverflowModeChange,
   calendarColor,
   onCalendarColorChange,
+  shareBaseUrl,
+  onShareBaseUrlChange,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -43,6 +48,24 @@ export function SettingsDialog({
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
+          <div className="space-y-3">
+            <Label className="text-base font-medium" htmlFor="share-base-url">
+              Public share base URL
+            </Label>
+            <Input
+              id="share-base-url"
+              value={shareBaseUrl ?? ""}
+              onChange={(e) => onShareBaseUrlChange(e.target.value || null)}
+              placeholder="https://calendar.example.com"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <p className="text-sm text-muted-foreground">
+              Optional. Used when generating public share links (custom domains). Leave empty to use the current site URL.
+            </p>
+          </div>
           <div className="space-y-3">
             <Label className="text-base font-medium">Calendar Color</Label>
             <div className="grid grid-cols-4 gap-3">
