@@ -9,6 +9,7 @@ export interface CalendarSummary {
   name: string;
   owner_id: string;
   role: CalendarMemberRole;
+  default_note_color?: string | null;
 }
 
 export interface CreateCalendarResult {
@@ -76,7 +77,7 @@ export function useCalendars(userId: string | null) {
 
     const { data, error } = await supabase
       .from("calendar_members")
-      .select("role, calendars ( id, name, owner_id )")
+      .select("role, calendars ( id, name, owner_id, default_note_color )")
       .eq("user_id", userId);
 
     if (error) {
@@ -98,7 +99,11 @@ export function useCalendars(userId: string | null) {
       return;
     }
 
-    const rows = (data as unknown as Array<{ role: CalendarMemberRole; calendars: { id: string; name: string; owner_id: string } | null }>) || [];
+    const rows =
+      (data as unknown as Array<{
+        role: CalendarMemberRole;
+        calendars: { id: string; name: string; owner_id: string; default_note_color?: string | null } | null;
+      }>) || [];
     const mapped: CalendarSummary[] = rows
       .map((row) => {
         const cal = row.calendars;
@@ -108,6 +113,7 @@ export function useCalendars(userId: string | null) {
           name: cal.name,
           owner_id: cal.owner_id,
           role: row.role as CalendarMemberRole,
+          default_note_color: cal.default_note_color ?? null,
         };
       })
       .filter((x): x is CalendarSummary => Boolean(x))
@@ -123,9 +129,21 @@ export function useCalendars(userId: string | null) {
   }, [refresh]);
 
   const createCalendar = useCallback(
-    async (name: string): Promise<CreateCalendarResult> => {
+    async (name: string, defaultNoteColor?: string): Promise<CreateCalendarResult> => {
       if (!userId) return { id: null, error: "Nicht angemeldet." };
-      const { data, error } = await supabase.rpc("create_calendar", { p_name: name });
+      const attemptWithColor = await supabase.rpc("create_calendar", {
+        p_name: name,
+        ...(defaultNoteColor ? { p_default_note_color: defaultNoteColor } : {}),
+      });
+      let data = attemptWithColor.data;
+      let error = attemptWithColor.error;
+
+      // Back-compat: older DB function signature may not support p_default_note_color.
+      if (error && `${error.message ?? ""}`.toLowerCase().includes("p_default_note_color")) {
+        const retry = await supabase.rpc("create_calendar", { p_name: name });
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) {
         console.error("Error creating calendar:", error);
         if (isCalendarsSchemaMissingError(error)) {

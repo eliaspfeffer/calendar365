@@ -11,6 +11,14 @@ import { useCalendars } from '@/hooks/useCalendars';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarShareDialog } from '@/components/calendar/CalendarShareDialog';
 import { CreateCalendarDialog } from '@/components/calendar/CreateCalendarDialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Layers } from 'lucide-react';
+import { STICKY_NOTE_COLORS, coerceStickyColor } from '@/lib/stickyNoteColors';
+import type { StickyColor } from '@/types/calendar';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
@@ -29,6 +37,7 @@ const Index = () => {
     defaultCalendarId,
     schemaStatus: calendarsSchemaStatus,
     schemaError: calendarsSchemaError,
+    refresh: refreshCalendars,
     createCalendar,
     createInvite,
   } = useCalendars(user?.id || null);
@@ -42,6 +51,59 @@ const Index = () => {
     if (!effectiveCalendarId) return null;
     return byId.get(effectiveCalendarId) ?? null;
   }, [byId, effectiveCalendarId]);
+
+  const effectiveVisibleCalendarIds = useMemo(() => {
+    if (!user) return null;
+    const chosen = settings.visibleCalendarIds;
+    if (chosen && chosen.length > 0) {
+      const valid = chosen.filter((id) => byId.has(id));
+      return valid.length > 0 ? valid : (effectiveCalendarId ? [effectiveCalendarId] : null);
+    }
+    return effectiveCalendarId ? [effectiveCalendarId] : null;
+  }, [user, settings.visibleCalendarIds, byId, effectiveCalendarId]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!settings.visibleCalendarIds) return;
+    if (!effectiveCalendarId) return;
+    if (settings.visibleCalendarIds.includes(effectiveCalendarId)) return;
+    updateSettings({ visibleCalendarIds: [...settings.visibleCalendarIds, effectiveCalendarId] });
+  }, [user, settings.visibleCalendarIds, effectiveCalendarId, updateSettings]);
+
+  const calendarDefaultNoteColorById = useMemo(() => {
+    const entries = calendars.map((c) => [c.id, coerceStickyColor(c.default_note_color, "yellow")] as const);
+    return Object.fromEntries(entries) as Record<string, StickyColor>;
+  }, [calendars]);
+
+  const editableVisibleCalendars = useMemo(() => {
+    const visible = new Set(effectiveVisibleCalendarIds ?? []);
+    return calendars
+      .filter((c) => visible.has(c.id) && (c.role === "owner" || c.role === "editor"))
+      .map((c) => ({ id: c.id, name: c.name }));
+  }, [calendars, effectiveVisibleCalendarIds]);
+
+  const toggleCalendarVisibility = (calendarId: string, visible: boolean) => {
+    const baseline = settings.visibleCalendarIds ?? (effectiveCalendarId ? [effectiveCalendarId] : []);
+    const next = visible
+      ? Array.from(new Set([...baseline, calendarId]))
+      : baseline.filter((id) => id !== calendarId);
+    if (next.length === 0) return;
+    updateSettings({ visibleCalendarIds: next });
+  };
+
+  const updateCalendarDefaultNoteColor = async (calendarId: string, color: StickyColor) => {
+    const { error } = await supabase.from("calendars").update({ default_note_color: color }).eq("id", calendarId);
+    if (error) {
+      toast({
+        title: "Couldn’t update calendar color",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    refreshCalendars();
+    toast({ title: "Default note color updated" });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -128,6 +190,79 @@ const Index = () => {
             </SelectContent>
           </Select>
 
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-background/80 backdrop-blur-sm"
+                title="Kalender anzeigen/ausblenden + Standardfarben"
+                disabled={calendarsLoading || calendars.length === 0}
+              >
+                <Layers className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[360px] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium">Calendars</div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateSettings({ visibleCalendarIds: null })}
+                    disabled={!settings.visibleCalendarIds}
+                  >
+                    Single
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateSettings({ visibleCalendarIds: calendars.map((c) => c.id) })}
+                  >
+                    All
+                  </Button>
+                </div>
+              </div>
+              <Separator className="my-3" />
+              <ScrollArea className="h-[260px] pr-2">
+                <div className="space-y-2">
+                  {calendars.map((c) => {
+                    const visible = (effectiveVisibleCalendarIds ?? []).includes(c.id);
+                    const currentColor = calendarDefaultNoteColorById[c.id] ?? "yellow";
+                    return (
+                      <div key={c.id} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={visible}
+                          onCheckedChange={(v) => toggleCalendarVisibility(c.id, Boolean(v))}
+                        />
+                        <div className="flex-1 truncate">{c.name}</div>
+                        {c.role === "owner" && (
+                          <div className="flex items-center gap-1">
+                            {STICKY_NOTE_COLORS.map((col) => (
+                              <button
+                                key={col.value}
+                                className={[
+                                  "h-4 w-4 rounded-full border",
+                                  col.className,
+                                  col.value === currentColor ? "border-foreground" : "border-transparent opacity-70 hover:opacity-100",
+                                ].join(" ")}
+                                title={`Default: ${col.label}`}
+                                onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+              <div className="mt-3 text-xs text-muted-foreground">
+                Showing {(effectiveVisibleCalendarIds ?? []).length || 0} of {calendars.length}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Button
             variant="outline"
             size="sm"
@@ -199,10 +334,13 @@ const Index = () => {
       <YearCalendar 
         years={[2025, 2026]} 
         userId={user?.id || null}
-        calendarId={effectiveCalendarId}
+        visibleCalendarIds={effectiveVisibleCalendarIds}
+        activeCalendarId={effectiveCalendarId}
         onAuthRequired={handleAuthRequired}
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
+        calendarOptions={editableVisibleCalendars}
+        calendarDefaultNoteColorById={calendarDefaultNoteColorById}
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
@@ -220,8 +358,8 @@ const Index = () => {
       <CreateCalendarDialog
         open={createCalendarDialogOpen}
         onOpenChange={setCreateCalendarDialogOpen}
-        onCreate={async (name) => {
-          const result = await createCalendar(name);
+        onCreate={async (name, defaultNoteColor) => {
+          const result = await createCalendar(name, defaultNoteColor);
           if (result.id) updateSettings({ activeCalendarId: result.id });
           return result;
         }}

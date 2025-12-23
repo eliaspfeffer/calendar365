@@ -14,6 +14,7 @@ import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { coerceStickyColor } from "@/lib/stickyNoteColors";
 
 interface SingleYearGridProps {
   year: number;
@@ -126,19 +127,25 @@ function SingleYearGrid({
 interface YearCalendarProps {
   years: number[];
   userId: string | null;
-  calendarId: string | null;
+  visibleCalendarIds: string[] | null;
+  activeCalendarId: string | null;
   onAuthRequired?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
+  calendarOptions?: Array<{ id: string; name: string }>;
+  calendarDefaultNoteColorById?: Record<string, StickyColor>;
 }
 
 export function YearCalendar({
   years,
   userId,
-  calendarId,
+  visibleCalendarIds,
+  activeCalendarId,
   onAuthRequired,
   textOverflowMode,
   calendarColor,
+  calendarOptions,
+  calendarDefaultNoteColorById,
 }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -151,13 +158,13 @@ export function YearCalendar({
     moveNoteToCanvas,
     deleteNote,
     getNotesByDate,
-  } = useStickyNotes(userId, calendarId);
+  } = useStickyNotes(userId, visibleCalendarIds, activeCalendarId);
   const {
     connections,
     addConnection,
     getConnectedNotes,
     getConnectionsForNote,
-  } = useNoteConnections(userId, calendarId);
+  } = useNoteConnections(userId, visibleCalendarIds, activeCalendarId);
   const { toast } = useToast();
   const {
     scale,
@@ -179,9 +186,16 @@ export function YearCalendar({
   const [linkSourceNoteId, setLinkSourceNoteId] = useState<string | null>(null);
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [newNotePosition, setNewNotePosition] = useState<{ x: number; y: number } | null>(null);
+  const [newNoteCalendarId, setNewNoteCalendarId] = useState<string | null>(activeCalendarId);
 
   const inboxNotes = notes.filter((n) => !n.date && (n.pos_x == null || n.pos_y == null));
   const canvasNotes = notes.filter((n) => !n.date && n.pos_x != null && n.pos_y != null);
+
+  useEffect(() => {
+    if (dialogOpen) return;
+    if (editingNote) return;
+    setNewNoteCalendarId(activeCalendarId);
+  }, [activeCalendarId, dialogOpen, editingNote]);
 
   // Track Command/Meta key state
   useEffect(() => {
@@ -238,9 +252,10 @@ export function YearCalendar({
       }
       setSelectedDate(formatDateKey(date));
       setEditingNote(null);
+      setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
       setDialogOpen(true);
     },
-    [userId, onAuthRequired, isDragging, isLinkMode, draggedNoteId]
+    [userId, onAuthRequired, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds]
   );
 
   const handleNoteClick = useCallback(
@@ -312,8 +327,16 @@ export function YearCalendar({
           });
           return;
         }
+        if (sourceNote.calendar_id !== note.calendar_id) {
+          setLinkSourceNoteId(null);
+          toast({
+            title: "Different calendars",
+            description: "You can only link notes within the same calendar.",
+          });
+          return;
+        }
         // Second note selected, create or remove connection
-        addConnection(linkSourceNoteId, noteId);
+        addConnection(linkSourceNoteId, noteId, sourceNote.calendar_id ?? null);
         setLinkSourceNoteId(null);
         toast({
           title: "Notes linked!",
@@ -552,9 +575,10 @@ export function YearCalendar({
       setSelectedDate(null);
       setEditingNote(null);
       setNewNotePosition(point);
+      setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
       setDialogOpen(true);
     },
-    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, onAuthRequired, userId, dialogOpen]
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, onAuthRequired, userId, dialogOpen, activeCalendarId, visibleCalendarIds]
   );
 
   const handleSaveNote = useCallback(
@@ -579,10 +603,11 @@ export function YearCalendar({
           selectedDate,
           text,
           color,
-          selectedDate ? null : newNotePosition
+          selectedDate ? null : newNotePosition,
+          newNoteCalendarId
         );
         if (!created) {
-          const hint = calendarId
+          const hint = newNoteCalendarId
             ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
             : "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations.";
           toast({
@@ -596,7 +621,7 @@ export function YearCalendar({
         return true;
       }
     },
-    [editingNote, selectedDate, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition]
+    [editingNote, selectedDate, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition, newNoteCalendarId]
   );
 
   const handleDeleteNote = useCallback(() => {
@@ -832,6 +857,7 @@ export function YearCalendar({
           setSelectedDate(null);
           setEditingNote(null);
           setNewNotePosition(null);
+          setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
           setDialogOpen(true);
         }}
         onNoteClick={handleInboxNoteClick}
@@ -861,6 +887,14 @@ export function YearCalendar({
         onSave={handleSaveNote}
         onDelete={editingNote ? handleDeleteNote : undefined}
         onMove={editingNote ? handleMoveNote : undefined}
+        calendarOptions={calendarOptions && calendarOptions.length > 1 ? calendarOptions : undefined}
+        calendarId={!editingNote ? newNoteCalendarId : null}
+        onCalendarChange={!editingNote ? setNewNoteCalendarId : undefined}
+        defaultColor={
+          !editingNote && newNoteCalendarId
+            ? coerceStickyColor(calendarDefaultNoteColorById?.[newNoteCalendarId], "yellow")
+            : "yellow"
+        }
       />
     </div>
   );

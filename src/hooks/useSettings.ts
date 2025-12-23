@@ -8,6 +8,7 @@ interface Settings {
   calendarColor: CalendarColor;
   activeCalendarId: string | null;
   shareBaseUrl: string | null;
+  visibleCalendarIds: string[] | null;
 }
 
 const SETTINGS_KEY = 'calendar365_settings';
@@ -17,6 +18,7 @@ const defaultSettings: Settings = {
   calendarColor: 'blue',
   activeCalendarId: null,
   shareBaseUrl: null,
+  visibleCalendarIds: null,
 };
 
 export function useSettings() {
