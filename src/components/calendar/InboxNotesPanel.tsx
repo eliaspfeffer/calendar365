@@ -80,24 +80,24 @@ export function InboxNotesPanel({
           </div>
         ) : (
           <ScrollArea className="h-[280px] pr-3">
-            <div className="space-y-1">
+            <div className="space-y-0">
               {notes.map((note) => (
-                <div key={note.id} className="relative h-[64px]">
-                  <StickyNoteComponent
-                    note={note}
-                    onDelete={onDeleteNote}
-                    onClick={() => onNoteClick(note)}
-                    onHover={onNoteHover}
-                    scale={1}
-                    textOverflowMode={textOverflowMode}
-                    isLinkMode={false}
-                    isConnected={false}
-                    isHighlighted={false}
-                    onDragStart={onNoteDragStart}
-                    onDragEnd={onNoteDragEnd}
-                    isDragging={draggedNoteId === note.id}
-                  />
-                </div>
+                <StickyNoteComponent
+                  key={note.id}
+                  note={note}
+                  onDelete={onDeleteNote}
+                  onClick={() => onNoteClick(note)}
+                  onHover={onNoteHover}
+                  scale={1}
+                  textOverflowMode={textOverflowMode}
+                  isLinkMode={false}
+                  isConnected={false}
+                  isHighlighted={false}
+                  onDragStart={onNoteDragStart}
+                  onDragEnd={onNoteDragEnd}
+                  isDragging={draggedNoteId === note.id}
+                  variant="list"
+                />
               ))}
             </div>
           </ScrollArea>
