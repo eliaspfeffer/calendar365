@@ -14,6 +14,8 @@ import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Inbox } from "lucide-react";
 
 interface SingleYearGridProps {
   year: number;
@@ -127,6 +129,11 @@ interface YearCalendarProps {
   onAuthRequired?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
+  inboxVisible: boolean;
+  inboxWidth: number;
+  onInboxVisibleChange: (visible: boolean) => void;
+  onInboxWidthChange: (width: number) => void;
+  alwaysShowConnections: boolean;
 }
 
 export function YearCalendar({
@@ -136,6 +143,11 @@ export function YearCalendar({
   onAuthRequired,
   textOverflowMode,
   calendarColor,
+  inboxVisible,
+  inboxWidth,
+  onInboxVisibleChange,
+  onInboxWidthChange,
+  alwaysShowConnections,
 }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -795,12 +807,13 @@ export function YearCalendar({
         )}
 
         {/* Connection lines overlay - inside transformed container */}
-        <ConnectionLines
-          connections={connections}
-          notes={notes}
-          hoveredNoteId={hoveredNoteId}
-          containerRef={contentRef}
-        />
+      <ConnectionLines
+        connections={connections}
+        notes={notes}
+        hoveredNoteId={hoveredNoteId}
+        containerRef={contentRef}
+        alwaysShow={alwaysShowConnections}
+      />
       </div>
 
       {/* Link mode indicator */}
@@ -819,33 +832,58 @@ export function YearCalendar({
         scale={scale}
       />
 
-      <InboxNotesPanel
-        notes={inboxNotes}
-        onNewNote={() => {
-          if (!userId) {
-            onAuthRequired?.();
-            return;
-          }
-          setSelectedDate(null);
-          setEditingNote(null);
-          setNewNotePosition(null);
-          setDialogOpen(true);
-        }}
-        onNoteClick={handleInboxNoteClick}
-        onDeleteNote={(id) => {
-          if (!userId) {
-            onAuthRequired?.();
-            return;
-          }
-          deleteNote(id);
-        }}
-        onNoteHover={handleNoteHover}
-        onDropToInbox={userId ? handleInboxDrop : () => onAuthRequired?.()}
-        onNoteDragStart={userId ? handleNoteDragStart : undefined}
-        onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
-        draggedNoteId={draggedNoteId}
-        textOverflowMode={textOverflowMode}
-      />
+      {inboxVisible ? (
+        <InboxNotesPanel
+          notes={inboxNotes}
+          width={inboxWidth}
+          onWidthChange={onInboxWidthChange}
+          onClose={() => onInboxVisibleChange(false)}
+          onNewNote={() => {
+            if (!userId) {
+              onAuthRequired?.();
+              return;
+            }
+            setSelectedDate(null);
+            setEditingNote(null);
+            setNewNotePosition(null);
+            setDialogOpen(true);
+          }}
+          onNoteClick={handleInboxNoteClick}
+          onDeleteNote={(id) => {
+            if (!userId) {
+              onAuthRequired?.();
+              return;
+            }
+            deleteNote(id);
+          }}
+          onNoteHover={handleNoteHover}
+          onDropToInbox={userId ? handleInboxDrop : () => onAuthRequired?.()}
+          onNoteDragStart={userId ? handleNoteDragStart : undefined}
+          onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
+          draggedNoteId={draggedNoteId}
+          textOverflowMode={textOverflowMode}
+        />
+      ) : (
+        <div
+          className="fixed top-20 right-4 z-50"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-card/90 backdrop-blur-sm shadow-lg border border-border inbox-toggle-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInboxVisibleChange(true);
+            }}
+            title="Show inbox"
+          >
+            <Inbox className="h-4 w-4 mr-2" />
+            Inbox
+          </Button>
+        </div>
+      )}
 
       <NoteDialog
         open={dialogOpen}

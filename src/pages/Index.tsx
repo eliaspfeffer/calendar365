@@ -203,6 +203,11 @@ const Index = () => {
         onAuthRequired={handleAuthRequired}
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
+        inboxVisible={settings.inboxVisible}
+        inboxWidth={settings.inboxWidth}
+        onInboxVisibleChange={(visible) => updateSettings({ inboxVisible: visible })}
+        onInboxWidthChange={(width) => updateSettings({ inboxWidth: width })}
+        alwaysShowConnections={settings.alwaysShowConnections}
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
@@ -213,6 +218,10 @@ const Index = () => {
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
         calendarColor={settings.calendarColor}
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
+        alwaysShowConnections={settings.alwaysShowConnections}
+        onAlwaysShowConnectionsChange={(enabled) =>
+          updateSettings({ alwaysShowConnections: enabled })
+        }
       />
 
       <CreateCalendarDialog

@@ -6,6 +6,7 @@ interface ConnectionLinesProps {
   notes: StickyNote[];
   hoveredNoteId: string | null;
   containerRef: React.RefObject<HTMLDivElement>;
+  alwaysShow?: boolean;
 }
 
 interface Position {
@@ -18,6 +19,7 @@ export function ConnectionLines({
   notes,
   hoveredNoteId,
   containerRef,
+  alwaysShow = false,
 }: ConnectionLinesProps) {
   const [positions, setPositions] = useState<Map<string, Position>>(new Map());
 
@@ -70,12 +72,33 @@ export function ConnectionLines({
     };
   }, [notes, containerRef]);
 
-  // Filter connections to show only those related to hovered note
-  const visibleConnections = hoveredNoteId
-    ? connections.filter(
-        (c) => c.source_note_id === hoveredNoteId || c.target_note_id === hoveredNoteId
-      )
-    : [];
+  const notesById = new Map(notes.map((n) => [n.id, n] as const));
+
+  const parseUtcDay = (dateStr: string): number | null => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+    if (!m) return null;
+    const year = Number(m[1]);
+    const monthIndex = Number(m[2]) - 1;
+    const day = Number(m[3]);
+    if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) return null;
+    return Date.UTC(year, monthIndex, day);
+  };
+
+  const getDaysBetween = (a: string, b: string): number | null => {
+    const aUtc = parseUtcDay(a);
+    const bUtc = parseUtcDay(b);
+    if (aUtc == null || bUtc == null) return null;
+    return Math.round(Math.abs((bUtc - aUtc) / (1000 * 60 * 60 * 24)));
+  };
+
+  // Filter connections to show only those related to hovered note (unless alwaysShow is enabled)
+  const visibleConnections = alwaysShow
+    ? connections
+    : hoveredNoteId
+      ? connections.filter(
+          (c) => c.source_note_id === hoveredNoteId || c.target_note_id === hoveredNoteId
+        )
+      : [];
 
   if (visibleConnections.length === 0) return null;
 
@@ -117,6 +140,13 @@ export function ConnectionLines({
         const adjustedTargetX = targetPos.x - dx * ratio;
         const adjustedTargetY = targetPos.y - dy * ratio;
 
+        const sourceNote = notesById.get(connection.source_note_id);
+        const targetNote = notesById.get(connection.target_note_id);
+        const dayDiff =
+          sourceNote?.date && targetNote?.date
+            ? getDaysBetween(sourceNote.date, targetNote.date)
+            : null;
+
         return (
           <g key={connection.id}>
             <line
@@ -139,7 +169,7 @@ export function ConnectionLines({
               textAnchor="middle"
               className="font-medium"
             >
-              {Math.round(length / 50)}d
+              {dayDiff != null ? `${dayDiff}d` : `${Math.round(length / 50)}d`}
             </text>
           </g>
         );

@@ -28,16 +28,27 @@ export function useZoomPan() {
     const target = e.currentTarget as HTMLElement | null;
     if (!target) return;
 
+    // Scroll/pan by default. Zoom only on pinch gesture (trackpads typically set ctrlKey)
+    // or when user explicitly holds Ctrl (STRG) while scrolling.
+    if (!e.ctrlKey) {
+      setState((prev) => ({
+        ...prev,
+        translateX: prev.translateX - e.deltaX,
+        translateY: prev.translateY - e.deltaY,
+      }));
+      return;
+    }
+
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    
+
     setState((prev) => {
       const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale * delta));
-      
+
       // Zoom toward cursor position
       const rect = target.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      
+
       const scaleRatio = newScale / prev.scale;
       const newTranslateX = x - (x - prev.translateX) * scaleRatio;
       const newTranslateY = y - (y - prev.translateY) * scaleRatio;

@@ -6,6 +6,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
 
 interface SettingsDialogProps {
@@ -15,6 +16,8 @@ interface SettingsDialogProps {
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
   calendarColor: CalendarColor;
   onCalendarColorChange: (color: CalendarColor) => void;
+  alwaysShowConnections: boolean;
+  onAlwaysShowConnectionsChange: (enabled: boolean) => void;
 }
 
 const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
@@ -35,6 +38,8 @@ export function SettingsDialog({
   onTextOverflowModeChange,
   calendarColor,
   onCalendarColorChange,
+  alwaysShowConnections,
+  onAlwaysShowConnectionsChange,
 }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -43,6 +48,22 @@ export function SettingsDialog({
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Connections</Label>
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+              <div>
+                <div className="font-medium">Always show arrows</div>
+                <div className="text-sm text-muted-foreground">
+                  Show all connection arrows even when not hovering a note.
+                </div>
+              </div>
+              <Switch
+                checked={alwaysShowConnections}
+                onCheckedChange={(checked) => onAlwaysShowConnectionsChange(Boolean(checked))}
+                aria-label="Always show connection arrows"
+              />
+            </div>
+          </div>
           <div className="space-y-3">
             <Label className="text-base font-medium">Calendar Color</Label>
             <div className="grid grid-cols-4 gap-3">

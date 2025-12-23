@@ -7,6 +7,9 @@ interface Settings {
   textOverflowMode: TextOverflowMode;
   calendarColor: CalendarColor;
   activeCalendarId: string | null;
+  inboxVisible: boolean;
+  inboxWidth: number;
+  alwaysShowConnections: boolean;
 }
 
 const SETTINGS_KEY = 'calendar365_settings';
@@ -15,6 +18,9 @@ const defaultSettings: Settings = {
   textOverflowMode: 'expand',
   calendarColor: 'blue',
   activeCalendarId: null,
+  inboxVisible: true,
+  inboxWidth: 340,
+  alwaysShowConnections: false,
 };
 
 export function useSettings() {
