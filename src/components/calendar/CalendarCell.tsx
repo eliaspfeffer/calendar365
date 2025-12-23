@@ -77,6 +77,7 @@ export function CalendarCell({
 
   return (
     <div
+      data-date-key={dateKey}
       className={cn(
         "calendar-cell min-w-[50px] relative group",
         !readOnly && "cursor-pointer",

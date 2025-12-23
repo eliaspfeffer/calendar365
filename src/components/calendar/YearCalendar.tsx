@@ -442,7 +442,8 @@ export function YearCalendar({
       }
       const note = notes.find((n) => n.id === noteId);
       if (!note) return;
-      if (!note.date) return;
+      // If it's already an inbox note (undated + not parked on the canvas), nothing to do.
+      if (!note.date && note.pos_x == null && note.pos_y == null) return;
       const moved = await moveNote(noteId, null, connections);
       if (!moved.ok) {
         const err = moved.error;
@@ -516,6 +517,24 @@ export function YearCalendar({
         target.closest(".inbox-notes-panel") ||
         target.closest(".zoom-controls")
       ) {
+        if (target.closest(".year-calendar-grid")) {
+          // If a drop happens on the calendar grid but doesn't hit a specific cell handler
+          // (e.g. over inner elements), infer the target date from the closest cell.
+          const calendarCell = target.closest<HTMLElement>(".calendar-cell");
+          const dateKey = calendarCell?.dataset?.dateKey;
+          if (dateKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            await handleNoteDrop(dateKey, noteId);
+            return;
+          }
+        } else if (target.closest(".inbox-notes-panel")) {
+          e.preventDefault();
+          e.stopPropagation();
+          await handleInboxDrop(noteId);
+          return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -543,7 +562,7 @@ export function YearCalendar({
       });
       setDraggedNoteId(null);
     },
-    [draggedNoteId, getContentPointFromClient, moveNoteToCanvas, onAuthRequired, toast, userId]
+    [draggedNoteId, getContentPointFromClient, handleInboxDrop, handleNoteDrop, moveNoteToCanvas, onAuthRequired, toast, userId]
   );
 
   const handleCanvasClick = useCallback(
