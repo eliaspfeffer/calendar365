@@ -53,3 +53,7 @@ supabase db push
 - Vite + React + TypeScript
 - Tailwind CSS + shadcn/ui
 - Supabase (auth + data)
+
+## License
+
+Proprietary — see `LICENSE`.
