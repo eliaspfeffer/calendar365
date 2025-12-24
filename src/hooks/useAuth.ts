@@ -17,7 +17,12 @@ function toHelpfulAuthError(error: unknown, context?: Record<string, unknown>): 
 
   // Supabase sometimes returns generic mailer errors; add next steps.
   const messageLc = message.toLowerCase();
-  if (messageLc.includes("error sending magic link email") || messageLc.includes("error sending confirmation email")) {
+  if (
+    messageLc.includes("error sending magic link email") ||
+    messageLc.includes("error sending confirmation email") ||
+    messageLc.includes("error sending recovery email") ||
+    messageLc.includes("error sending password recovery email")
+  ) {
     suffix += `${suffix ? " " : ""}Check Supabase Auth Logs and your SMTP/mailer configuration.`;
   }
 

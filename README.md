@@ -64,6 +64,12 @@ This app uses email + password auth. If your Supabase project requires email con
 
 If you previously used magic-link sign-in, use the password reset flow in the app (`/reset-password`) to set a password for your existing account.
 
+If password reset emails fail (e.g. 500 "Error sending recovery email"), configure email delivery in Supabase:
+
+- Supabase Dashboard → Authentication → Logs (look for SMTP/mailer errors)
+- Supabase Dashboard → Authentication → Providers → Email (SMTP settings / rate limits)
+- Supabase Dashboard → Authentication → URL Configuration (ensure your site URL / redirect URLs include `/reset-password`)
+
 ## Tech stack
 
 - Vite + React + TypeScript
