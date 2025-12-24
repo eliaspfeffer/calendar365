@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,18 +84,26 @@ export default function Auth() {
     if (mode === 'login') {
       const { error } = await signInWithPassword(email, password);
       if (error) {
+        const messageLc = error.message.toLowerCase();
+        const hint = messageLc.includes("invalid login credentials")
+          ? ' If you previously signed in via magic link, use "Forgot password?" to set a password.'
+          : '';
         toast({
           title: 'Error',
-          description: error.message,
+          description: `${error.message}${hint}`,
           variant: 'destructive',
         });
       }
     } else {
       const { error, needsEmailConfirmation } = await signUpWithPassword(email, password);
       if (error) {
+        const messageLc = error.message.toLowerCase();
+        const hint = messageLc.includes("already registered") || messageLc.includes("user already registered")
+          ? ' Account already exists — use "Forgot password?" to set a password.'
+          : '';
         toast({
           title: 'Error',
-          description: error.message,
+          description: `${error.message}${hint}`,
           variant: 'destructive',
         });
       } else if (needsEmailConfirmation) {
@@ -193,6 +201,9 @@ export default function Auth() {
                     'Sign in'
                   )}
                 </Button>
+                <Button asChild variant="link" className="w-full px-0">
+                  <Link to={`/reset-password?email=${encodeURIComponent(email)}`}>Forgot password?</Link>
+                </Button>
               </form>
             </TabsContent>
 
@@ -240,6 +251,11 @@ export default function Auth() {
                   ) : (
                     'Create account'
                   )}
+                </Button>
+                <Button asChild variant="link" className="w-full px-0">
+                  <Link to={`/reset-password?email=${encodeURIComponent(email)}`}>
+                    Already used magic link before? Set a password
+                  </Link>
                 </Button>
               </form>
             </TabsContent>

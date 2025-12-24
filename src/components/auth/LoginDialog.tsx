@@ -8,6 +8,7 @@ import { Mail, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { isSupabaseConfigured } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 interface LoginDialogProps {
   open: boolean;
@@ -163,6 +164,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                   'Sign in'
                 )}
               </Button>
+              <Button asChild variant="link" className="w-full px-0">
+                <Link to={`/reset-password?email=${encodeURIComponent(email)}`} onClick={() => handleOpenChange(false)}>
+                  Forgot password?
+                </Link>
+              </Button>
             </form>
           </TabsContent>
 
@@ -219,6 +225,11 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
                 ) : (
                   'Create account'
                 )}
+              </Button>
+              <Button asChild variant="link" className="w-full px-0">
+                <Link to={`/reset-password?email=${encodeURIComponent(email)}`} onClick={() => handleOpenChange(false)}>
+                  Already used magic link before? Set a password
+                </Link>
               </Button>
             </form>
           </TabsContent>

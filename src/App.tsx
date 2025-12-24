@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Invite from "./pages/Invite";
 import PublicShare from "./pages/PublicShare";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 import { LegalLinks } from "./components/legal/LegalLinks";
 import { LegalModal } from "./components/legal/LegalModal";
 
@@ -25,6 +26,7 @@ const AppRoutes = () => {
       <Routes location={routesLocation}>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/invite/:token" element={<Invite />} />
         <Route path="/s/:slug" element={<PublicShare />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

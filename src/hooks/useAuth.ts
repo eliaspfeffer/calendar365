@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
+import { getPublicSiteOrigin } from '@/lib/url';
 
 function toHelpfulAuthError(error: unknown, context?: Record<string, unknown>): Error | null {
   if (!error) return null;
@@ -86,6 +87,25 @@ export function useAuth() {
     return { error: toHelpfulAuthError(error), needsEmailConfirmation: !error && !data.session };
   };
 
+  const requestPasswordReset = async (email: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.") };
+    }
+
+    const redirectTo = new URL("/reset-password", getPublicSiteOrigin()).toString();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    return { error: toHelpfulAuthError(error, { redirectTo }) };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.") };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: toHelpfulAuthError(error) };
+  };
+
   const signOut = async () => {
     if (!isSupabaseConfigured) {
       return { error: null };
@@ -100,6 +120,8 @@ export function useAuth() {
     isLoading,
     signInWithPassword,
     signUpWithPassword,
+    requestPasswordReset,
+    updatePassword,
     signOut,
   };
 }

@@ -62,6 +62,8 @@ This app uses email + password auth. If your Supabase project requires email con
 - Supabase Dashboard → Authentication → Templates → `Confirm signup`
 - Optional: use `supabase/email-templates/magic-link.html` as a starting point (it uses `{{ .ConfirmationURL }}`)
 
+If you previously used magic-link sign-in, use the password reset flow in the app (`/reset-password`) to set a password for your existing account.
+
 ## Tech stack
 
 - Vite + React + TypeScript
