@@ -3,6 +3,31 @@ import { User, Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
 import { getPublicSiteOrigin } from '@/lib/url';
 
+function toHelpfulAuthError(error: unknown, context?: Record<string, unknown>): Error | null {
+  if (!error) return null;
+  const err = error as { message?: unknown; status?: unknown; code?: unknown; name?: unknown };
+  const message = typeof err?.message === "string" && err.message.trim() ? err.message.trim() : "Unknown auth error";
+
+  const details: string[] = [];
+  if (typeof err?.code === "string" && err.code) details.push(`code=${err.code}`);
+  if (typeof err?.status === "number") details.push(`status=${err.status}`);
+  if (typeof err?.name === "string" && err.name) details.push(`name=${err.name}`);
+
+  let suffix = details.length ? ` (${details.join(", ")})` : "";
+
+  // Supabase sometimes returns this generic message when the mailer fails; add next steps.
+  if (message.toLowerCase().includes("error sending magic link email")) {
+    suffix += `${suffix ? " " : ""}Check Supabase Auth Logs and your SMTP/mailer configuration.`;
+  }
+
+  // Keep the original error available for debugging.
+  const finalError = new Error(`${message}${suffix}`);
+  if (typeof console !== "undefined") {
+    console.error("Supabase auth error", { error, ...context });
+  }
+  return finalError;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -47,7 +72,7 @@ export function useAuth() {
     if (!isSupabaseConfigured) {
       return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.") };
     }
-    const redirectUrl = `${getPublicSiteOrigin()}/`;
+    const redirectUrl = new URL("/", getPublicSiteOrigin()).toString();
     
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -56,7 +81,7 @@ export function useAuth() {
       },
     });
 
-    return { error: error ?? null };
+    return { error: toHelpfulAuthError(error, { emailRedirectTo: redirectUrl }) };
   };
 
   const signOut = async () => {
