@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
-import { getPublicSiteOrigin } from '@/lib/url';
 
 function toHelpfulAuthError(error: unknown, context?: Record<string, unknown>): Error | null {
   if (!error) return null;
@@ -15,8 +14,9 @@ function toHelpfulAuthError(error: unknown, context?: Record<string, unknown>): 
 
   let suffix = details.length ? ` (${details.join(", ")})` : "";
 
-  // Supabase sometimes returns this generic message when the mailer fails; add next steps.
-  if (message.toLowerCase().includes("error sending magic link email")) {
+  // Supabase sometimes returns generic mailer errors; add next steps.
+  const messageLc = message.toLowerCase();
+  if (messageLc.includes("error sending magic link email") || messageLc.includes("error sending confirmation email")) {
     suffix += `${suffix ? " " : ""}Check Supabase Auth Logs and your SMTP/mailer configuration.`;
   }
 
@@ -68,20 +68,22 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithMagicLink = async (email: string) => {
+  const signInWithPassword = async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
       return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.") };
     }
-    const redirectUrl = new URL("/", getPublicSiteOrigin()).toString();
-    
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: redirectUrl,
-      },
-    });
 
-    return { error: toHelpfulAuthError(error, { emailRedirectTo: redirectUrl }) };
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: toHelpfulAuthError(error) };
+  };
+
+  const signUpWithPassword = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: new Error("Supabase env vars missing: set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY."), needsEmailConfirmation: false };
+    }
+
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    return { error: toHelpfulAuthError(error), needsEmailConfirmation: !error && !data.session };
   };
 
   const signOut = async () => {
@@ -96,7 +98,8 @@ export function useAuth() {
     user,
     session,
     isLoading,
-    signInWithMagicLink,
+    signInWithPassword,
+    signUpWithPassword,
     signOut,
   };
 }
