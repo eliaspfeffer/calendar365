@@ -81,12 +81,12 @@ export function SettingsDialog({
           onOpenChange(nextOpen);
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-          <div className="space-y-3">
+          <div className="min-h-0 space-y-6 overflow-y-auto py-4 pr-2">
+            <div className="space-y-3">
             <Label className="text-base font-medium" htmlFor="share-base-url">
               Public share base URL
             </Label>
@@ -103,8 +103,8 @@ export function SettingsDialog({
             <p className="text-sm text-muted-foreground">
               Optional. Used when generating public share links (custom domains). Leave empty to use the current site URL.
             </p>
-          </div>
-          <div className="space-y-3">
+            </div>
+            <div className="space-y-3">
             <Label className="text-base font-medium">Calendar Color</Label>
             <div className="grid grid-cols-4 gap-3">
               {calendarColors.map((color) => (
@@ -143,8 +143,8 @@ export function SettingsDialog({
             <p className="text-sm text-muted-foreground">
               Choose a color for the calendar header
             </p>
-          </div>
-          <div className="space-y-3">
+            </div>
+            <div className="space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <Label className="text-base font-medium" htmlFor="always-show-arrows">
@@ -160,8 +160,8 @@ export function SettingsDialog({
                 onCheckedChange={onAlwaysShowArrowsChange}
               />
             </div>
-          </div>
-          <div className="space-y-3">
+            </div>
+            <div className="space-y-3">
             <Label className="text-base font-medium">Sticky Note Text Overflow</Label>
             <RadioGroup
               value={textOverflowMode}
@@ -196,35 +196,35 @@ export function SettingsDialog({
                 </Label>
               </div>
             </RadioGroup>
-          </div>
-          {onDeleteAccount && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <div className="text-base font-medium text-destructive">Danger zone</div>
-                  <p className="text-sm text-muted-foreground">
-                    Delete your account and all private data stored in Supabase. This cannot be undone.
-                  </p>
+            </div>
+            {onDeleteAccount && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <div className="text-base font-medium text-destructive">Danger zone</div>
+                    <p className="text-sm text-muted-foreground">
+                      Delete your account and all private data stored in Supabase. This cannot be undone.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => {
+                      setDeleteConfirmation('');
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    Delete account
+                  </Button>
+                  {accountEmail && (
+                    <p className="text-xs text-muted-foreground">
+                      Signed in as <span className="font-medium">{accountEmail}</span>
+                    </p>
+                  )}
                 </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteConfirmation('');
-                    setDeleteDialogOpen(true);
-                  }}
-                >
-                  Delete account
-                </Button>
-                {accountEmail && (
-                  <p className="text-xs text-muted-foreground">
-                    Signed in as <span className="font-medium">{accountEmail}</span>
-                  </p>
-                )}
-              </div>
-            </>
-          )}
+              </>
+            )}
         </div>
       </DialogContent>
     </Dialog>
