@@ -54,8 +54,9 @@ VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
 
 ## Payments / paywall (PayPal, lifetime 4 USD)
 
-- Free to use up to 25 notes per account.
-- Adding the 26th note opens a PayPal checkout to unlock unlimited notes (one-time 4 USD).
+- Free to use up to N notes per account (default 25).
+- Adding note N+1 opens a “support the app” dialog to unlock unlimited notes.
+- The user can choose the amount (including 0 USD). 4 USD is the suggested amount.
 
 ### Changing the free-note limit
 
@@ -84,6 +85,7 @@ Deploy the functions:
 ```sh
 supabase functions deploy paypal-create-order
 supabase functions deploy paypal-capture-order
+supabase functions deploy entitlement-grant-free
 ```
 
 ## Google Calendar sync (optional)

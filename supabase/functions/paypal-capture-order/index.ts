@@ -17,8 +17,6 @@ type CaptureResponse = {
   }>;
 };
 
-const EXPECTED = { currency: "USD", value: "4.00", cents: 400 } as const;
-
 function json(status: number, body: unknown) {
   return new Response(JSON.stringify(body), {
     status,
@@ -26,8 +24,14 @@ function json(status: number, body: unknown) {
   });
 }
 
-function isExpectedAmount(value: string | undefined, currency: string | undefined) {
-  return currency === EXPECTED.currency && value === EXPECTED.value;
+function parseAmountCents(value: string | undefined, currency: string | undefined) {
+  if (currency !== "USD") return null;
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  // PayPal values are 2 decimals; round defensively.
+  return Math.round(parsed * 100);
 }
 
 serve(async (req) => {
@@ -72,9 +76,8 @@ serve(async (req) => {
   if (!customId || customId !== userId) return json(403, { error: "Order does not belong to this user" });
   if (captureStatus !== "COMPLETED") return json(400, { error: "Payment not completed" });
   if (!captureItem || captureItem.status !== "COMPLETED") return json(400, { error: "Capture not completed" });
-  if (!isExpectedAmount(captureItem.amount?.value, captureItem.amount?.currency_code)) {
-    return json(400, { error: "Incorrect amount" });
-  }
+  const amountCents = parseAmountCents(captureItem.amount?.value, captureItem.amount?.currency_code);
+  if (amountCents === null) return json(400, { error: "Invalid amount/currency" });
 
   const now = new Date().toISOString();
   const { error: upsertError } = await service
@@ -85,8 +88,8 @@ serve(async (req) => {
         paid_lifetime: true,
         paypal_order_id: orderId,
         paypal_capture_id: captureId,
-        amount_cents: EXPECTED.cents,
-        currency: EXPECTED.currency,
+        amount_cents: amountCents,
+        currency: "USD",
         purchased_at: now,
       },
       { onConflict: "user_id" },
@@ -96,4 +99,3 @@ serve(async (req) => {
 
   return json(200, { ok: true });
 });
-
