@@ -272,7 +272,7 @@ export function ReadOnlyYearCalendar({
     <div
       ref={containerRef}
       className={cn(
-        "w-full h-screen overflow-hidden bg-muted relative cursor-grab active:cursor-grabbing touch-none",
+        "w-full h-screen overflow-hidden bg-muted relative cursor-grab active:cursor-grabbing touch-none select-none",
         isDragging() && "cursor-grabbing"
       )}
       style={{ "--calendar-header": calendarHeaderHsl } as React.CSSProperties}

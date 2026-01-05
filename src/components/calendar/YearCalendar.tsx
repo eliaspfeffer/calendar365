@@ -936,7 +936,7 @@ export function YearCalendar({
     <div
       ref={containerRef}
       className={cn(
-        "w-full h-screen overflow-hidden bg-muted relative touch-none",
+        "w-full h-screen overflow-hidden bg-muted relative touch-none select-none",
         draggedNoteId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
       )}
       style={
