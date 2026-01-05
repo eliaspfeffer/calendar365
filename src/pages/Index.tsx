@@ -60,7 +60,24 @@ const Index = () => {
     createInvite,
   } = useCalendars(user?.id || null);
 
-  const years = useMemo(() => [2025, 2026], []);
+  const { yearStart, yearEnd } = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const rawStart = Number.isFinite(settings.yearStart) ? Math.trunc(settings.yearStart) : currentYear;
+    const rawEnd = Number.isFinite(settings.yearEnd) ? Math.trunc(settings.yearEnd) : rawStart;
+
+    const safeStart = Math.max(currentYear, rawStart);
+    const safeEnd = Math.max(currentYear, rawEnd);
+
+    if (safeStart <= safeEnd) return { yearStart: safeStart, yearEnd: safeEnd };
+    return { yearStart: safeEnd, yearEnd: safeStart };
+  }, [settings.yearStart, settings.yearEnd]);
+
+  const years = useMemo(() => {
+    const out: number[] = [];
+    for (let y = yearStart; y <= yearEnd; y += 1) out.push(y);
+    return out;
+  }, [yearStart, yearEnd]);
+
   const googleSync = useGoogleCalendarSync({
     years,
     enabled: settings.googleSyncEnabled,
@@ -487,6 +504,14 @@ const Index = () => {
         visibleCalendarIds={effectiveVisibleCalendarIds}
         activeCalendarId={effectiveCalendarId}
         onAuthRequired={handleAuthRequired}
+        skipHideYearConfirm={settings.skipHideYearConfirm}
+        onSkipHideYearConfirmChange={(skip) => updateSettings({ skipHideYearConfirm: skip })}
+        onAddYear={() => updateSettings({ yearEnd: yearEnd + 1 })}
+        onRemoveLastYear={
+          years.length > 1
+            ? () => updateSettings({ yearEnd: Math.max(yearStart, yearEnd - 1) })
+            : undefined
+        }
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
         alwaysShowArrows={settings.alwaysShowArrows}
@@ -499,6 +524,16 @@ const Index = () => {
       <SettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
+        yearStart={yearStart}
+        yearEnd={yearEnd}
+        onYearStartChange={(next) => {
+          if (next <= yearEnd) updateSettings({ yearStart: next });
+          else updateSettings({ yearStart: next, yearEnd: next });
+        }}
+        onYearEndChange={(next) => {
+          if (next >= yearStart) updateSettings({ yearEnd: next });
+          else updateSettings({ yearStart: next, yearEnd: next });
+        }}
         textOverflowMode={settings.textOverflowMode}
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
         calendarColor={settings.calendarColor}

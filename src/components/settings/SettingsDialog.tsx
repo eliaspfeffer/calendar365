@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,11 +24,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  yearStart: number;
+  yearEnd: number;
+  onYearStartChange: (year: number) => void;
+  onYearEndChange: (year: number) => void;
   textOverflowMode: TextOverflowMode;
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
   calendarColor: CalendarColor;
@@ -69,6 +74,10 @@ const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
 export function SettingsDialog({
   open,
   onOpenChange,
+  yearStart,
+  yearEnd,
+  onYearStartChange,
+  onYearEndChange,
   textOverflowMode,
   onTextOverflowModeChange,
   calendarColor,
@@ -95,14 +104,41 @@ export function SettingsDialog({
   googleError,
   onGoogleRefresh,
 }: SettingsDialogProps) {
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [yearStartDraft, setYearStartDraft] = useState<string>(String(yearStart));
+  const [yearEndDraft, setYearEndDraft] = useState<string>(String(yearEnd));
+
+  useEffect(() => {
+    if (!open) return;
+    setYearStartDraft(String(yearStart));
+    setYearEndDraft(String(yearEnd));
+  }, [open, yearStart, yearEnd]);
 
   const canDeleteAccount = useMemo(() => {
     if (!onDeleteAccount) return false;
     return deleteConfirmation.trim().toUpperCase() === 'DELETE';
   }, [deleteConfirmation, onDeleteAccount]);
+
+  const parsedYearStartDraft = useMemo(() => {
+    const parsed = Number.parseInt(yearStartDraft, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [yearStartDraft]);
+
+  const parsedYearEndDraft = useMemo(() => {
+    const parsed = Number.parseInt(yearEndDraft, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [yearEndDraft]);
+
+  const canApplyYearRange = useMemo(() => {
+    if (parsedYearStartDraft === null || parsedYearEndDraft === null) return false;
+    if (parsedYearStartDraft < currentYear) return false;
+    if (parsedYearEndDraft < currentYear) return false;
+    return true;
+  }, [parsedYearStartDraft, parsedYearEndDraft, currentYear]);
 
   return (
     <>
@@ -135,6 +171,81 @@ export function SettingsDialog({
               <p className="text-sm text-muted-foreground">
                 Optional. Used when generating public share links (custom domains). Leave empty to use the current site
                 URL.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Years shown</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="year-start" className="text-sm text-muted-foreground">
+                    From
+                  </Label>
+                  <Input
+                    id="year-start"
+                    type="number"
+                    inputMode="numeric"
+                    min={currentYear}
+                    value={yearStartDraft}
+                    onChange={(e) => setYearStartDraft(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="year-end" className="text-sm text-muted-foreground">
+                    To
+                  </Label>
+                  <Input
+                    id="year-end"
+                    type="number"
+                    inputMode="numeric"
+                    min={currentYear}
+                    value={yearEndDraft}
+                    onChange={(e) => setYearEndDraft(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Minimum is {currentYear}. Click Apply to load the range.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setYearStartDraft(String(yearStart));
+                      setYearEndDraft(String(yearEnd));
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!canApplyYearRange}
+                    onClick={() => {
+                      if (parsedYearStartDraft === null || parsedYearEndDraft === null) return;
+                      const safeStart = Math.max(currentYear, Math.trunc(parsedYearStartDraft));
+                      const safeEnd = Math.max(currentYear, Math.trunc(parsedYearEndDraft));
+
+                      if (safeStart <= safeEnd) {
+                        onYearStartChange(safeStart);
+                        onYearEndChange(safeEnd);
+                      } else {
+                        onYearStartChange(safeEnd);
+                        onYearEndChange(safeStart);
+                      }
+                      toast({
+                        title: "Years updated",
+                        description: `Showing ${Math.min(safeStart, safeEnd)}–${Math.max(safeStart, safeEnd)}.`,
+                      });
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Set a range (e.g. 2025–2030) to show those years immediately.
               </p>
             </div>
 
