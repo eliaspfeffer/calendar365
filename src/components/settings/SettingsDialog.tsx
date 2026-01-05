@@ -46,6 +46,7 @@ interface SettingsDialogProps {
   onGoogleConnect?: () => void;
   onGoogleDisconnect?: () => void;
   googleCalendars?: Array<{ id: string; summary: string; primary?: boolean }>;
+  googlePrimaryCalendarId?: string | null;
   googleSelectedCalendarIds?: string[];
   onGoogleSelectedCalendarIdsChange?: (ids: string[]) => void;
   googleSyncing?: boolean;
@@ -86,6 +87,7 @@ export function SettingsDialog({
   onGoogleConnect,
   onGoogleDisconnect,
   googleCalendars,
+  googlePrimaryCalendarId,
   googleSelectedCalendarIds,
   onGoogleSelectedCalendarIdsChange,
   googleSyncing,
@@ -288,7 +290,21 @@ export function SettingsDialog({
 
                   {googleConnected && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Calendars to sync</Label>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-sm font-medium">Calendars to sync</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (!googlePrimaryCalendarId) return;
+                            onGoogleSelectedCalendarIdsChange?.([googlePrimaryCalendarId]);
+                          }}
+                          disabled={!googlePrimaryCalendarId}
+                        >
+                          Only primary
+                        </Button>
+                      </div>
                       <ScrollArea className="h-40 rounded-md border">
                         <div className="p-3 space-y-2">
                           {(googleCalendars ?? []).length === 0 ? (

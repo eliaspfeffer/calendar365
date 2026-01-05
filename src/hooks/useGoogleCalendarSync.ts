@@ -303,10 +303,15 @@ export function useGoogleCalendarSync(options: {
       setIsLoadingCalendars(true);
       try {
         const data = await googleApiGet<CalendarListResponse>(
-          "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader",
+          "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&showHidden=true",
           token
         );
-        setCalendars(data.items ?? []);
+        const items = data.items ?? [];
+        items.sort((a, b) => {
+          if (!!a.primary !== !!b.primary) return a.primary ? -1 : 1;
+          return (a.summary ?? "").localeCompare(b.summary ?? "");
+        });
+        setCalendars(items);
       } finally {
         setIsLoadingCalendars(false);
       }
@@ -446,6 +451,8 @@ export function useGoogleCalendarSync(options: {
     return calendars.filter((c) => set.has(c.id));
   }, [calendars, options.selectedCalendarIds]);
 
+  const primaryCalendarId = useMemo(() => calendars.find((c) => c.primary)?.id ?? null, [calendars]);
+
   return {
     isAvailable,
     isConnected,
@@ -453,6 +460,7 @@ export function useGoogleCalendarSync(options: {
     connect,
     disconnect,
     calendars,
+    primaryCalendarId,
     selectedCalendars,
     isLoadingCalendars,
     eventsByDate,

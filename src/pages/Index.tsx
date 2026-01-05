@@ -67,6 +67,21 @@ const Index = () => {
     selectedCalendarIds: settings.googleSelectedCalendarIds ?? [],
   });
 
+  // Default to syncing only the primary Google calendar unless the user explicitly chose others.
+  useEffect(() => {
+    if (!settings.googleSyncEnabled) return;
+    if (!googleSync.isConnected) return;
+    if (!googleSync.primaryCalendarId) return;
+    if (settings.googleSelectedCalendarIds !== null) return;
+    updateSettings({ googleSelectedCalendarIds: [googleSync.primaryCalendarId] });
+  }, [
+    googleSync.isConnected,
+    googleSync.primaryCalendarId,
+    settings.googleSelectedCalendarIds,
+    settings.googleSyncEnabled,
+    updateSettings,
+  ]);
+
   const effectiveCalendarId = useMemo(() => {
     if (!user) return null;
     return settings.activeCalendarId ?? defaultCalendarId ?? null;
@@ -505,6 +520,7 @@ const Index = () => {
           updateSettings({ googleSelectedCalendarIds: null });
         }}
         googleCalendars={googleSync.calendars}
+        googlePrimaryCalendarId={googleSync.primaryCalendarId}
         googleSelectedCalendarIds={settings.googleSelectedCalendarIds ?? []}
         onGoogleSelectedCalendarIdsChange={(ids) => updateSettings({ googleSelectedCalendarIds: ids })}
         googleSyncing={googleSync.isSyncing}
