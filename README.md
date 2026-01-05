@@ -12,6 +12,11 @@ A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 - Optional sign-in + sync via Supabase
 - Shared calendars / public sharing (when Supabase is configured)
 
+## Controls
+
+- Touch: pinch to zoom, drag to pan
+- Trackpad: pinch (or Ctrl/⌘ + scroll) to zoom, scroll to pan
+
 ## Local development
 
 Prereqs: Node.js 18+ and npm (or Bun).

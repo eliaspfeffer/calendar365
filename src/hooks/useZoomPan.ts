@@ -9,6 +9,7 @@ interface ZoomPanState {
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5; // pixels moved before considered a drag
+const PINCH_THRESHOLD = 2; // pixels distance change before considered a pinch
 
 function normalizeWheelDelta(e: WheelEvent) {
   let { deltaX, deltaY } = e;
@@ -29,11 +30,24 @@ export function useZoomPan() {
     translateY: 0,
   });
 
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const isPanning = useRef(false);
+  const isPinching = useRef(false);
   const hasDragged = useRef(false);
   const startPoint = useRef({ x: 0, y: 0 });
   const startTranslate = useRef({ x: 0, y: 0 });
   const activePointerId = useRef<number | null>(null);
+  const interactionElement = useRef<HTMLElement | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number; pointerType: string }>());
+  const pinchStart = useRef<{
+    distance: number;
+    scale: number;
+    contentPoint: { x: number; y: number };
+  } | null>(null);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     const target = e.currentTarget as HTMLElement | null;
@@ -81,8 +95,9 @@ export function useZoomPan() {
     isPanning.current = true;
     hasDragged.current = false;
     startPoint.current = { x: clientX, y: clientY };
-    startTranslate.current = { x: state.translateX, y: state.translateY };
-  }, [state.translateX, state.translateY]);
+    const s = stateRef.current;
+    startTranslate.current = { x: s.translateX, y: s.translateY };
+  }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -90,13 +105,53 @@ export function useZoomPan() {
   }, [startPanning]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    // Only track a single pointer at a time (1-finger pan on touch, left-click pan on mouse).
-    if (!e.isPrimary) return;
-    if (activePointerId.current != null) return;
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    interactionElement.current = e.currentTarget as HTMLElement | null;
 
-    activePointerId.current = e.pointerId;
-    startPanning(e.clientX, e.clientY);
+    if (e.pointerType === 'mouse') {
+      if (e.button !== 0) return;
+      if (activePointerId.current != null) return;
+      activePointerId.current = e.pointerId;
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, pointerType: e.pointerType });
+      startPanning(e.clientX, e.clientY);
+    } else {
+      // Cap at 2 pointers for pinch zoom.
+      if (pointers.current.size >= 2) return;
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, pointerType: e.pointerType });
+
+      if (pointers.current.size === 1) {
+        activePointerId.current = e.pointerId;
+        startPanning(e.clientX, e.clientY);
+      } else if (pointers.current.size === 2) {
+        isPinching.current = true;
+        hasDragged.current = true;
+
+        const el = interactionElement.current;
+        const rect = el?.getBoundingClientRect();
+        if (!rect) {
+          isPinching.current = false;
+          pinchStart.current = null;
+          return;
+        }
+
+        const pts = Array.from(pointers.current.values());
+        const p0 = pts[0];
+        const p1 = pts[1];
+        const midpoint = {
+          x: (p0.x + p1.x) / 2 - rect.left,
+          y: (p0.y + p1.y) / 2 - rect.top,
+        };
+
+        const s = stateRef.current;
+        pinchStart.current = {
+          distance: Math.hypot(p1.x - p0.x, p1.y - p0.y),
+          scale: s.scale,
+          contentPoint: {
+            x: (midpoint.x - s.translateX) / s.scale,
+            y: (midpoint.y - s.translateY) / s.scale,
+          },
+        };
+      }
+    }
 
     // Keep receiving pointer events even if the pointer leaves the element.
     const el = e.currentTarget as HTMLElement | null;
@@ -126,14 +181,53 @@ export function useZoomPan() {
   }, []);
 
   const handlePointerMove = useCallback((e: PointerEvent) => {
+    const tracked = pointers.current.get(e.pointerId);
+    if (tracked) {
+      pointers.current.set(e.pointerId, { ...tracked, x: e.clientX, y: e.clientY });
+    }
+
+    if (tracked?.pointerType === 'touch') {
+      e.preventDefault();
+    }
+
+    if (isPinching.current && pointers.current.size === 2) {
+      const el = interactionElement.current;
+      const rect = el?.getBoundingClientRect();
+      const start = pinchStart.current;
+      if (!rect || !start || start.distance === 0) return;
+
+      const pts = Array.from(pointers.current.values());
+      const p0 = pts[0];
+      const p1 = pts[1];
+      const distance = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+
+      // Avoid treating tiny jitter as a pinch.
+      if (Math.abs(distance - start.distance) > PINCH_THRESHOLD) {
+        hasDragged.current = true;
+      }
+
+      const newScaleRaw = start.scale * (distance / start.distance);
+      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScaleRaw));
+
+      const midpoint = {
+        x: (p0.x + p1.x) / 2 - rect.left,
+        y: (p0.y + p1.y) / 2 - rect.top,
+      };
+
+      const newTranslateX = midpoint.x - start.contentPoint.x * newScale;
+      const newTranslateY = midpoint.y - start.contentPoint.y * newScale;
+
+      setState({
+        scale: newScale,
+        translateX: newTranslateX,
+        translateY: newTranslateY,
+      });
+      return;
+    }
+
     if (!isPanning.current) return;
     if (activePointerId.current == null) return;
     if (e.pointerId !== activePointerId.current) return;
-
-    // With touch input we want to prevent native scrolling while panning.
-    if (e.pointerType === 'touch') {
-      e.preventDefault();
-    }
 
     const dx = e.clientX - startPoint.current.x;
     const dy = e.clientY - startPoint.current.y;
@@ -149,14 +243,52 @@ export function useZoomPan() {
     }));
   }, []);
 
-  const handleMouseUp = useCallback(() => {
+  const stopInteraction = useCallback(() => {
     isPanning.current = false;
+    isPinching.current = false;
     activePointerId.current = null;
-    // Reset hasDragged after a short delay to allow click handlers to check it
+    interactionElement.current = null;
+    pointers.current.clear();
+    pinchStart.current = null;
+    // Reset hasDragged after a short delay to allow click handlers to check it.
     setTimeout(() => {
       hasDragged.current = false;
     }, 0);
   }, []);
+
+  const handleMouseUp = useCallback(() => {
+    // Mouse interactions are single-pointer; pointerup handler will clear tracked pointers.
+    if (activePointerId.current == null) return;
+    stopInteraction();
+  }, [stopInteraction]);
+
+  const handlePointerUp = useCallback((e: PointerEvent) => {
+    const wasTracked = pointers.current.has(e.pointerId);
+    pointers.current.delete(e.pointerId);
+
+    if (e.pointerType === 'touch') {
+      e.preventDefault();
+    }
+
+    if (!wasTracked) return;
+
+    if (pointers.current.size === 0) {
+      stopInteraction();
+      return;
+    }
+
+    if (pointers.current.size === 1) {
+      // Transition from pinch back to pan with the remaining pointer.
+      isPinching.current = false;
+      pinchStart.current = null;
+      const [remainingId, remaining] = Array.from(pointers.current.entries())[0];
+      activePointerId.current = remainingId;
+      isPanning.current = true;
+      startPoint.current = { x: remaining.x, y: remaining.y };
+      const s = stateRef.current;
+      startTranslate.current = { x: s.translateX, y: s.translateY };
+    }
+  }, [stopInteraction]);
 
   const isDragging = useCallback(() => hasDragged.current, []);
 
@@ -186,17 +318,17 @@ export function useZoomPan() {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('pointermove', handlePointerMove, { passive: false });
-    window.addEventListener('pointerup', handleMouseUp);
-    window.addEventListener('pointercancel', handleMouseUp);
+    window.addEventListener('pointerup', handlePointerUp, { passive: false });
+    window.addEventListener('pointercancel', handlePointerUp, { passive: false });
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handleMouseUp);
-      window.removeEventListener('pointercancel', handleMouseUp);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
-  }, [handleMouseMove, handleMouseUp, handlePointerMove]);
+  }, [handleMouseMove, handleMouseUp, handlePointerMove, handlePointerUp]);
 
   return {
     scale: state.scale,
