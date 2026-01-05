@@ -183,6 +183,7 @@ export function YearCalendar({
     zoomIn,
     zoomOut,
     resetView,
+    setView,
     isDragging,
   } = useZoomPan();
 
@@ -195,6 +196,7 @@ export function YearCalendar({
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [newNotePosition, setNewNotePosition] = useState<{ x: number; y: number } | null>(null);
   const [newNoteCalendarId, setNewNoteCalendarId] = useState<string | null>(activeCalendarId);
+  const didAutoFocusTodayRef = useRef(false);
 
   const inboxNotes = notes.filter((n) => !n.date && (n.pos_x == null || n.pos_y == null));
   const canvasNotes = notes.filter((n) => !n.date && n.pos_x != null && n.pos_y != null);
@@ -241,6 +243,43 @@ export function YearCalendar({
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
+
+  useEffect(() => {
+    if (didAutoFocusTodayRef.current) return;
+    // Avoid overriding user panning if they've already moved the view.
+    if (Math.abs(translateX) > 0.5 || Math.abs(translateY) > 0.5) return;
+
+    const today = new Date();
+    if (!years.includes(today.getFullYear())) return;
+
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const todayKey = formatDateKey(today);
+    const cell = content.querySelector<HTMLElement>(`[data-date-key="${todayKey}"]`);
+    if (!cell) return;
+
+    didAutoFocusTodayRef.current = true;
+    const raf = requestAnimationFrame(() => {
+      const containerRect = container.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      const desiredX = containerRect.left + containerRect.width / 2;
+      const desiredY = containerRect.top + containerRect.height / 2;
+      const currentX = cellRect.left + cellRect.width / 2;
+      const currentY = cellRect.top + cellRect.height / 2;
+      const dx = desiredX - currentX;
+      const dy = desiredY - currentY;
+
+      setView((prev) => ({
+        ...prev,
+        translateX: prev.translateX + dx,
+        translateY: prev.translateY + dy,
+      }));
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [years, setView, translateX, translateY]);
 
   const getContentPointFromClient = useCallback(
     (clientX: number, clientY: number) => {
