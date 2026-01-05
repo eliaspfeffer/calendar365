@@ -48,6 +48,7 @@ Create `.env.local`:
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_ANON_KEY
+VITE_FREE_NOTES_LIMIT=25
 VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
 ```
 
@@ -55,6 +56,17 @@ VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
 
 - Free to use up to 25 notes per account.
 - Adding the 26th note opens a PayPal checkout to unlock unlimited notes (one-time 4 USD).
+
+### Changing the free-note limit
+
+- UI limit (local/prod build): set `VITE_FREE_NOTES_LIMIT`.
+- Server enforcement (Supabase RLS): after applying migrations, update the singleton row:
+
+```sql
+UPDATE public.app_config
+SET free_notes_limit = 25
+WHERE id = 1;
+```
 
 ### Supabase Edge Function secrets
 

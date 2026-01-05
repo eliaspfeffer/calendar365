@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PaywallDialog } from "@/components/payments/PaywallDialog";
+import { getFreeNotesLimit } from "@/lib/paywallConfig";
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
@@ -52,6 +53,7 @@ const Index = () => {
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   const entitlement = useEntitlement(user?.id ?? null);
+  const freeNotesLimit = useMemo(() => getFreeNotesLimit(), []);
 
   const {
     calendars,
@@ -520,7 +522,7 @@ const Index = () => {
             ? () => updateSettings({ yearEnd: Math.max(yearStart, yearEnd - 1) })
             : undefined
         }
-        noteLimit={25}
+        noteLimit={freeNotesLimit}
         noteCount={entitlement.noteCount}
         hasLifetimeAccess={entitlement.hasLifetimeAccess}
         onUpgradeRequired={() => setPaywallOpen(true)}
