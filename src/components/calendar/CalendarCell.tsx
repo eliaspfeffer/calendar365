@@ -26,6 +26,7 @@ interface CalendarCellProps {
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
   draggedNoteId?: string | null;
+  isNoteReadOnly?: (note: StickyNote) => boolean;
   readOnly?: boolean;
 }
 
@@ -48,6 +49,7 @@ export function CalendarCell({
   connectedNoteIds,
   highlightedNoteIds,
   draggedNoteId,
+  isNoteReadOnly,
   readOnly = false,
 }: CalendarCellProps) {
   const dateKey = formatDateKey(day.date);
@@ -164,7 +166,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="list"
-              readOnly={readOnly}
+              readOnly={readOnly || (isNoteReadOnly?.(note) ?? false)}
             />
           ))}
         </div>
@@ -199,7 +201,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="full"
-              readOnly={readOnly}
+              readOnly={readOnly || (isNoteReadOnly?.(note) ?? false)}
             />
           ))}
         </div>
@@ -234,7 +236,7 @@ export function CalendarCell({
               isHighlighted={highlightedNoteIds.includes(note.id)}
               isDragging={draggedNoteId === note.id}
               variant="list"
-              readOnly={readOnly}
+              readOnly={readOnly || (isNoteReadOnly?.(note) ?? false)}
             />
           ))}
         </div>

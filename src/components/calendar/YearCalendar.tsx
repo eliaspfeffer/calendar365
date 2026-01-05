@@ -51,6 +51,7 @@ interface SingleYearGridProps {
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
   draggedNoteId?: string | null;
+  isNoteReadOnly?: (note: StickyNote) => boolean;
   readOnly?: boolean;
 }
 
@@ -73,6 +74,7 @@ function SingleYearGrid({
   connectedNoteIds,
   highlightedNoteIds,
   draggedNoteId,
+  isNoteReadOnly,
   readOnly = false,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
@@ -125,6 +127,7 @@ function SingleYearGrid({
                   connectedNoteIds={connectedNoteIds}
                   highlightedNoteIds={highlightedNoteIds}
                   draggedNoteId={draggedNoteId}
+                  isNoteReadOnly={isNoteReadOnly}
                   readOnly={readOnly}
                 />
               ))}
@@ -183,6 +186,12 @@ export function YearCalendar({
   calendarDefaultNoteColorById,
   googleEventsByDate,
 }: YearCalendarProps) {
+  const isGuestSession = !userId;
+  const isGuestNote = useCallback((note: StickyNote | null | undefined) => note?.user_id === "guest", []);
+  const isNoteReadOnly = useCallback(
+    (note: StickyNote) => isGuestSession && note.user_id !== "guest",
+    [isGuestSession]
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -232,8 +241,18 @@ export function YearCalendar({
   const [hideYearDialogOpen, setHideYearDialogOpen] = useState(false);
   const [hideYearDialogDontShowAgain, setHideYearDialogDontShowAgain] = useState(false);
 
-  const inboxNotes = notes.filter((n) => !n.date && (n.pos_x == null || n.pos_y == null));
-  const canvasNotes = notes.filter((n) => !n.date && n.pos_x != null && n.pos_y != null);
+  const inboxNotes = notes.filter((n) => {
+    if (!n.date && (n.pos_x == null || n.pos_y == null)) {
+      return userId ? true : n.user_id === "guest";
+    }
+    return false;
+  });
+  const canvasNotes = notes.filter((n) => {
+    if (!n.date && n.pos_x != null && n.pos_y != null) {
+      return userId ? true : n.user_id === "guest";
+    }
+    return false;
+  });
 
   const getGoogleEventsByDate = useCallback(
     (dateKey: string) => googleEventsByDate?.[dateKey] ?? [],
@@ -290,7 +309,7 @@ export function YearCalendar({
       ro.disconnect();
       window.removeEventListener("resize", computeMinScale);
     };
-  }, [years.length]);
+  }, [years.length, showInbox]);
 
   useEffect(() => {
     if (dialogOpen) return;
@@ -451,16 +470,12 @@ export function YearCalendar({
       if (isDragging()) return;
       if (isLinkMode) return; // Don't open dialog in link mode
       if (draggedNoteId) return; // Don't open dialog while dragging
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
       setSelectedDate(formatDateKey(date));
       setEditingNote(null);
-      setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
+      setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
       setDialogOpen(true);
     },
-    [userId, onAuthRequired, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds]
+    [userId, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds]
   );
 
   const handleNoteClick = useCallback(
@@ -468,30 +483,24 @@ export function YearCalendar({
       if (isDragging()) return;
       if (isLinkMode) return; // Handled by onLinkClick
       if (draggedNoteId) return; // Don't open dialog if we just dragged
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
+      if (!userId && !isGuestNote(note)) return;
       setSelectedDate(note.date ?? null);
       setEditingNote(note);
       setDialogOpen(true);
     },
-    [isDragging, isLinkMode, draggedNoteId, onAuthRequired, userId]
+    [isDragging, isLinkMode, draggedNoteId, userId, isGuestNote]
   );
 
   const handleInboxNoteClick = useCallback(
     (note: StickyNote) => {
       if (isDragging()) return;
       if (draggedNoteId) return;
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
+      if (!userId && !isGuestNote(note)) return;
       setSelectedDate(note.date ?? null);
       setEditingNote(note);
       setDialogOpen(true);
     },
-    [isDragging, draggedNoteId, onAuthRequired, userId]
+    [isDragging, draggedNoteId, userId, isGuestNote]
   );
 
   const handleLinkClick = useCallback(
@@ -591,15 +600,15 @@ export function YearCalendar({
 
   const handleNoteDrop = useCallback(
     async (date: string, noteId: string) => {
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
       if (!noteId) {
         setDraggedNoteId(null);
         return;
       }
       const note = notes.find((n) => n.id === noteId);
+      if (!userId && !isGuestNote(note)) {
+        setDraggedNoteId(null);
+        return;
+      }
       if (note && note.date !== date) {
         const moved = await moveNote(noteId, date, connections);
         if (!moved.ok) {
@@ -634,17 +643,14 @@ export function YearCalendar({
       }
       setDraggedNoteId(null);
     },
-    [notes, moveNote, connections, toast, onAuthRequired, userId, copyToClipboard]
+    [notes, moveNote, connections, toast, userId, copyToClipboard, isGuestNote]
   );
 
   const handleInboxDrop = useCallback(
     async (noteId: string) => {
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
       const note = notes.find((n) => n.id === noteId);
       if (!note) return;
+      if (!userId && !isGuestNote(note)) return;
       if (!note.date) return;
       const moved = await moveNote(noteId, null, connections);
       if (!moved.ok) {
@@ -676,7 +682,7 @@ export function YearCalendar({
       });
       setDraggedNoteId(null);
     },
-    [notes, moveNote, connections, toast, onAuthRequired, userId, copyToClipboard]
+    [notes, moveNote, connections, toast, userId, copyToClipboard, isGuestNote]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -697,11 +703,6 @@ export function YearCalendar({
 
   const handleCanvasDrop = useCallback(
     async (e: React.DragEvent) => {
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
-
       suppressNextCanvasClickRef.current = true;
       requestAnimationFrame(() => {
         suppressNextCanvasClickRef.current = false;
@@ -712,6 +713,8 @@ export function YearCalendar({
         noteId = e.dataTransfer.getData("text/plain");
       }
       if (!noteId) return;
+      const note = notes.find((n) => n.id === noteId) ?? null;
+      if (!userId && !isGuestNote(note)) return;
 
       const target = e.target as HTMLElement;
       if (
@@ -747,7 +750,7 @@ export function YearCalendar({
       });
       setDraggedNoteId(null);
     },
-    [draggedNoteId, getContentPointFromClient, moveNoteToCanvas, onAuthRequired, toast, userId]
+    [draggedNoteId, getContentPointFromClient, moveNoteToCanvas, toast, userId, notes, isGuestNote]
   );
 
   const handleCanvasClick = useCallback(
@@ -771,84 +774,78 @@ export function YearCalendar({
         return;
       }
 
-      if (!userId) {
-        onAuthRequired?.();
-        return;
-      }
-
       const point = getContentPointFromClient(e.clientX, e.clientY);
       if (!point) return;
 
       setSelectedDate(null);
       setEditingNote(null);
       setNewNotePosition(point);
-      setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
+      setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
       setDialogOpen(true);
     },
-    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, onAuthRequired, userId, dialogOpen, activeCalendarId, visibleCalendarIds]
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds]
   );
 
   const handleSaveNote = useCallback(
     async (text: string, color: StickyColor, date: string | null) => {
-      if (!userId) {
-        onAuthRequired?.();
-        return false;
-      }
       if (editingNote) {
+        if (!userId && !isGuestNote(editingNote)) return false;
         const updated = await updateNote(editingNote.id, text, color);
         if (!updated) {
           toast({
             title: "Couldn’t save note",
-            description: "Your changes weren’t saved to Supabase.",
+            description: userId ? "Your changes weren’t saved to Supabase." : "Your changes weren’t saved.",
             variant: "destructive",
           });
           return false;
         }
-        return true;
-      } else {
-        const created = await addNote(
-          date,
-          text,
-          color,
-          date ? null : newNotePosition,
-          newNoteCalendarId
-        );
-        if (!created) {
-          const hint = newNoteCalendarId
-            ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
-            : "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations.";
-          toast({
-            title: "Couldn’t create note",
-            description: hint,
-            variant: "destructive",
-          });
-          return false;
-        }
-        setNewNotePosition(null);
         return true;
       }
+
+      const created = await addNote(date, text, color, date ? null : newNotePosition, newNoteCalendarId);
+      if (!created) {
+        const hint = userId && newNoteCalendarId
+          ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
+          : userId
+            ? "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations."
+            : "Nothing was saved.";
+        toast({
+          title: "Couldn’t create note",
+          description: hint,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      setNewNotePosition(null);
+      if (!userId) {
+        toast({
+          title: "Sign in to save your notes",
+          description: "Log in or register to save — your notes will be added to your account automatically.",
+          action: (
+            <ToastAction altText="Sign in" onClick={() => onAuthRequired?.()}>
+              Sign in
+            </ToastAction>
+          ),
+        });
+      }
+      return true;
     },
-    [editingNote, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition, newNoteCalendarId]
+    [editingNote, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition, newNoteCalendarId, isGuestNote]
   );
 
   const handleDeleteNote = useCallback(() => {
-    if (!userId) {
-      onAuthRequired?.();
-      return;
-    }
     if (editingNote) {
+      if (!userId && !isGuestNote(editingNote)) return;
       deleteNote(editingNote.id);
       setDialogOpen(false);
     }
-  }, [editingNote, deleteNote, onAuthRequired, userId]);
+  }, [editingNote, deleteNote, userId, isGuestNote]);
 
   const handleMoveNote = useCallback(
     async (newDate: string | null) => {
-      if (!userId) {
-        onAuthRequired?.();
-        return false;
-      }
       if (editingNote) {
+        if (!userId && !isGuestNote(editingNote)) return false;
         const moved = await moveNote(editingNote.id, newDate, connections);
         if (!moved.ok) {
           const err = moved.error;
@@ -876,7 +873,7 @@ export function YearCalendar({
       }
       return false;
     },
-    [editingNote, moveNote, connections, toast, onAuthRequired, userId, copyToClipboard]
+    [editingNote, moveNote, connections, toast, userId, copyToClipboard, isGuestNote]
   );
 
   // Get all note IDs that have connections
@@ -969,32 +966,29 @@ export function YearCalendar({
                     isHiding && "opacity-0 pointer-events-none"
                   )}
                 >
-                  <SingleYearGrid
-                    year={year}
-                    scale={scale}
-                    getNotesByDate={getNotesByDate}
-                    getEventsByDate={getGoogleEventsByDate}
-                    onCellClick={handleCellClick}
-                    onNoteClick={handleNoteClick}
-                    onDeleteNote={(id) => {
-                      if (!userId) {
-                        onAuthRequired?.();
-                        return;
-                      }
+                    <SingleYearGrid
+                      year={year}
+                      scale={scale}
+                      getNotesByDate={getNotesByDate}
+                      getEventsByDate={getGoogleEventsByDate}
+                      onCellClick={handleCellClick}
+                      onNoteClick={handleNoteClick}
+                      onDeleteNote={(id) => {
                       deleteNote(id);
-                    }}
-                    onNoteHover={handleNoteHover}
-                    onLinkClick={handleLinkClick}
-                    onNoteDragStart={userId ? handleNoteDragStart : undefined}
-                    onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
-                    onDrop={userId ? handleNoteDrop : undefined}
-                    onDragOver={userId ? handleDragOver : undefined}
-                    textOverflowMode={textOverflowMode}
-                    isLinkMode={isLinkMode}
-                    connectedNoteIds={uniqueConnectedNoteIds}
-                    highlightedNoteIds={highlightedNoteIds}
-                    draggedNoteId={draggedNoteId}
-                  />
+                      }}
+                      onNoteHover={handleNoteHover}
+                      onLinkClick={handleLinkClick}
+                      onNoteDragStart={handleNoteDragStart}
+                      onNoteDragEnd={handleNoteDragEnd}
+                      onDrop={handleNoteDrop}
+                      onDragOver={handleDragOver}
+                      textOverflowMode={textOverflowMode}
+                      isLinkMode={isLinkMode}
+                      connectedNoteIds={uniqueConnectedNoteIds}
+                      highlightedNoteIds={highlightedNoteIds}
+                      draggedNoteId={draggedNoteId}
+                      isNoteReadOnly={isNoteReadOnly}
+                    />
 
                   {isLast && (onAddYear || onRemoveLastYear) && (
                     <>
@@ -1160,17 +1154,13 @@ export function YearCalendar({
                   <StickyNoteComponent
                     note={note}
                     onDelete={(id) => {
-                      if (!userId) {
-                        onAuthRequired?.();
-                        return;
-                      }
                       deleteNote(id);
                     }}
                     onClick={() => handleNoteClick(note)}
                     onHover={handleNoteHover}
                     onLinkClick={handleLinkClick}
-                    onDragStart={userId ? handleNoteDragStart : undefined}
-                    onDragEnd={userId ? handleNoteDragEnd : undefined}
+                    onDragStart={handleNoteDragStart}
+                    onDragEnd={handleNoteDragEnd}
                     scale={scale}
                     textOverflowMode={textOverflowMode}
                     isLinkMode={isLinkMode}
@@ -1178,6 +1168,7 @@ export function YearCalendar({
                     isHighlighted={highlightedNoteIds.includes(note.id)}
                     isDragging={draggedNoteId === note.id}
                     variant="full"
+                    readOnly={isNoteReadOnly(note)}
                   />
                 </div>
               </div>
@@ -1215,28 +1206,20 @@ export function YearCalendar({
         <InboxNotesPanel
           notes={inboxNotes}
           onNewNote={() => {
-            if (!userId) {
-              onAuthRequired?.();
-              return;
-            }
             setSelectedDate(null);
             setEditingNote(null);
             setNewNotePosition(null);
-            setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
+            setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
             setDialogOpen(true);
           }}
           onNoteClick={handleInboxNoteClick}
           onDeleteNote={(id) => {
-            if (!userId) {
-              onAuthRequired?.();
-              return;
-            }
             deleteNote(id);
           }}
           onNoteHover={handleNoteHover}
-          onDropToInbox={userId ? handleInboxDrop : () => onAuthRequired?.()}
-          onNoteDragStart={userId ? handleNoteDragStart : undefined}
-          onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
+          onDropToInbox={handleInboxDrop}
+          onNoteDragStart={handleNoteDragStart}
+          onNoteDragEnd={handleNoteDragEnd}
           draggedNoteId={draggedNoteId}
           textOverflowMode={textOverflowMode}
         />
