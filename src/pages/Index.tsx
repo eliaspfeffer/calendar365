@@ -504,6 +504,8 @@ const Index = () => {
         visibleCalendarIds={effectiveVisibleCalendarIds}
         activeCalendarId={effectiveCalendarId}
         onAuthRequired={handleAuthRequired}
+        skipHideYearConfirm={settings.skipHideYearConfirm}
+        onSkipHideYearConfirmChange={(skip) => updateSettings({ skipHideYearConfirm: skip })}
         onAddYear={() => updateSettings({ yearEnd: yearEnd + 1 })}
         onRemoveLastYear={
           years.length > 1

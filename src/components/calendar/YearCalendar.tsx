@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { EyeOff, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -150,6 +152,8 @@ interface YearCalendarProps {
   visibleCalendarIds: string[] | null;
   activeCalendarId: string | null;
   onAuthRequired?: () => void;
+  skipHideYearConfirm?: boolean;
+  onSkipHideYearConfirmChange?: (skip: boolean) => void;
   onAddYear?: () => void;
   onRemoveLastYear?: () => void;
   textOverflowMode: TextOverflowMode;
@@ -166,6 +170,8 @@ export function YearCalendar({
   visibleCalendarIds,
   activeCalendarId,
   onAuthRequired,
+  skipHideYearConfirm = false,
+  onSkipHideYearConfirmChange,
   onAddYear,
   onRemoveLastYear,
   textOverflowMode,
@@ -217,6 +223,10 @@ export function YearCalendar({
   const [newNotePosition, setNewNotePosition] = useState<{ x: number; y: number } | null>(null);
   const [newNoteCalendarId, setNewNoteCalendarId] = useState<string | null>(activeCalendarId);
   const didAutoFocusTodayRef = useRef(false);
+  const [yearBeingHidden, setYearBeingHidden] = useState<number | null>(null);
+  const focusAfterYearChangeRef = useRef(false);
+  const [hideYearDialogOpen, setHideYearDialogOpen] = useState(false);
+  const [hideYearDialogDontShowAgain, setHideYearDialogDontShowAgain] = useState(false);
 
   const inboxNotes = notes.filter((n) => !n.date && (n.pos_x == null || n.pos_y == null));
   const canvasNotes = notes.filter((n) => !n.date && n.pos_x != null && n.pos_y != null);
@@ -300,6 +310,73 @@ export function YearCalendar({
 
     return () => cancelAnimationFrame(raf);
   }, [years, setView, translateX, translateY]);
+
+  const focusOnYear = useCallback(
+    (year: number) => {
+      const container = containerRef.current;
+      const content = contentRef.current;
+      if (!container || !content) return;
+
+      const yearEl = content.querySelector<HTMLElement>(`[data-year="${year}"]`);
+      if (!yearEl) return;
+
+      const raf = requestAnimationFrame(() => {
+        const containerRect = container.getBoundingClientRect();
+        const yearRect = yearEl.getBoundingClientRect();
+        const margin = 32;
+        const desiredX = containerRect.left + margin;
+        const desiredY = containerRect.top + margin;
+        const dx = desiredX - yearRect.left;
+        const dy = desiredY - yearRect.top;
+
+        setView((prev) => ({
+          ...prev,
+          translateX: prev.translateX + dx,
+          translateY: prev.translateY + dy,
+        }));
+      });
+
+      return () => cancelAnimationFrame(raf);
+    },
+    [setView],
+  );
+
+  useEffect(() => {
+    if (!focusAfterYearChangeRef.current) return;
+    focusAfterYearChangeRef.current = false;
+    const last = years[years.length - 1];
+    if (!last) return;
+    focusOnYear(last);
+  }, [years, focusOnYear]);
+
+  const beginHideLastYear = useCallback(
+    (options?: { showUndoToast?: boolean }) => {
+      if (!onRemoveLastYear) return;
+      const last = years[years.length - 1];
+      if (!last) return;
+
+      focusAfterYearChangeRef.current = true;
+      setYearBeingHidden(last);
+
+      window.setTimeout(() => {
+        onRemoveLastYear();
+        setYearBeingHidden(null);
+
+        if (options?.showUndoToast && onAddYear) {
+          toast({
+            title: `Year ${last} hidden`,
+            description: "You can add it back any time.",
+            action: (
+              <ToastAction altText="Undo" onClick={() => onAddYear()}>
+                Undo
+              </ToastAction>
+            ),
+          });
+        }
+      }, 520);
+    },
+    [onRemoveLastYear, years, onAddYear, toast],
+  );
 
   const getContentPointFromClient = useCallback(
     (clientX: number, clientY: number) => {
@@ -827,8 +904,15 @@ export function YearCalendar({
         <div className="flex flex-col items-start gap-12 p-10">
           {years.map((year, index) => {
             const isLast = index === years.length - 1;
+            const isHiding = yearBeingHidden === year;
             return (
-              <div key={year} className="inline-block">
+              <div
+                key={year}
+                className={cn(
+                  "inline-block transition-opacity duration-500",
+                  isHiding && "opacity-0 pointer-events-none"
+                )}
+              >
                 <SingleYearGrid
                   year={year}
                   scale={scale}
@@ -872,11 +956,13 @@ export function YearCalendar({
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
+                          focusAfterYearChangeRef.current = true;
                           onAddYear();
                         }}
                         onKeyDown={(e) => {
                           if (e.key !== "Enter" && e.key !== " ") return;
                           e.preventDefault();
+                          focusAfterYearChangeRef.current = true;
                           onAddYear();
                         }}
                         aria-label={`Add year ${years[years.length - 1] + 1}`}
@@ -905,6 +991,7 @@ export function YearCalendar({
                             className="rounded-full"
                             onClick={(e) => {
                               e.stopPropagation();
+                              focusAfterYearChangeRef.current = true;
                               onAddYear();
                             }}
                           >
@@ -916,41 +1003,79 @@ export function YearCalendar({
                         {onAddYear && onRemoveLastYear && <div className="w-px h-6 bg-border mx-1" />}
 
                         {onRemoveLastYear && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button type="button" variant="outline" size="sm" className="rounded-full">
+                          <>
+                            {skipHideYearConfirm ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="rounded-full"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  beginHideLastYear({ showUndoToast: true });
+                                }}
+                              >
                                 <EyeOff className="h-4 w-4 mr-2" />
                                 Hide {years[years.length - 1]}
                               </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Hide this year from view?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This only hides the year. Your notes and dates are kept and will show again if you add
-                                  the year back.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel asChild>
-                                  <Button type="button" variant="outline">
-                                    Cancel
+                            ) : (
+                              <AlertDialog
+                                open={hideYearDialogOpen}
+                                onOpenChange={(open) => {
+                                  setHideYearDialogOpen(open);
+                                  if (open) setHideYearDialogDontShowAgain(false);
+                                }}
+                              >
+                                <AlertDialogTrigger asChild>
+                                  <Button type="button" variant="outline" size="sm" className="rounded-full">
+                                    <EyeOff className="h-4 w-4 mr-2" />
+                                    Hide {years[years.length - 1]}
                                   </Button>
-                                </AlertDialogCancel>
-                                <AlertDialogAction asChild>
-                                  <Button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      onRemoveLastYear();
-                                    }}
-                                  >
-                                    Hide year
-                                  </Button>
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Hide this year from view?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This only hides the year. Your notes and dates are kept and will show again if you
+                                      add the year back.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+
+                                  <div className="flex items-start gap-2">
+                                    <Checkbox
+                                      id="skip-hide-year-confirm"
+                                      checked={hideYearDialogDontShowAgain}
+                                      onCheckedChange={(checked) => setHideYearDialogDontShowAgain(checked === true)}
+                                    />
+                                    <Label htmlFor="skip-hide-year-confirm" className="leading-tight">
+                                      I understand — don’t show this again pls
+                                    </Label>
+                                  </div>
+
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel asChild>
+                                      <Button type="button" variant="outline">
+                                        Cancel
+                                      </Button>
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction asChild>
+                                      <Button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          if (hideYearDialogDontShowAgain) onSkipHideYearConfirmChange?.(true);
+                                          beginHideLastYear();
+                                          setHideYearDialogOpen(false);
+                                        }}
+                                      >
+                                        Hide year
+                                      </Button>
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </>
                         )}
                       </div>
                     )}

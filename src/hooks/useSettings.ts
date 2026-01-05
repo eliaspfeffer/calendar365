@@ -8,6 +8,7 @@ export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'te
 interface Settings {
   yearStart: number;
   yearEnd: number;
+  skipHideYearConfirm: boolean;
   textOverflowMode: TextOverflowMode;
   calendarColor: CalendarColor;
   alwaysShowArrows: boolean;
@@ -26,6 +27,7 @@ const defaultYearEnd = defaultYearStart + 1;
 const defaultSettings: Settings = {
   yearStart: defaultYearStart,
   yearEnd: defaultYearEnd,
+  skipHideYearConfirm: false,
   textOverflowMode: 'expand',
   calendarColor: 'blue',
   alwaysShowArrows: false,
@@ -62,6 +64,7 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (yearStart !== null) out.yearStart = yearStart;
   const yearEnd = coerceYear(raw.yearEnd);
   if (yearEnd !== null) out.yearEnd = yearEnd;
+  if (typeof raw.skipHideYearConfirm === "boolean") out.skipHideYearConfirm = raw.skipHideYearConfirm;
 
   if (raw.textOverflowMode === "scroll" || raw.textOverflowMode === "truncate" || raw.textOverflowMode === "expand") {
     out.textOverflowMode = raw.textOverflowMode;

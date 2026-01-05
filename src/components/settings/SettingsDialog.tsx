@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,6 +105,7 @@ export function SettingsDialog({
   onGoogleRefresh,
 }: SettingsDialogProps) {
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const { toast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -232,6 +234,10 @@ export function SettingsDialog({
                         onYearStartChange(safeEnd);
                         onYearEndChange(safeStart);
                       }
+                      toast({
+                        title: "Years updated",
+                        description: `Showing ${Math.min(safeStart, safeEnd)}–${Math.max(safeStart, safeEnd)}.`,
+                      });
                     }}
                   >
                     Apply
