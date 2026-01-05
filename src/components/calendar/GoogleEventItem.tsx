@@ -10,12 +10,13 @@ export function GoogleEventItem({
 }) {
   const label = event.isContinuation ? "↳" : event.startTimeLabel ?? "";
   const text = `${label ? `${label} ` : ""}${event.summary}`;
+  const href = event.webLink || event.htmlLink || undefined;
 
   return (
     <a
-      href={event.htmlLink || undefined}
-      target={event.htmlLink ? "_blank" : undefined}
-      rel={event.htmlLink ? "noreferrer" : undefined}
+      href={href}
+      target={href ? "_blank" : undefined}
+      rel={href ? "noreferrer" : undefined}
       onClick={(e) => e.stopPropagation()}
       title={`${event.calendarSummary ? `${event.calendarSummary}: ` : ""}${event.summary}`}
       className={cn(
@@ -28,4 +29,3 @@ export function GoogleEventItem({
     </a>
   );
 }
-

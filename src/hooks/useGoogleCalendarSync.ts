@@ -131,9 +131,25 @@ type EventsResponse = {
     start?: { date?: string; dateTime?: string };
     end?: { date?: string; dateTime?: string };
     status?: string;
+    recurringEventId?: string;
+    originalStartTime?: { date?: string; dateTime?: string };
   }>;
   nextPageToken?: string;
 };
+
+function toBase64Url(input: string) {
+  // Google Calendar web uses a base64url-ish encoding for the `eid` param.
+  const utf8 = encodeURIComponent(input).replace(/%([0-9A-F]{2})/g, (_, hex) =>
+    String.fromCharCode(parseInt(hex, 16))
+  );
+  const b64 = btoa(utf8);
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function buildGoogleCalendarWebLink(eventId: string, calendarId: string) {
+  const eid = toBase64Url(`${eventId} ${calendarId}`);
+  return `https://calendar.google.com/calendar/u/0/r/event?eid=${encodeURIComponent(eid)}`;
+}
 
 export function useGoogleCalendarSync(options: {
   years: number[];
@@ -273,6 +289,7 @@ export function useGoogleCalendarSync(options: {
             const start = item.start.dateTime ?? item.start.date ?? "";
             const end = item.end.dateTime ?? item.end.date ?? "";
             if (!start || !end) continue;
+            const stableId = item.recurringEventId ?? item.id;
 
             all.push({
               id: item.id,
@@ -280,6 +297,8 @@ export function useGoogleCalendarSync(options: {
               calendarSummary: calendar?.summary,
               summary: item.summary || "(No title)",
               htmlLink: item.htmlLink,
+              recurringEventId: item.recurringEventId,
+              webLink: buildGoogleCalendarWebLink(stableId, calendarId),
               location: item.location,
               isAllDay,
               start: isAllDay ? `${start}T00:00:00` : start,
@@ -387,4 +406,3 @@ export function useGoogleCalendarSync(options: {
     refresh,
   };
 }
-

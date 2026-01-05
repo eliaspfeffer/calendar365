@@ -16,10 +16,12 @@ export interface GoogleCalendarEvent {
   calendarSummary?: string;
   summary: string;
   htmlLink?: string;
+  webLink?: string;
   location?: string;
   isAllDay: boolean;
   start: string; // ISO string
   end: string; // ISO string
+  recurringEventId?: string;
 }
 
 export interface GoogleCalendarDayEvent extends GoogleCalendarEvent {
@@ -27,4 +29,3 @@ export interface GoogleCalendarDayEvent extends GoogleCalendarEvent {
   startTimeLabel?: string; // e.g. "09:30"
   isContinuation?: boolean; // event spans multiple days and this is not the first day
 }
-
