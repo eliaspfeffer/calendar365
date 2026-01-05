@@ -305,7 +305,7 @@ export function useStickyNotes(
           saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
           return next;
         });
-        return newNote;
+        return { note: newNote, error: null };
       }
 
       // Legacy mode (older schema) works without calendars.
@@ -334,7 +334,7 @@ export function useStickyNotes(
             pos_y: row.pos_y ?? null,
           };
           setNotes((prev) => [...prev, newNote]);
-          return newNote;
+          return { note: newNote, error: null };
         }
 
         // Undefined column (older schema): drop position fields and retry once.
@@ -350,10 +350,10 @@ export function useStickyNotes(
         }
 
         console.error("Error adding note:", error);
-        return null;
+        return { note: null, error: (error ?? { message: "Unknown error" }) as SupabaseErrorLike };
       }
 
-      return null;
+      return { note: null, error: { message: "Unknown error" } satisfies SupabaseErrorLike };
     },
     [userId, insertStickyNote, isMissingColumn]
   );

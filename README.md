@@ -48,6 +48,44 @@ Create `.env.local`:
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_ANON_KEY
+VITE_FREE_NOTES_LIMIT=25
+VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
+```
+
+## Payments / paywall (PayPal, lifetime 4 USD)
+
+- Free to use up to N notes per account (default 25).
+- Adding note N+1 opens a “support the app” dialog to unlock unlimited notes.
+- The user can choose the amount (including 0 USD). 4 USD is the suggested amount.
+
+### Changing the free-note limit
+
+- UI limit (local/prod build): set `VITE_FREE_NOTES_LIMIT`.
+- Server enforcement (Supabase RLS): after applying migrations, update the singleton row:
+
+```sql
+UPDATE public.app_config
+SET free_notes_limit = 25
+WHERE id = 1;
+```
+
+### Supabase Edge Function secrets
+
+The PayPal API secret must NOT go into Vite env vars. Configure it as Supabase secrets:
+
+```sh
+supabase secrets set \
+  PAYPAL_ENV="sandbox" \
+  PAYPAL_CLIENT_ID="YOUR_PAYPAL_CLIENT_ID" \
+  PAYPAL_SECRET="YOUR_PAYPAL_SECRET"
+```
+
+Deploy the functions:
+
+```sh
+supabase functions deploy paypal-create-order
+supabase functions deploy paypal-capture-order
+supabase functions deploy entitlement-grant-free
 ```
 
 ## Google Calendar sync (optional)

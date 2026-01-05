@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { useGoogleCalendarSync } from "@/hooks/useGoogleCalendarSync";
+import { useEntitlement } from "@/hooks/useEntitlement";
 import { LogOut, Loader2, LogIn, Settings, Share2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
@@ -30,6 +31,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PaywallDialog } from "@/components/payments/PaywallDialog";
+import { getFreeNotesLimit } from "@/lib/paywallConfig";
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
@@ -47,6 +50,10 @@ const Index = () => {
   const [isLoadingDeleteNoteCount, setIsLoadingDeleteNoteCount] = useState(false);
   const [isDeletingCalendar, setIsDeletingCalendar] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
+  const entitlement = useEntitlement(user?.id ?? null);
+  const freeNotesLimit = useMemo(() => getFreeNotesLimit(), []);
 
   const {
     calendars,
@@ -515,6 +522,12 @@ const Index = () => {
             ? () => updateSettings({ yearEnd: Math.max(yearStart, yearEnd - 1) })
             : undefined
         }
+        noteLimit={freeNotesLimit}
+        noteCount={entitlement.noteCount}
+        hasLifetimeAccess={entitlement.hasLifetimeAccess}
+        onUpgradeRequired={() => setPaywallOpen(true)}
+        onNoteCreated={() => entitlement.bumpNoteCount(1)}
+        onNoteDeleted={() => entitlement.bumpNoteCount(-1)}
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
         alwaysShowArrows={settings.alwaysShowArrows}
@@ -525,6 +538,13 @@ const Index = () => {
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
+      <PaywallDialog
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        onPaid={async () => {
+          await entitlement.refresh();
+        }}
+      />
       <SettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}

@@ -159,6 +159,12 @@ interface YearCalendarProps {
   onSkipHideYearConfirmChange?: (skip: boolean) => void;
   onAddYear?: () => void;
   onRemoveLastYear?: () => void;
+  noteLimit?: number;
+  noteCount?: number | null;
+  hasLifetimeAccess?: boolean;
+  onUpgradeRequired?: () => void;
+  onNoteCreated?: () => void;
+  onNoteDeleted?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
   alwaysShowArrows?: boolean;
@@ -178,6 +184,12 @@ export function YearCalendar({
   onSkipHideYearConfirmChange,
   onAddYear,
   onRemoveLastYear,
+  noteLimit = 25,
+  noteCount,
+  hasLifetimeAccess = false,
+  onUpgradeRequired,
+  onNoteCreated,
+  onNoteDeleted,
   textOverflowMode,
   calendarColor,
   alwaysShowArrows = false,
@@ -800,47 +812,81 @@ export function YearCalendar({
           return false;
         }
         return true;
-      }
+      } else {
+        if (userId && !hasLifetimeAccess && typeof noteCount === "number" && noteCount >= noteLimit) {
+          onUpgradeRequired?.();
+          return false;
+        }
 
-      const created = await addNote(date, text, color, date ? null : newNotePosition, newNoteCalendarId);
-      if (!created) {
-        const hint = userId && newNoteCalendarId
-          ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
-          : userId
-            ? "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations."
+        const result = await addNote(
+          date,
+          text,
+          color,
+          date ? null : newNotePosition,
+          newNoteCalendarId
+        );
+        if (!result.note) {
+          const msg = `${result.error?.message ?? ""} ${result.error?.details ?? ""}`.toLowerCase();
+          if (!hasLifetimeAccess && (msg.includes("row-level security") || msg.includes("policy") || msg.includes("rls"))) {
+            onUpgradeRequired?.();
+            return false;
+          }
+          const hint = userId
+            ? (
+                newNoteCalendarId
+                  ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
+                  : "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations."
+              )
             : "Nothing was saved.";
-        toast({
-          title: "Couldn’t create note",
-          description: hint,
-          variant: "destructive",
-        });
-        return false;
+          toast({
+            title: "Couldn’t create note",
+            description: hint,
+            variant: "destructive",
+          });
+          return false;
+        }
+        onNoteCreated?.();
+        setNewNotePosition(null);
+        if (!userId) {
+          toast({
+            title: "Sign in to save your notes",
+            description: "Log in or register to save — your notes will be added to your account automatically.",
+            action: (
+              <ToastAction altText="Sign in" onClick={() => onAuthRequired?.()}>
+                Sign in
+              </ToastAction>
+            ),
+          });
+        }
+        return true;
       }
-
-      setNewNotePosition(null);
-      if (!userId) {
-        toast({
-          title: "Sign in to save your notes",
-          description: "Log in or register to save — your notes will be added to your account automatically.",
-          action: (
-            <ToastAction altText="Sign in" onClick={() => onAuthRequired?.()}>
-              Sign in
-            </ToastAction>
-          ),
-        });
-      }
-      return true;
     },
-    [editingNote, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition, newNoteCalendarId, isGuestNote]
+    [
+      editingNote,
+      addNote,
+      updateNote,
+      toast,
+      onAuthRequired,
+      userId,
+      newNotePosition,
+      newNoteCalendarId,
+      isGuestNote,
+      hasLifetimeAccess,
+      noteCount,
+      noteLimit,
+      onUpgradeRequired,
+      onNoteCreated,
+    ]
   );
 
   const handleDeleteNote = useCallback(() => {
     if (editingNote) {
       if (!userId && !isGuestNote(editingNote)) return;
       deleteNote(editingNote.id);
+      onNoteDeleted?.();
       setDialogOpen(false);
     }
-  }, [editingNote, deleteNote, userId, isGuestNote]);
+  }, [editingNote, deleteNote, userId, isGuestNote, onNoteDeleted]);
 
   const handleMoveNote = useCallback(
     async (newDate: string | null) => {
