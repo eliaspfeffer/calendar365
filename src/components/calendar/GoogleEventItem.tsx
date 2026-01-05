@@ -8,7 +8,11 @@ export function GoogleEventItem({
   event: GoogleCalendarDayEvent;
   compact?: boolean;
 }) {
-  const label = event.isContinuation ? "↳" : event.startTimeLabel ?? "";
+  const label = event.isContinuation
+    ? "↳"
+    : event.isAllDay
+      ? ""
+      : event.startTimeLabel ?? "";
   const text = `${label ? `${label} ` : ""}${event.summary}`;
   const href = event.webLink || event.htmlLink || undefined;
 
