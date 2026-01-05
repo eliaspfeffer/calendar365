@@ -100,11 +100,64 @@ export function ReadOnlyYearCalendar({
 }: ReadOnlyYearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { scale, translateX, translateY, handleWheel, handlePointerDown, zoomIn, zoomOut, resetView, setView, isDragging } =
-    useZoomPan();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [minScale, setMinScale] = useState(0.3);
+  const {
+    scale,
+    translateX,
+    translateY,
+    handleWheel,
+    handlePointerDown,
+    zoomIn,
+    zoomOut,
+    resetView,
+    setView,
+    isDragging,
+  } = useZoomPan({ minScale });
 
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   const didAutoFocusTodayRef = useRef(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const grid = gridRef.current;
+    if (!container || !grid) return;
+
+    const computeMinScale = () => {
+      const rect = container.getBoundingClientRect();
+      const contentWidth = grid.scrollWidth;
+      const contentHeight = grid.scrollHeight;
+      if (!contentWidth || !contentHeight) return;
+
+      const bottomControls = Array.from(document.querySelectorAll(".zoom-controls"));
+      let reservedBottom = 0;
+      for (const el of bottomControls) {
+        if (!(el instanceof HTMLElement)) continue;
+        const r = el.getBoundingClientRect();
+        reservedBottom = Math.max(reservedBottom, window.innerHeight - r.top);
+      }
+
+      const padding = 24;
+      const availableWidth = Math.max(1, rect.width - padding);
+      const availableHeight = Math.max(1, rect.height - reservedBottom - padding);
+
+      const fitScale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
+      const nextMinScale = Math.max(0.05, Math.min(0.3, fitScale));
+
+      setMinScale(nextMinScale);
+    };
+
+    computeMinScale();
+
+    const ro = new ResizeObserver(() => computeMinScale());
+    ro.observe(container);
+    ro.observe(grid);
+    window.addEventListener("resize", computeMinScale);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", computeMinScale);
+    };
+  }, [years.length]);
 
   const notesByDate = useMemo(() => {
     const map = new Map<string, StickyNote[]>();
@@ -232,7 +285,7 @@ export function ReadOnlyYearCalendar({
           transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
         }}
       >
-        <div className="flex flex-col gap-12 p-10">
+        <div ref={gridRef} className="flex flex-col gap-12 p-10">
           {years.map((year) => (
             <SingleYearGridReadOnly
               key={year}

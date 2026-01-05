@@ -91,7 +91,12 @@ export function InboxNotesPanel({
       className={cn(
         "inbox-notes-panel fixed shadow-lg border border-border bg-card/90 backdrop-blur-sm z-50 touch-auto",
         isMobile
-          ? "bottom-4 left-4 w-[min(320px,calc(100vw-2rem))]"
+          ? cn(
+              "bottom-24 left-4",
+              isMinimized
+                ? "w-[min(260px,calc(100vw-2rem))]"
+                : "w-[min(320px,calc(100vw-2rem))]"
+            )
           : "bottom-20 right-6 w-[340px]",
         draggedNoteId && "ring-2 ring-primary"
       )}

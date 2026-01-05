@@ -319,13 +319,16 @@ const Index = () => {
     <div className="min-h-screen bg-background relative">
       {/* Calendar controls */}
       {user && (
-        <div className="fixed top-4 left-4 z-50 flex gap-2 items-center">
+        <div
+          data-top-controls
+          className="fixed top-4 left-4 z-50 flex flex-wrap gap-2 items-center sm:flex-nowrap"
+        >
           <Select
             value={effectiveCalendarId ?? ''}
             onValueChange={(id) => updateSettings({ activeCalendarId: id })}
             disabled={calendarsLoading || calendars.length === 0}
           >
-            <SelectTrigger className="w-[220px] bg-background/80 backdrop-blur-sm">
+            <SelectTrigger className="w-[160px] max-w-[60vw] bg-background/80 backdrop-blur-sm sm:w-[220px]">
               <SelectValue placeholder={calendarsLoading ? 'Lade Kalender…' : 'Kalender wählen'} />
             </SelectTrigger>
             <SelectContent>
@@ -466,7 +469,7 @@ const Index = () => {
       )}
 
       {/* Header with settings and auth buttons */}
-      <div className="fixed top-4 right-4 z-50 flex gap-2">
+      <div data-top-controls className="fixed right-4 z-50 flex gap-2 top-16 sm:top-4">
         <Button
           variant="outline"
           size="sm"
@@ -482,8 +485,8 @@ const Index = () => {
             onClick={handleSignOut}
             className="bg-background/80 backdrop-blur-sm"
           >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign out
+            <LogOut className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Sign out</span>
           </Button>
         ) : (
           <Button
@@ -492,8 +495,8 @@ const Index = () => {
             onClick={() => setLoginDialogOpen(true)}
             className="bg-background/80 backdrop-blur-sm"
           >
-            <LogIn className="h-4 w-4 mr-2" />
-            Sign in
+            <LogIn className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Sign in</span>
           </Button>
         )}
       </div>
@@ -515,6 +518,7 @@ const Index = () => {
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
         alwaysShowArrows={settings.alwaysShowArrows}
+        showInbox={settings.showInbox}
         calendarOptions={editableVisibleCalendars}
         calendarDefaultNoteColorById={calendarDefaultNoteColorById}
         googleEventsByDate={settings.googleSyncEnabled ? googleSync.eventsByDate : null}
@@ -540,6 +544,8 @@ const Index = () => {
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
         alwaysShowArrows={settings.alwaysShowArrows}
         onAlwaysShowArrowsChange={(alwaysShowArrows) => updateSettings({ alwaysShowArrows })}
+        showInbox={settings.showInbox}
+        onShowInboxChange={(showInbox) => updateSettings({ showInbox })}
         shareBaseUrl={settings.shareBaseUrl}
         onShareBaseUrlChange={(url) => updateSettings({ shareBaseUrl: url })}
         accountEmail={user?.email ?? null}

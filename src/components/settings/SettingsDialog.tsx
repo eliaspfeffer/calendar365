@@ -39,6 +39,8 @@ interface SettingsDialogProps {
   onCalendarColorChange: (color: CalendarColor) => void;
   alwaysShowArrows: boolean;
   onAlwaysShowArrowsChange: (alwaysShowArrows: boolean) => void;
+  showInbox: boolean;
+  onShowInboxChange: (showInbox: boolean) => void;
   shareBaseUrl: string | null;
   onShareBaseUrlChange: (url: string | null) => void;
   accountEmail?: string | null;
@@ -84,6 +86,8 @@ export function SettingsDialog({
   onCalendarColorChange,
   alwaysShowArrows,
   onAlwaysShowArrowsChange,
+  showInbox,
+  onShowInboxChange,
   shareBaseUrl,
   onShareBaseUrlChange,
   accountEmail,
@@ -303,6 +307,20 @@ export function SettingsDialog({
                   checked={alwaysShowArrows}
                   onCheckedChange={onAlwaysShowArrowsChange}
                 />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium" htmlFor="show-inbox">
+                    Show inbox panel
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Display the Inbox panel at the bottom. Turn off to hide it completely.
+                  </p>
+                </div>
+                <Switch id="show-inbox" checked={showInbox} onCheckedChange={onShowInboxChange} />
               </div>
             </div>
 
