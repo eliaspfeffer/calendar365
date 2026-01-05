@@ -33,7 +33,7 @@ import {
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings } = useSettings(user?.id || null);
   const { toast } = useToast();
   const hasWarnedAboutCalendars = useRef(false);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);

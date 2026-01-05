@@ -13,7 +13,7 @@ export default function Invite() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const { updateSettings } = useSettings();
+  const { updateSettings } = useSettings(user?.id || null);
   const { toast } = useToast();
   const { acceptInvite } = useCalendars(user?.id || null);
 
@@ -114,4 +114,3 @@ export default function Invite() {
     </div>
   );
 }
-
