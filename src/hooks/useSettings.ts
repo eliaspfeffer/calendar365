@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export type TextOverflowMode = 'scroll' | 'truncate' | 'expand';
 export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'teal' | 'pink' | 'indigo';
@@ -27,25 +29,182 @@ const defaultSettings: Settings = {
   googleSelectedCalendarIds: null,
 };
 
-export function useSettings() {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function coercePartialSettings(raw: unknown): Partial<Settings> {
+  if (!isRecord(raw)) return {};
+
+  const out: Partial<Settings> = {};
+
+  if (raw.textOverflowMode === "scroll" || raw.textOverflowMode === "truncate" || raw.textOverflowMode === "expand") {
+    out.textOverflowMode = raw.textOverflowMode;
+  }
+  if (
+    raw.calendarColor === "blue" ||
+    raw.calendarColor === "green" ||
+    raw.calendarColor === "purple" ||
+    raw.calendarColor === "red" ||
+    raw.calendarColor === "orange" ||
+    raw.calendarColor === "teal" ||
+    raw.calendarColor === "pink" ||
+    raw.calendarColor === "indigo"
+  ) {
+    out.calendarColor = raw.calendarColor;
+  }
+  if (typeof raw.alwaysShowArrows === "boolean") out.alwaysShowArrows = raw.alwaysShowArrows;
+  if (typeof raw.activeCalendarId === "string" || raw.activeCalendarId === null) out.activeCalendarId = raw.activeCalendarId;
+  if (typeof raw.shareBaseUrl === "string" || raw.shareBaseUrl === null) out.shareBaseUrl = raw.shareBaseUrl;
+  if (isStringArray(raw.visibleCalendarIds) || raw.visibleCalendarIds === null) out.visibleCalendarIds = raw.visibleCalendarIds;
+  if (typeof raw.googleSyncEnabled === "boolean") out.googleSyncEnabled = raw.googleSyncEnabled;
+  if (isStringArray(raw.googleSelectedCalendarIds) || raw.googleSelectedCalendarIds === null) {
+    out.googleSelectedCalendarIds = raw.googleSelectedCalendarIds;
+  }
+
+  return out;
+}
+
+export function useSettings(userId: string | null = null) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const settingsRef = useRef(settings);
+  const saveTimeoutRef = useRef<number | null>(null);
+  const pendingRemoteRef = useRef<Settings | null>(null);
+  const remoteLoadedRef = useRef(false);
+  const dirtyBeforeRemoteLoadRef = useRef(false);
+  const remoteUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  useEffect(() => {
+    if (remoteUserIdRef.current === userId) return;
+    remoteUserIdRef.current = userId;
+    remoteLoadedRef.current = false;
+    dirtyBeforeRemoteLoadRef.current = false;
+    pendingRemoteRef.current = null;
+  }, [userId]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       try {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+        const parsed = JSON.parse(stored) as unknown;
+        setSettings({ ...defaultSettings, ...coercePartialSettings(parsed) });
       } catch {
         // Invalid JSON, use defaults
       }
     }
   }, []);
 
-  const updateSettings = (updates: Partial<Settings>) => {
-    const newSettings = { ...settings, ...updates };
-    setSettings(newSettings);
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-  };
+  useEffect(() => {
+    if (!userId) return;
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("settings")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (error) {
+        console.error("Error loading user settings:", error);
+        remoteLoadedRef.current = true;
+        return;
+      }
+
+      const hasRemote = Boolean(data?.settings);
+      if (hasRemote && !dirtyBeforeRemoteLoadRef.current) {
+        const next = { ...defaultSettings, ...coercePartialSettings(data.settings) };
+        setSettings(next);
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+      }
+
+      remoteLoadedRef.current = true;
+
+      if (!hasRemote) {
+        // No row yet: seed with whatever we currently have (likely localStorage-derived).
+        const { error: upsertError } = await supabase
+          .from("user_settings")
+          .upsert({ user_id: userId, settings: settingsRef.current as unknown as Json }, { onConflict: "user_id" });
+
+        if (!cancelled && upsertError) {
+          console.error("Error seeding user settings:", upsertError);
+        }
+      } else if (dirtyBeforeRemoteLoadRef.current && pendingRemoteRef.current) {
+        // Flush any local changes that happened before remote hydration completed.
+        const pending = pendingRemoteRef.current;
+        pendingRemoteRef.current = null;
+        const { error: upsertError } = await supabase
+          .from("user_settings")
+          .upsert({ user_id: userId, settings: pending as unknown as Json }, { onConflict: "user_id" });
+        if (!cancelled && upsertError) {
+          console.error("Error saving user settings:", upsertError);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const scheduleRemoteSave = useCallback(
+    (next: Settings) => {
+      if (!userId) return;
+      if (!isSupabaseConfigured) return;
+
+      pendingRemoteRef.current = next;
+      if (!remoteLoadedRef.current) {
+        dirtyBeforeRemoteLoadRef.current = true;
+        return;
+      }
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current);
+      }
+
+      saveTimeoutRef.current = window.setTimeout(async () => {
+        const pending = pendingRemoteRef.current;
+        if (!pending) return;
+        pendingRemoteRef.current = null;
+        const { error } = await supabase
+          .from("user_settings")
+          .upsert({ user_id: userId, settings: pending as unknown as Json }, { onConflict: "user_id" });
+        if (error) {
+          console.error("Error saving user settings:", error);
+        }
+      }, 500);
+    },
+    [userId],
+  );
+
+  const updateSettings = useCallback(
+    (updates: Partial<Settings>) => {
+      setSettings((prev) => {
+        const next = { ...prev, ...updates };
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+        scheduleRemoteSave(next);
+        return next;
+      });
+    },
+    [scheduleRemoteSave],
+  );
 
   return { settings, updateSettings };
 }
