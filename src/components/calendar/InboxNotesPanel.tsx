@@ -108,7 +108,7 @@ export function InboxNotesPanel({
       <div className={cn("flex items-center justify-between px-4 pt-4 pb-3", isMobile && isMinimized && "py-3")}>
         <div>
           <div className={cn("font-display text-xl tracking-wide", isMobile && isMinimized && "flex items-baseline gap-2")}>
-            <span>Inbox</span>
+            <span>Todo List</span>
             {isMobile && isMinimized && (
               <span className="text-xs font-sans text-muted-foreground">
                 {notes.length} {notes.length === 1 ? "note" : "notes"}
@@ -133,7 +133,7 @@ export function InboxNotesPanel({
               userToggledRef.current = true;
               setIsMinimized((v) => !v);
             }}
-            aria-label={isMinimized ? "Expand inbox" : "Minimize inbox"}
+            aria-label={isMinimized ? "Expand Todo List" : "Minimize Todo List"}
           >
             {isMinimized ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>

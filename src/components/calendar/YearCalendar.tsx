@@ -503,7 +503,7 @@ export function YearCalendar({
       const note = notes.find((n) => n.id === noteId);
       if (!note?.date) {
         toast({
-          title: "Inbox note",
+          title: "Todo List note",
           description: "Assign a date before linking notes.",
         });
         return;
@@ -527,7 +527,7 @@ export function YearCalendar({
         if (!sourceNote?.date) {
           setLinkSourceNoteId(null);
           toast({
-            title: "Inbox note",
+            title: "Todo List note",
             description: "Assign a date before linking notes.",
           });
           return;
@@ -653,14 +653,14 @@ export function YearCalendar({
           ? `${err.message}${err.code ? ` (${err.code})` : ""}`
           : null;
         toast({
-          title: "Couldn’t move to Inbox",
+          title: "Couldn’t move to Todo List",
           description: details
             ? `The change wasn’t saved: ${details}`
             : "The change wasn’t saved. Check your Supabase schema/migrations.",
           action: (
             <ToastAction
               altText="Copy error"
-              onClick={() => copyToClipboard(details ?? "Couldn’t move to Inbox (no error details).")}
+              onClick={() => copyToClipboard(details ?? "Couldn’t move to Todo List (no error details).")}
             >
               Copy error
             </ToastAction>
@@ -671,7 +671,7 @@ export function YearCalendar({
         return;
       }
       toast({
-        title: "Moved to Inbox",
+        title: "Moved to Todo List",
         description: "Note now has no date.",
       });
       setDraggedNoteId(null);
