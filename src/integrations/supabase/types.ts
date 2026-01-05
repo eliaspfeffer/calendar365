@@ -292,6 +292,14 @@ export type Database = {
         }
         Returns: string
       }
+      current_user_has_lifetime_access: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      current_user_note_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       delete_account: {
         Args: Record<PropertyKey, never>
         Returns: undefined

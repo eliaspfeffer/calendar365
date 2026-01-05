@@ -48,6 +48,30 @@ Create `.env.local`:
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_ANON_KEY
+VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
+```
+
+## Payments / paywall (PayPal, lifetime 4 USD)
+
+- Free to use up to 25 notes per account.
+- Adding the 26th note opens a PayPal checkout to unlock unlimited notes (one-time 4 USD).
+
+### Supabase Edge Function secrets
+
+The PayPal API secret must NOT go into Vite env vars. Configure it as Supabase secrets:
+
+```sh
+supabase secrets set \
+  PAYPAL_ENV="sandbox" \
+  PAYPAL_CLIENT_ID="YOUR_PAYPAL_CLIENT_ID" \
+  PAYPAL_SECRET="YOUR_PAYPAL_SECRET"
+```
+
+Deploy the functions:
+
+```sh
+supabase functions deploy paypal-create-order
+supabase functions deploy paypal-capture-order
 ```
 
 ## Google Calendar sync (optional)
