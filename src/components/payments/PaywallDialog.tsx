@@ -22,6 +22,34 @@ declare global {
   }
 }
 
+async function toHelpfulEdgeFunctionError(err: unknown) {
+  const baseMessage =
+    (err as { message?: unknown } | null | undefined)?.message && typeof (err as { message?: unknown }).message === "string"
+      ? (err as { message: string }).message
+      : "Request failed";
+
+  const context = (err as { context?: unknown } | null | undefined)?.context;
+  if (!(context instanceof Response)) return baseMessage;
+
+  let text = "";
+  try {
+    text = await context.clone().text();
+  } catch {
+    // ignore
+  }
+
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown; message?: unknown };
+    const detail = typeof parsed?.error === "string" ? parsed.error : typeof parsed?.message === "string" ? parsed.message : null;
+    if (detail) return detail;
+  } catch {
+    // ignore
+  }
+
+  if (text.trim()) return text.trim();
+  return `${baseMessage} (HTTP ${context.status})`;
+}
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -72,7 +100,7 @@ export function PaywallDialog({ open, onOpenChange, onPaid }: Props) {
             const { data, error } = await supabase.functions.invoke("paypal-create-order", {
               body: { amountCents },
             });
-            if (error) throw error;
+            if (error) throw new Error(await toHelpfulEdgeFunctionError(error));
             const orderId = (data as { orderId?: string } | null | undefined)?.orderId;
             if (!orderId) throw new Error("Missing order id");
             return orderId;
@@ -81,18 +109,19 @@ export function PaywallDialog({ open, onOpenChange, onPaid }: Props) {
             const orderId = (data as { orderID?: string } | null | undefined)?.orderID;
             if (!orderId) throw new Error("Missing order id");
             const { error } = await supabase.functions.invoke("paypal-capture-order", { body: { orderId } });
-            if (error) throw error;
+            if (error) throw new Error(await toHelpfulEdgeFunctionError(error));
             toast({ title: "Thanks for supporting me!", description: "Unlocked: unlimited notes." });
             onPaid();
             onOpenChange(false);
           },
           onError: (err: unknown) => {
             console.error("PayPal error", err);
-            const message =
-              (err as { message?: unknown } | null | undefined)?.message && typeof (err as { message?: unknown }).message === "string"
-                ? (err as { message: string }).message
-                : "Please try again.";
-            toast({ title: "Payment failed", description: message, variant: "destructive" });
+            const message = (err as { message?: unknown } | null | undefined)?.message;
+            toast({
+              title: "Payment failed",
+              description: typeof message === "string" && message.trim() ? message.trim() : "Please try again.",
+              variant: "destructive",
+            });
           },
         }).render(containerRef.current);
       } catch (err) {
@@ -123,17 +152,18 @@ export function PaywallDialog({ open, onOpenChange, onPaid }: Props) {
     setIsUnlockingFree(true);
     try {
       const { error } = await supabase.functions.invoke("entitlement-grant-free", { body: {} });
-      if (error) throw error;
+      if (error) throw new Error(await toHelpfulEdgeFunctionError(error));
       toast({ title: "Unlocked", description: "Unlimited notes enabled." });
       onPaid();
       onOpenChange(false);
     } catch (err) {
       console.error(err);
-      const message =
-        (err as { message?: unknown } | null | undefined)?.message && typeof (err as { message?: unknown }).message === "string"
-          ? (err as { message: string }).message
-          : "Please try again.";
-      toast({ title: "Couldn’t unlock", description: message, variant: "destructive" });
+      const message = (err as { message?: unknown } | null | undefined)?.message;
+      toast({
+        title: "Couldn’t unlock",
+        description: typeof message === "string" && message.trim() ? message.trim() : "Please try again.",
+        variant: "destructive",
+      });
       setIsUnlockingFree(false);
     }
   };
