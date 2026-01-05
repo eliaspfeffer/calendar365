@@ -15,6 +15,8 @@ import type {
   GoogleCalendarListEntry,
 } from "@/types/googleCalendar";
 
+const SESSION_KEY = "calendar365_google_token_v1";
+
 type GoogleTokenResponse = {
   access_token: string;
   expires_in: number;
@@ -62,6 +64,29 @@ function loadGoogleIdentityScript(): Promise<void> {
     script.onerror = () => reject(new Error("Failed to load Google Identity script"));
     document.head.appendChild(script);
   });
+}
+
+function loadStoredToken(): { accessToken: string; expiresAtMs: number } | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem(SESSION_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { accessToken?: string; expiresAtMs?: number };
+    if (!parsed.accessToken || !parsed.expiresAtMs) return null;
+    return { accessToken: parsed.accessToken, expiresAtMs: parsed.expiresAtMs };
+  } catch {
+    return null;
+  }
+}
+
+function storeToken(accessToken: string, expiresAtMs: number) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken, expiresAtMs }));
+}
+
+function clearStoredToken() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 function getYearRangeIso(years: number[]) {
@@ -160,8 +185,9 @@ export function useGoogleCalendarSync(options: {
   const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "";
   const isAvailable = clientId.trim().length > 0;
 
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [expiresAtMs, setExpiresAtMs] = useState<number | null>(null);
+  const initial = useMemo(() => loadStoredToken(), []);
+  const [accessToken, setAccessToken] = useState<string | null>(initial?.accessToken ?? null);
+  const [expiresAtMs, setExpiresAtMs] = useState<number | null>(initial?.expiresAtMs ?? null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [calendars, setCalendars] = useState<GoogleCalendarListEntry[]>([]);
   const [isLoadingCalendars, setIsLoadingCalendars] = useState(false);
@@ -211,8 +237,10 @@ export function useGoogleCalendarSync(options: {
     setIsConnecting(true);
     try {
       const resp = await requestToken("consent");
+      const nextExpiresAt = Date.now() + resp.expires_in * 1000 - 30_000;
       setAccessToken(resp.access_token);
-      setExpiresAtMs(Date.now() + resp.expires_in * 1000 - 30_000);
+      setExpiresAtMs(nextExpiresAt);
+      storeToken(resp.access_token, nextExpiresAt);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -223,6 +251,7 @@ export function useGoogleCalendarSync(options: {
   const disconnect = useCallback(() => {
     setAccessToken(null);
     setExpiresAtMs(null);
+    clearStoredToken();
     setCalendars([]);
     setEventsByDate({});
     setLastSyncAt(null);
@@ -237,10 +266,37 @@ export function useGoogleCalendarSync(options: {
 
     // Attempt a "silent" refresh. If Google requires user interaction, this will fail and we'll surface an error.
     const resp = await requestToken("");
+    const nextExpiresAt = Date.now() + resp.expires_in * 1000 - 30_000;
     setAccessToken(resp.access_token);
-    setExpiresAtMs(Date.now() + resp.expires_in * 1000 - 30_000);
+    setExpiresAtMs(nextExpiresAt);
+    storeToken(resp.access_token, nextExpiresAt);
     return resp.access_token;
   }, [accessToken, expiresAtMs, isAvailable, requestToken]);
+
+  // If enabled and we don't have a token (e.g. after reload), try a silent reconnect.
+  useEffect(() => {
+    if (!options.enabled) return;
+    if (!isAvailable) return;
+    if (accessToken) return;
+
+    const restored = loadStoredToken();
+    if (restored && Date.now() < restored.expiresAtMs) {
+      setAccessToken(restored.accessToken);
+      setExpiresAtMs(restored.expiresAtMs);
+      return;
+    }
+
+    requestToken("")
+      .then((resp) => {
+        const nextExpiresAt = Date.now() + resp.expires_in * 1000 - 30_000;
+        setAccessToken(resp.access_token);
+        setExpiresAtMs(nextExpiresAt);
+        storeToken(resp.access_token, nextExpiresAt);
+      })
+      .catch(() => {
+        // Silent reconnect failed (likely requires interaction). Leave as disconnected.
+      });
+  }, [accessToken, isAvailable, options.enabled, requestToken]);
 
   const fetchCalendars = useCallback(
     async (token: string) => {
