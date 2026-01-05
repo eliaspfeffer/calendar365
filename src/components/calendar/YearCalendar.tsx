@@ -14,6 +14,7 @@ import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { EyeOff, Plus } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -856,71 +857,104 @@ export function YearCalendar({
                 />
 
                 {isLast && (onAddYear || onRemoveLastYear) && (
-                  <div
-                    className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-40 touch-auto"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      suppressNextCanvasClickRef.current = true;
-                      requestAnimationFrame(() => {
-                        suppressNextCanvasClickRef.current = false;
-                      });
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {onAddYear && (
-                      <Button
+                  <>
+                    {onAddYear && !onRemoveLastYear ? (
+                      <button
                         type="button"
-                        variant="ghost"
-                        className="rounded-full"
+                        className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-4 py-3 shadow-lg border border-border z-40 touch-auto cursor-pointer"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          suppressNextCanvasClickRef.current = true;
+                          requestAnimationFrame(() => {
+                            suppressNextCanvasClickRef.current = false;
+                          });
+                        }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onAddYear();
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter" && e.key !== " ") return;
+                          e.preventDefault();
+                          onAddYear();
+                        }}
+                        aria-label={`Add year ${years[years.length - 1] + 1}`}
                       >
-                        Add year {years[years.length - 1] + 1}
-                      </Button>
-                    )}
-
-                    {onAddYear && onRemoveLastYear && <div className="w-px h-6 bg-border mx-1" />}
-
-                    {onRemoveLastYear && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button type="button" variant="ghost" className="rounded-full">
-                            Remove year {years[years.length - 1]}
+                        <Plus className="h-4 w-4" />
+                        <span className="font-medium">Add year {years[years.length - 1] + 1}</span>
+                      </button>
+                    ) : (
+                      <div
+                        className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-40 touch-auto"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          suppressNextCanvasClickRef.current = true;
+                          requestAnimationFrame(() => {
+                            suppressNextCanvasClickRef.current = false;
+                          });
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {onAddYear && (
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            className="rounded-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddYear();
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add {years[years.length - 1] + 1}
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove this year from view?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This only hides the year. Your notes and dates are kept and will show again if you add the
-                              year back.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel asChild>
-                              <Button type="button" variant="outline">
-                                Cancel
+                        )}
+
+                        {onAddYear && onRemoveLastYear && <div className="w-px h-6 bg-border mx-1" />}
+
+                        {onRemoveLastYear && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button type="button" variant="outline" size="sm" className="rounded-full">
+                                <EyeOff className="h-4 w-4 mr-2" />
+                                Hide {years[years.length - 1]}
                               </Button>
-                            </AlertDialogCancel>
-                            <AlertDialogAction asChild>
-                              <Button
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  onRemoveLastYear();
-                                }}
-                              >
-                                Remove year
-                              </Button>
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Hide this year from view?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This only hides the year. Your notes and dates are kept and will show again if you add
+                                  the year back.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel asChild>
+                                  <Button type="button" variant="outline">
+                                    Cancel
+                                  </Button>
+                                </AlertDialogCancel>
+                                <AlertDialogAction asChild>
+                                  <Button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      onRemoveLastYear();
+                                    }}
+                                  >
+                                    Hide year
+                                  </Button>
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             );
