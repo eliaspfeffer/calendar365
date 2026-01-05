@@ -49,7 +49,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: null,
-    text: "Inbox-Idee:\n„Neues Ritual“ für Montag planen",
+    text: "Todo List-Idee:\n„Neues Ritual“ für Montag planen",
     color: "purple",
   },
 ];

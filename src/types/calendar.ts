@@ -4,7 +4,7 @@ export interface StickyNote {
   id: string;
   calendar_id: string;
   user_id: string;
-  date: string | null; // Format: YYYY-MM-DD (null means "Inbox"/undated)
+  date: string | null; // Format: YYYY-MM-DD (null means "Todo List"/undated)
   text: string;
   color: StickyColor;
   pos_x?: number | null; // For undated notes placed on the canvas

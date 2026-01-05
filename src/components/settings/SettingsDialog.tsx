@@ -314,10 +314,10 @@ export function SettingsDialog({
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <Label className="text-base font-medium" htmlFor="show-inbox">
-                    Show inbox panel
+                    Show Todo List panel
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    Display the Inbox panel at the bottom. Turn off to hide it completely.
+                    Display the Todo List panel at the bottom. Turn off to hide it completely.
                   </p>
                 </div>
                 <Switch id="show-inbox" checked={showInbox} onCheckedChange={onShowInboxChange} />

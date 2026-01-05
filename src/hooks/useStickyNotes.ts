@@ -355,7 +355,7 @@ export function useStickyNotes(
       .eq('id', id);
 
     // Back-compat: if the DB hasn't been migrated yet (pos_x/pos_y missing),
-    // degrade to an inbox note without positioning.
+    // degrade to a Todo List note without positioning.
     if (error && (isMissingColumn(error, "pos_x") || isMissingColumn(error, "pos_y"))) {
       const { error: retryError } = await supabase
         .from('sticky_notes')

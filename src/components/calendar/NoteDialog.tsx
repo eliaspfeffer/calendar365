@@ -110,7 +110,7 @@ export function NoteDialog({
           </DialogTitle>
           {!existingNote && (
             <p className="text-sm text-muted-foreground">
-              {date ? formatDateDisplay(date) : 'Inbox (no date yet)'}
+              {date ? formatDateDisplay(date) : 'Todo List (no date yet)'}
             </p>
           )}
         </DialogHeader>
