@@ -28,6 +28,10 @@ import { useMemo, useState } from 'react';
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  yearStart: number;
+  yearEnd: number;
+  onYearStartChange: (year: number) => void;
+  onYearEndChange: (year: number) => void;
   textOverflowMode: TextOverflowMode;
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
   calendarColor: CalendarColor;
@@ -69,6 +73,10 @@ const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
 export function SettingsDialog({
   open,
   onOpenChange,
+  yearStart,
+  yearEnd,
+  onYearStartChange,
+  onYearEndChange,
   textOverflowMode,
   onTextOverflowModeChange,
   calendarColor,
@@ -135,6 +143,47 @@ export function SettingsDialog({
               <p className="text-sm text-muted-foreground">
                 Optional. Used when generating public share links (custom domains). Leave empty to use the current site
                 URL.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Years shown</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="year-start" className="text-sm text-muted-foreground">
+                    From
+                  </Label>
+                  <Input
+                    id="year-start"
+                    type="number"
+                    inputMode="numeric"
+                    value={String(yearStart)}
+                    onChange={(e) => {
+                      const next = Number.parseInt(e.target.value, 10);
+                      if (!Number.isFinite(next)) return;
+                      onYearStartChange(next);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="year-end" className="text-sm text-muted-foreground">
+                    To
+                  </Label>
+                  <Input
+                    id="year-end"
+                    type="number"
+                    inputMode="numeric"
+                    value={String(yearEnd)}
+                    onChange={(e) => {
+                      const next = Number.parseInt(e.target.value, 10);
+                      if (!Number.isFinite(next)) return;
+                      onYearEndChange(next);
+                    }}
+                  />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Set a range (e.g. 2025–2030) to show those years immediately.
               </p>
             </div>
 

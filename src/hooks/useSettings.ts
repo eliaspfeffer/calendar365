@@ -6,6 +6,8 @@ export type TextOverflowMode = 'scroll' | 'truncate' | 'expand';
 export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'teal' | 'pink' | 'indigo';
 
 interface Settings {
+  yearStart: number;
+  yearEnd: number;
   textOverflowMode: TextOverflowMode;
   calendarColor: CalendarColor;
   alwaysShowArrows: boolean;
@@ -18,7 +20,12 @@ interface Settings {
 
 const SETTINGS_KEY = 'calendar365_settings';
 
+const defaultYearStart = new Date().getFullYear();
+const defaultYearEnd = defaultYearStart + 1;
+
 const defaultSettings: Settings = {
+  yearStart: defaultYearStart,
+  yearEnd: defaultYearEnd,
   textOverflowMode: 'expand',
   calendarColor: 'blue',
   alwaysShowArrows: false,
@@ -37,10 +44,24 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
+function coerceYear(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value);
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (!isRecord(raw)) return {};
 
   const out: Partial<Settings> = {};
+
+  const yearStart = coerceYear(raw.yearStart);
+  if (yearStart !== null) out.yearStart = yearStart;
+  const yearEnd = coerceYear(raw.yearEnd);
+  if (yearEnd !== null) out.yearEnd = yearEnd;
 
   if (raw.textOverflowMode === "scroll" || raw.textOverflowMode === "truncate" || raw.textOverflowMode === "expand") {
     out.textOverflowMode = raw.textOverflowMode;

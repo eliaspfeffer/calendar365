@@ -13,6 +13,18 @@ import { StickyNote, StickyColor } from "@/types/calendar";
 import { CalendarColor, TextOverflowMode } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { coerceStickyColor } from "@/lib/stickyNoteColors";
 import type { GoogleCalendarDayEvent } from "@/types/googleCalendar";
@@ -137,6 +149,8 @@ interface YearCalendarProps {
   visibleCalendarIds: string[] | null;
   activeCalendarId: string | null;
   onAuthRequired?: () => void;
+  onAddYear?: () => void;
+  onRemoveLastYear?: () => void;
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
   alwaysShowArrows?: boolean;
@@ -151,6 +165,8 @@ export function YearCalendar({
   visibleCalendarIds,
   activeCalendarId,
   onAuthRequired,
+  onAddYear,
+  onRemoveLastYear,
   textOverflowMode,
   calendarColor,
   alwaysShowArrows = false,
@@ -835,6 +851,59 @@ export function YearCalendar({
               draggedNoteId={draggedNoteId}
             />
           ))}
+
+          {(onAddYear || onRemoveLastYear) && years.length > 0 && (
+            <div className="flex justify-center">
+              <div className="bg-card/80 backdrop-blur-sm border border-border rounded-lg px-6 py-4 shadow-md">
+                <div className="text-center text-sm text-muted-foreground mb-3">
+                  Manage years
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {onAddYear && (
+                    <Button type="button" variant="default" onClick={onAddYear}>
+                      Add year {years[years.length - 1] + 1}
+                    </Button>
+                  )}
+                  {onRemoveLastYear && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button type="button" variant="outline">
+                          Remove year {years[years.length - 1]}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remove this year from view?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This only hides the year. Your notes and dates are kept and will show again if you add the
+                            year back.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel asChild>
+                            <Button type="button" variant="outline">
+                              Cancel
+                            </Button>
+                          </AlertDialogCancel>
+                          <AlertDialogAction asChild>
+                            <Button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                onRemoveLastYear();
+                              }}
+                            >
+                              Remove year
+                            </Button>
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Canvas (undated, positioned) notes */}
