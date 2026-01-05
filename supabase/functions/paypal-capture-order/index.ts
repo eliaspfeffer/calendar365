@@ -58,6 +58,11 @@ serve(async (req) => {
     const orderId = payload?.orderId?.trim();
     if (!orderId) return json(400, { error: "Missing orderId" });
 
+    const pending = await service.from("paypal_orders").select("*").eq("order_id", orderId).maybeSingle();
+    if (pending.error) return json(500, { error: "Failed to load order" });
+    if (!pending.data) return json(404, { error: "Unknown order" });
+    if (pending.data.user_id !== userId) return json(403, { error: "Order does not belong to this user" });
+
     const capture = await paypalFetch<CaptureResponse>(`/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
       method: "POST",
       body: JSON.stringify({}),
@@ -65,15 +70,15 @@ serve(async (req) => {
 
     const captureStatus = capture.status ?? "";
     const unit = capture.purchase_units?.[0];
-    const customId = unit?.custom_id ?? "";
     const captureItem = unit?.payments?.captures?.[0] ?? null;
     const captureId = captureItem?.id ?? null;
 
-    if (!customId || customId !== userId) return json(403, { error: "Order does not belong to this user" });
     if (captureStatus !== "COMPLETED") return json(400, { error: "Payment not completed" });
     if (!captureItem || captureItem.status !== "COMPLETED") return json(400, { error: "Capture not completed" });
     const amountCents = parseAmountCents(captureItem.amount?.value, captureItem.amount?.currency_code);
     if (amountCents === null) return json(400, { error: "Invalid amount/currency" });
+    if (pending.data.currency !== "USD") return json(400, { error: "Unsupported currency" });
+    if (amountCents !== pending.data.amount_cents) return json(400, { error: "Amount mismatch" });
 
     const now = new Date().toISOString();
     const { error: upsertError } = await service
@@ -92,6 +97,8 @@ serve(async (req) => {
       );
 
     if (upsertError) return json(500, { error: "Failed to persist entitlement" });
+
+    await service.from("paypal_orders").delete().eq("order_id", orderId);
 
     return json(200, { ok: true });
   } catch (err) {

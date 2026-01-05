@@ -25,12 +25,14 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    if (!supabaseUrl || !supabaseAnonKey) return json(500, { error: "Supabase env missing" });
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) return json(500, { error: "Supabase env missing" });
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+    const service = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: userResult, error: userError } = await supabase.auth.getUser();
     const userId = userResult?.user?.id ?? null;
@@ -59,6 +61,14 @@ serve(async (req) => {
         ],
       }),
     });
+
+    const { error: insertError } = await service.from("paypal_orders").insert({
+      order_id: order.id,
+      user_id: userId,
+      amount_cents: amountCents,
+      currency: "USD",
+    });
+    if (insertError) return json(500, { error: "Failed to persist order" });
 
     return json(200, { orderId: order.id });
   } catch (err) {
