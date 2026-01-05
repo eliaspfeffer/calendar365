@@ -88,14 +88,21 @@ export function PaywallDialog({ open, onOpenChange, onPaid }: Props) {
           },
           onError: (err: unknown) => {
             console.error("PayPal error", err);
-            toast({ title: "Payment failed", description: "Please try again.", variant: "destructive" });
+            const message =
+              (err as { message?: unknown } | null | undefined)?.message && typeof (err as { message?: unknown }).message === "string"
+                ? (err as { message: string }).message
+                : "Please try again.";
+            toast({ title: "Payment failed", description: message, variant: "destructive" });
           },
         }).render(containerRef.current);
       } catch (err) {
         console.error(err);
         toast({
           title: "Payments not configured",
-          description: "Missing PayPal/Supabase configuration.",
+          description:
+            (err as { message?: unknown } | null | undefined)?.message && typeof (err as { message?: unknown }).message === "string"
+              ? (err as { message: string }).message
+              : "Missing PayPal/Supabase configuration.",
           variant: "destructive",
         });
       }
@@ -122,7 +129,11 @@ export function PaywallDialog({ open, onOpenChange, onPaid }: Props) {
       onOpenChange(false);
     } catch (err) {
       console.error(err);
-      toast({ title: "Couldn’t unlock", description: "Please try again.", variant: "destructive" });
+      const message =
+        (err as { message?: unknown } | null | undefined)?.message && typeof (err as { message?: unknown }).message === "string"
+          ? (err as { message: string }).message
+          : "Please try again.";
+      toast({ title: "Couldn’t unlock", description: message, variant: "destructive" });
       setIsUnlockingFree(false);
     }
   };
