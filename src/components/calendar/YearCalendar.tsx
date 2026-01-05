@@ -64,7 +64,10 @@ function SingleYearGrid({
   const maxDays = Math.max(...calendarData.map((month) => month.length));
 
   return (
-    <div className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max">
+    <div
+      className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max"
+      data-year={year}
+    >
       {/* Header */}
       <div className="bg-calendar-header px-8 py-6">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-primary-foreground tracking-wider text-center">
@@ -249,25 +252,25 @@ export function YearCalendar({
     // Avoid overriding user panning if they've already moved the view.
     if (Math.abs(translateX) > 0.5 || Math.abs(translateY) > 0.5) return;
 
-    const today = new Date();
-    if (!years.includes(today.getFullYear())) return;
+    const currentYear = new Date().getFullYear();
+    if (!years.includes(currentYear)) return;
 
     const container = containerRef.current;
     const content = contentRef.current;
     if (!container || !content) return;
 
-    const todayKey = formatDateKey(today);
-    const cell = content.querySelector<HTMLElement>(`[data-date-key="${todayKey}"]`);
-    if (!cell) return;
+    const yearEl = content.querySelector<HTMLElement>(`[data-year="${currentYear}"]`);
+    if (!yearEl) return;
 
     didAutoFocusTodayRef.current = true;
     const raf = requestAnimationFrame(() => {
       const containerRect = container.getBoundingClientRect();
-      const cellRect = cell.getBoundingClientRect();
-      const desiredX = containerRect.left + containerRect.width / 2;
-      const desiredY = containerRect.top + containerRect.height / 2;
-      const currentX = cellRect.left + cellRect.width / 2;
-      const currentY = cellRect.top + cellRect.height / 2;
+      const yearRect = yearEl.getBoundingClientRect();
+      const margin = 32;
+      const desiredX = containerRect.left + margin;
+      const desiredY = containerRect.top + margin;
+      const currentX = yearRect.left;
+      const currentY = yearRect.top;
       const dx = desiredX - currentX;
       const dy = desiredY - currentY;
 
