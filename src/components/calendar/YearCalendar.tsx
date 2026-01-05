@@ -584,6 +584,7 @@ export function YearCalendar({
         target.closest(".year-calendar-grid") ||
         target.closest(".inbox-notes-panel") ||
         target.closest(".zoom-controls")
+        || target.closest(".year-range-controls")
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -628,6 +629,7 @@ export function YearCalendar({
         target.closest(".year-calendar-grid") ||
         target.closest(".inbox-notes-panel") ||
         target.closest(".zoom-controls") ||
+        target.closest(".year-range-controls") ||
         target.closest(".sticky-note") ||
         target.closest('[data-radix-dialog-content]') ||
         target.closest('[role="dialog"]')
@@ -821,89 +823,108 @@ export function YearCalendar({
         }}
       >
         {/* Multiple Year Calendars */}
-        <div className="flex flex-col gap-12 p-10">
-          {years.map((year) => (
-            <SingleYearGrid
-              key={year}
-              year={year}
-              scale={scale}
-              getNotesByDate={getNotesByDate}
-              getEventsByDate={getGoogleEventsByDate}
-              onCellClick={handleCellClick}
-              onNoteClick={handleNoteClick}
-              onDeleteNote={(id) => {
-                if (!userId) {
-                  onAuthRequired?.();
-                  return;
-                }
-                deleteNote(id);
-              }}
-              onNoteHover={handleNoteHover}
-              onLinkClick={handleLinkClick}
-              onNoteDragStart={userId ? handleNoteDragStart : undefined}
-              onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
-              onDrop={userId ? handleNoteDrop : undefined}
-              onDragOver={userId ? handleDragOver : undefined}
-              textOverflowMode={textOverflowMode}
-              isLinkMode={isLinkMode}
-              connectedNoteIds={uniqueConnectedNoteIds}
-              highlightedNoteIds={highlightedNoteIds}
-              draggedNoteId={draggedNoteId}
-            />
-          ))}
+        <div className="flex flex-col items-start gap-12 p-10">
+          {years.map((year, index) => {
+            const isLast = index === years.length - 1;
+            return (
+              <div key={year} className="inline-block">
+                <SingleYearGrid
+                  year={year}
+                  scale={scale}
+                  getNotesByDate={getNotesByDate}
+                  getEventsByDate={getGoogleEventsByDate}
+                  onCellClick={handleCellClick}
+                  onNoteClick={handleNoteClick}
+                  onDeleteNote={(id) => {
+                    if (!userId) {
+                      onAuthRequired?.();
+                      return;
+                    }
+                    deleteNote(id);
+                  }}
+                  onNoteHover={handleNoteHover}
+                  onLinkClick={handleLinkClick}
+                  onNoteDragStart={userId ? handleNoteDragStart : undefined}
+                  onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
+                  onDrop={userId ? handleNoteDrop : undefined}
+                  onDragOver={userId ? handleDragOver : undefined}
+                  textOverflowMode={textOverflowMode}
+                  isLinkMode={isLinkMode}
+                  connectedNoteIds={uniqueConnectedNoteIds}
+                  highlightedNoteIds={highlightedNoteIds}
+                  draggedNoteId={draggedNoteId}
+                />
 
-          {(onAddYear || onRemoveLastYear) && years.length > 0 && (
-            <div className="flex justify-center">
-              <div className="bg-card/80 backdrop-blur-sm border border-border rounded-lg px-6 py-4 shadow-md">
-                <div className="text-center text-sm text-muted-foreground mb-3">
-                  Manage years
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  {onAddYear && (
-                    <Button type="button" variant="default" onClick={onAddYear}>
-                      Add year {years[years.length - 1] + 1}
-                    </Button>
-                  )}
-                  {onRemoveLastYear && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button type="button" variant="outline">
-                          Remove year {years[years.length - 1]}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remove this year from view?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This only hides the year. Your notes and dates are kept and will show again if you add the
-                            year back.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel asChild>
-                            <Button type="button" variant="outline">
-                              Cancel
-                            </Button>
-                          </AlertDialogCancel>
-                          <AlertDialogAction asChild>
-                            <Button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                onRemoveLastYear();
-                              }}
-                            >
-                              Remove year
-                            </Button>
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </div>
+                {isLast && (onAddYear || onRemoveLastYear) && (
+                  <div
+                    className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-40 touch-auto"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      suppressNextCanvasClickRef.current = true;
+                      requestAnimationFrame(() => {
+                        suppressNextCanvasClickRef.current = false;
+                      });
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {onAddYear && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddYear();
+                        }}
+                      >
+                        Add year {years[years.length - 1] + 1}
+                      </Button>
+                    )}
+
+                    {onAddYear && onRemoveLastYear && <div className="w-px h-6 bg-border mx-1" />}
+
+                    {onRemoveLastYear && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button type="button" variant="ghost" className="rounded-full">
+                            Remove year {years[years.length - 1]}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove this year from view?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This only hides the year. Your notes and dates are kept and will show again if you add the
+                              year back.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel asChild>
+                              <Button type="button" variant="outline">
+                                Cancel
+                              </Button>
+                            </AlertDialogCancel>
+                            <AlertDialogAction asChild>
+                              <Button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onRemoveLastYear();
+                                }}
+                              >
+                                Remove year
+                              </Button>
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
 
         {/* Canvas (undated, positioned) notes */}
