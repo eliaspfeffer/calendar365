@@ -314,6 +314,17 @@ export function useZoomPan() {
     });
   }, []);
 
+  const setView = useCallback(
+    (next: Partial<ZoomPanState> | ((prev: ZoomPanState) => ZoomPanState)) => {
+      if (typeof next === "function") {
+        setState(next);
+        return;
+      }
+      setState((prev) => ({ ...prev, ...next }));
+    },
+    []
+  );
+
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -340,6 +351,7 @@ export function useZoomPan() {
     zoomIn,
     zoomOut,
     resetView,
+    setView,
     isDragging,
   };
 }

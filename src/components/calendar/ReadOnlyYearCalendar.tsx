@@ -39,7 +39,10 @@ function SingleYearGridReadOnly({
   const maxDays = Math.max(...calendarData.map((month) => month.length));
 
   return (
-    <div className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max">
+    <div
+      className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max"
+      data-year={year}
+    >
       <div className="bg-calendar-header px-8 py-6">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-primary-foreground tracking-wider text-center">
           THE BIG A## CALENDAR {year}
@@ -97,9 +100,11 @@ export function ReadOnlyYearCalendar({
 }: ReadOnlyYearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { scale, translateX, translateY, handleWheel, handlePointerDown, zoomIn, zoomOut, resetView, isDragging } = useZoomPan();
+  const { scale, translateX, translateY, handleWheel, handlePointerDown, zoomIn, zoomOut, resetView, setView, isDragging } =
+    useZoomPan();
 
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
+  const didAutoFocusTodayRef = useRef(false);
 
   const notesByDate = useMemo(() => {
     const map = new Map<string, StickyNote[]>();
@@ -121,6 +126,42 @@ export function ReadOnlyYearCalendar({
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
+
+  useEffect(() => {
+    if (didAutoFocusTodayRef.current) return;
+    if (Math.abs(translateX) > 0.5 || Math.abs(translateY) > 0.5) return;
+
+    const currentYear = new Date().getFullYear();
+    if (!years.includes(currentYear)) return;
+
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const yearEl = content.querySelector<HTMLElement>(`[data-year="${currentYear}"]`);
+    if (!yearEl) return;
+
+    didAutoFocusTodayRef.current = true;
+    const raf = requestAnimationFrame(() => {
+      const containerRect = container.getBoundingClientRect();
+      const yearRect = yearEl.getBoundingClientRect();
+      const margin = 32;
+      const desiredX = containerRect.left + margin;
+      const desiredY = containerRect.top + margin;
+      const currentX = yearRect.left;
+      const currentY = yearRect.top;
+      const dx = desiredX - currentX;
+      const dy = desiredY - currentY;
+
+      setView((prev) => ({
+        ...prev,
+        translateX: prev.translateX + dx,
+        translateY: prev.translateY + dy,
+      }));
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [years, setView, translateX, translateY]);
 
   const handleContainerPointerDown = useCallback(
     (e: React.PointerEvent) => {
