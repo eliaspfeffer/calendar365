@@ -12,6 +12,7 @@ interface Settings {
   textOverflowMode: TextOverflowMode;
   calendarColor: CalendarColor;
   alwaysShowArrows: boolean;
+  showInbox: boolean;
   activeCalendarId: string | null;
   shareBaseUrl: string | null;
   visibleCalendarIds: string[] | null;
@@ -31,6 +32,7 @@ const defaultSettings: Settings = {
   textOverflowMode: 'expand',
   calendarColor: 'blue',
   alwaysShowArrows: false,
+  showInbox: true,
   activeCalendarId: null,
   shareBaseUrl: null,
   visibleCalendarIds: null,
@@ -82,6 +84,7 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
     out.calendarColor = raw.calendarColor;
   }
   if (typeof raw.alwaysShowArrows === "boolean") out.alwaysShowArrows = raw.alwaysShowArrows;
+  if (typeof raw.showInbox === "boolean") out.showInbox = raw.showInbox;
   if (typeof raw.activeCalendarId === "string" || raw.activeCalendarId === null) out.activeCalendarId = raw.activeCalendarId;
   if (typeof raw.shareBaseUrl === "string" || raw.shareBaseUrl === null) out.shareBaseUrl = raw.shareBaseUrl;
   if (isStringArray(raw.visibleCalendarIds) || raw.visibleCalendarIds === null) out.visibleCalendarIds = raw.visibleCalendarIds;

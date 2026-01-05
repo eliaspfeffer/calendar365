@@ -518,6 +518,7 @@ const Index = () => {
         textOverflowMode={settings.textOverflowMode}
         calendarColor={settings.calendarColor}
         alwaysShowArrows={settings.alwaysShowArrows}
+        showInbox={settings.showInbox}
         calendarOptions={editableVisibleCalendars}
         calendarDefaultNoteColorById={calendarDefaultNoteColorById}
         googleEventsByDate={settings.googleSyncEnabled ? googleSync.eventsByDate : null}
@@ -543,6 +544,8 @@ const Index = () => {
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
         alwaysShowArrows={settings.alwaysShowArrows}
         onAlwaysShowArrowsChange={(alwaysShowArrows) => updateSettings({ alwaysShowArrows })}
+        showInbox={settings.showInbox}
+        onShowInboxChange={(showInbox) => updateSettings({ showInbox })}
         shareBaseUrl={settings.shareBaseUrl}
         onShareBaseUrlChange={(url) => updateSettings({ shareBaseUrl: url })}
         accountEmail={user?.email ?? null}

@@ -159,6 +159,7 @@ interface YearCalendarProps {
   textOverflowMode: TextOverflowMode;
   calendarColor?: CalendarColor;
   alwaysShowArrows?: boolean;
+  showInbox?: boolean;
   calendarOptions?: Array<{ id: string; name: string }>;
   calendarDefaultNoteColorById?: Record<string, StickyColor>;
   googleEventsByDate?: Record<string, GoogleCalendarDayEvent[]> | null;
@@ -177,6 +178,7 @@ export function YearCalendar({
   textOverflowMode,
   calendarColor,
   alwaysShowArrows = false,
+  showInbox = true,
   calendarOptions,
   calendarDefaultNoteColorById,
   googleEventsByDate,
@@ -257,7 +259,9 @@ export function YearCalendar({
         reservedTop = Math.max(reservedTop, r.bottom);
       }
 
-      const bottomControls = Array.from(document.querySelectorAll(".zoom-controls, .inbox-notes-panel"));
+      const bottomControls = Array.from(
+        document.querySelectorAll(showInbox ? ".zoom-controls, .inbox-notes-panel" : ".zoom-controls")
+      );
       let reservedBottom = 0;
       for (const el of bottomControls) {
         if (!(el instanceof HTMLElement)) continue;
@@ -1207,34 +1211,36 @@ export function YearCalendar({
         scale={scale}
       />
 
-      <InboxNotesPanel
-        notes={inboxNotes}
-        onNewNote={() => {
-          if (!userId) {
-            onAuthRequired?.();
-            return;
-          }
-          setSelectedDate(null);
-          setEditingNote(null);
-          setNewNotePosition(null);
-          setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
-          setDialogOpen(true);
-        }}
-        onNoteClick={handleInboxNoteClick}
-        onDeleteNote={(id) => {
-          if (!userId) {
-            onAuthRequired?.();
-            return;
-          }
-          deleteNote(id);
-        }}
-        onNoteHover={handleNoteHover}
-        onDropToInbox={userId ? handleInboxDrop : () => onAuthRequired?.()}
-        onNoteDragStart={userId ? handleNoteDragStart : undefined}
-        onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
-        draggedNoteId={draggedNoteId}
-        textOverflowMode={textOverflowMode}
-      />
+      {showInbox && (
+        <InboxNotesPanel
+          notes={inboxNotes}
+          onNewNote={() => {
+            if (!userId) {
+              onAuthRequired?.();
+              return;
+            }
+            setSelectedDate(null);
+            setEditingNote(null);
+            setNewNotePosition(null);
+            setNewNoteCalendarId(activeCalendarId ?? visibleCalendarIds?.[0] ?? null);
+            setDialogOpen(true);
+          }}
+          onNoteClick={handleInboxNoteClick}
+          onDeleteNote={(id) => {
+            if (!userId) {
+              onAuthRequired?.();
+              return;
+            }
+            deleteNote(id);
+          }}
+          onNoteHover={handleNoteHover}
+          onDropToInbox={userId ? handleInboxDrop : () => onAuthRequired?.()}
+          onNoteDragStart={userId ? handleNoteDragStart : undefined}
+          onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
+          draggedNoteId={draggedNoteId}
+          textOverflowMode={textOverflowMode}
+        />
+      )}
 
       <NoteDialog
         open={dialogOpen}
