@@ -61,10 +61,15 @@ const Index = () => {
   } = useCalendars(user?.id || null);
 
   const { yearStart, yearEnd } = useMemo(() => {
-    const start = Number.isFinite(settings.yearStart) ? Math.trunc(settings.yearStart) : new Date().getFullYear();
-    const end = Number.isFinite(settings.yearEnd) ? Math.trunc(settings.yearEnd) : start;
-    if (start <= end) return { yearStart: start, yearEnd: end };
-    return { yearStart: end, yearEnd: start };
+    const currentYear = new Date().getFullYear();
+    const rawStart = Number.isFinite(settings.yearStart) ? Math.trunc(settings.yearStart) : currentYear;
+    const rawEnd = Number.isFinite(settings.yearEnd) ? Math.trunc(settings.yearEnd) : rawStart;
+
+    const safeStart = Math.max(currentYear, rawStart);
+    const safeEnd = Math.max(currentYear, rawEnd);
+
+    if (safeStart <= safeEnd) return { yearStart: safeStart, yearEnd: safeEnd };
+    return { yearStart: safeEnd, yearEnd: safeStart };
   }, [settings.yearStart, settings.yearEnd]);
 
   const years = useMemo(() => {

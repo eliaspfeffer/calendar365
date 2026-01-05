@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -103,14 +103,40 @@ export function SettingsDialog({
   googleError,
   onGoogleRefresh,
 }: SettingsDialogProps) {
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [yearStartDraft, setYearStartDraft] = useState<string>(String(yearStart));
+  const [yearEndDraft, setYearEndDraft] = useState<string>(String(yearEnd));
+
+  useEffect(() => {
+    if (!open) return;
+    setYearStartDraft(String(yearStart));
+    setYearEndDraft(String(yearEnd));
+  }, [open, yearStart, yearEnd]);
 
   const canDeleteAccount = useMemo(() => {
     if (!onDeleteAccount) return false;
     return deleteConfirmation.trim().toUpperCase() === 'DELETE';
   }, [deleteConfirmation, onDeleteAccount]);
+
+  const parsedYearStartDraft = useMemo(() => {
+    const parsed = Number.parseInt(yearStartDraft, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [yearStartDraft]);
+
+  const parsedYearEndDraft = useMemo(() => {
+    const parsed = Number.parseInt(yearEndDraft, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [yearEndDraft]);
+
+  const canApplyYearRange = useMemo(() => {
+    if (parsedYearStartDraft === null || parsedYearEndDraft === null) return false;
+    if (parsedYearStartDraft < currentYear) return false;
+    if (parsedYearEndDraft < currentYear) return false;
+    return true;
+  }, [parsedYearStartDraft, parsedYearEndDraft, currentYear]);
 
   return (
     <>
@@ -157,12 +183,9 @@ export function SettingsDialog({
                     id="year-start"
                     type="number"
                     inputMode="numeric"
-                    value={String(yearStart)}
-                    onChange={(e) => {
-                      const next = Number.parseInt(e.target.value, 10);
-                      if (!Number.isFinite(next)) return;
-                      onYearStartChange(next);
-                    }}
+                    min={currentYear}
+                    value={yearStartDraft}
+                    onChange={(e) => setYearStartDraft(e.target.value)}
                   />
                 </div>
                 <div className="space-y-1">
@@ -173,13 +196,46 @@ export function SettingsDialog({
                     id="year-end"
                     type="number"
                     inputMode="numeric"
-                    value={String(yearEnd)}
-                    onChange={(e) => {
-                      const next = Number.parseInt(e.target.value, 10);
-                      if (!Number.isFinite(next)) return;
-                      onYearEndChange(next);
-                    }}
+                    min={currentYear}
+                    value={yearEndDraft}
+                    onChange={(e) => setYearEndDraft(e.target.value)}
                   />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-muted-foreground">
+                  Minimum is {currentYear}. Click Apply to load the range.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setYearStartDraft(String(yearStart));
+                      setYearEndDraft(String(yearEnd));
+                    }}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!canApplyYearRange}
+                    onClick={() => {
+                      if (parsedYearStartDraft === null || parsedYearEndDraft === null) return;
+                      const safeStart = Math.max(currentYear, Math.trunc(parsedYearStartDraft));
+                      const safeEnd = Math.max(currentYear, Math.trunc(parsedYearEndDraft));
+
+                      if (safeStart <= safeEnd) {
+                        onYearStartChange(safeStart);
+                        onYearEndChange(safeEnd);
+                      } else {
+                        onYearStartChange(safeEnd);
+                        onYearEndChange(safeStart);
+                      }
+                    }}
+                  >
+                    Apply
+                  </Button>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
