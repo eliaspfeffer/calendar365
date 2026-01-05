@@ -6,8 +6,8 @@ interface ZoomPanState {
   translateY: number;
 }
 
-const MIN_SCALE = 0.3;
-const MAX_SCALE = 3;
+const DEFAULT_MIN_SCALE = 0.3;
+const DEFAULT_MAX_SCALE = 3;
 const DRAG_THRESHOLD = 5; // pixels moved before considered a drag
 const PINCH_THRESHOLD = 2; // pixels distance change before considered a pinch
 
@@ -23,9 +23,31 @@ function normalizeWheelDelta(e: WheelEvent) {
   return { deltaX, deltaY };
 }
 
-export function useZoomPan() {
+type ZoomPanOptions = {
+  minScale?: number;
+  maxScale?: number;
+  initialScale?: number;
+};
+
+export function useZoomPan(options: ZoomPanOptions = {}) {
+  const minScaleRef = useRef(options.minScale ?? DEFAULT_MIN_SCALE);
+  const maxScaleRef = useRef(options.maxScale ?? DEFAULT_MAX_SCALE);
+  const initialScaleRef = useRef(options.initialScale ?? 0.6);
+
+  useEffect(() => {
+    minScaleRef.current = options.minScale ?? DEFAULT_MIN_SCALE;
+  }, [options.minScale]);
+
+  useEffect(() => {
+    maxScaleRef.current = options.maxScale ?? DEFAULT_MAX_SCALE;
+  }, [options.maxScale]);
+
+  useEffect(() => {
+    initialScaleRef.current = options.initialScale ?? 0.6;
+  }, [options.initialScale]);
+
   const [state, setState] = useState<ZoomPanState>({
-    scale: 0.6,
+    scale: initialScaleRef.current,
     translateX: 0,
     translateY: 0,
   });
@@ -34,6 +56,18 @@ export function useZoomPan() {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    const minScale = minScaleRef.current;
+    const maxScale = maxScaleRef.current;
+    setState((prev) => {
+      if (prev.scale >= minScale && prev.scale <= maxScale) return prev;
+      return {
+        ...prev,
+        scale: Math.max(minScale, Math.min(maxScale, prev.scale)),
+      };
+    });
+  }, [options.minScale, options.maxScale]);
 
   const isPanning = useRef(false);
   const isPinching = useRef(false);
@@ -70,9 +104,11 @@ export function useZoomPan() {
     const delta = deltaY > 0 ? 0.9 : 1.1;
 
     setState((prev) => {
+      const minScale = minScaleRef.current;
+      const maxScale = maxScaleRef.current;
       const newScale = Math.max(
-        MIN_SCALE,
-        Math.min(MAX_SCALE, prev.scale * delta)
+        minScale,
+        Math.min(maxScale, prev.scale * delta)
       );
 
       const rect = target.getBoundingClientRect();
@@ -207,7 +243,9 @@ export function useZoomPan() {
       }
 
       const newScaleRaw = start.scale * (distance / start.distance);
-      const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScaleRaw));
+      const minScale = minScaleRef.current;
+      const maxScale = maxScaleRef.current;
+      const newScale = Math.max(minScale, Math.min(maxScale, newScaleRaw));
 
       const midpoint = {
         x: (p0.x + p1.x) / 2 - rect.left,
@@ -295,20 +333,20 @@ export function useZoomPan() {
   const zoomIn = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      scale: Math.min(MAX_SCALE, prev.scale * 1.2),
+      scale: Math.min(maxScaleRef.current, prev.scale * 1.2),
     }));
   }, []);
 
   const zoomOut = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      scale: Math.max(MIN_SCALE, prev.scale * 0.8),
+      scale: Math.max(minScaleRef.current, prev.scale * 0.8),
     }));
   }, []);
 
   const resetView = useCallback(() => {
     setState({
-      scale: 0.6,
+      scale: Math.max(minScaleRef.current, Math.min(maxScaleRef.current, initialScaleRef.current)),
       translateX: 0,
       translateY: 0,
     });

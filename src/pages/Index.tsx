@@ -319,7 +319,10 @@ const Index = () => {
     <div className="min-h-screen bg-background relative">
       {/* Calendar controls */}
       {user && (
-        <div className="fixed top-4 left-4 z-50 flex flex-wrap gap-2 items-center sm:flex-nowrap">
+        <div
+          data-top-controls
+          className="fixed top-4 left-4 z-50 flex flex-wrap gap-2 items-center sm:flex-nowrap"
+        >
           <Select
             value={effectiveCalendarId ?? ''}
             onValueChange={(id) => updateSettings({ activeCalendarId: id })}
@@ -466,7 +469,7 @@ const Index = () => {
       )}
 
       {/* Header with settings and auth buttons */}
-      <div className="fixed right-4 z-50 flex gap-2 top-16 sm:top-4">
+      <div data-top-controls className="fixed right-4 z-50 flex gap-2 top-16 sm:top-4">
         <Button
           variant="outline"
           size="sm"

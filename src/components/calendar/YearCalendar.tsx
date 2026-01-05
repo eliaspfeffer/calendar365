@@ -183,7 +183,9 @@ export function YearCalendar({
 }: YearCalendarProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
   const suppressNextCanvasClickRef = useRef(false);
+  const [minScale, setMinScale] = useState(0.3);
   const {
     notes,
     addNote,
@@ -211,7 +213,7 @@ export function YearCalendar({
     resetView,
     setView,
     isDragging,
-  } = useZoomPan();
+  } = useZoomPan({ minScale });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -235,6 +237,56 @@ export function YearCalendar({
     (dateKey: string) => googleEventsByDate?.[dateKey] ?? [],
     [googleEventsByDate]
   );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const grid = gridRef.current;
+    if (!container || !grid) return;
+
+    const computeMinScale = () => {
+      const rect = container.getBoundingClientRect();
+      const contentWidth = grid.scrollWidth;
+      const contentHeight = grid.scrollHeight;
+      if (!contentWidth || !contentHeight) return;
+
+      const topControls = Array.from(document.querySelectorAll("[data-top-controls]"));
+      let reservedTop = 0;
+      for (const el of topControls) {
+        if (!(el instanceof HTMLElement)) continue;
+        const r = el.getBoundingClientRect();
+        reservedTop = Math.max(reservedTop, r.bottom);
+      }
+
+      const bottomControls = Array.from(document.querySelectorAll(".zoom-controls, .inbox-notes-panel"));
+      let reservedBottom = 0;
+      for (const el of bottomControls) {
+        if (!(el instanceof HTMLElement)) continue;
+        const r = el.getBoundingClientRect();
+        reservedBottom = Math.max(reservedBottom, window.innerHeight - r.top);
+      }
+
+      const padding = 24;
+      const availableWidth = Math.max(1, rect.width - padding);
+      const availableHeight = Math.max(1, rect.height - reservedTop - reservedBottom - padding);
+
+      const fitScale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
+      const nextMinScale = Math.max(0.05, Math.min(0.3, fitScale));
+
+      setMinScale(nextMinScale);
+    };
+
+    computeMinScale();
+
+    const ro = new ResizeObserver(() => computeMinScale());
+    ro.observe(container);
+    ro.observe(grid);
+
+    window.addEventListener("resize", computeMinScale);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", computeMinScale);
+    };
+  }, [years.length]);
 
   useEffect(() => {
     if (dialogOpen) return;
@@ -892,199 +944,199 @@ export function YearCalendar({
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
       onClick={handleCanvasClick}
-    >
-      <div
-        ref={contentRef}
-        className="origin-top-left transition-none relative"
-        style={{
-          transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
-        }}
       >
-        {/* Multiple Year Calendars */}
-        <div className="flex flex-col items-start gap-12 p-10">
-          {years.map((year, index) => {
-            const isLast = index === years.length - 1;
-            const isHiding = yearBeingHidden === year;
-            return (
-              <div
-                key={year}
-                className={cn(
-                  "inline-block transition-opacity duration-500",
-                  isHiding && "opacity-0 pointer-events-none"
-                )}
-              >
-                <SingleYearGrid
-                  year={year}
-                  scale={scale}
-                  getNotesByDate={getNotesByDate}
-                  getEventsByDate={getGoogleEventsByDate}
-                  onCellClick={handleCellClick}
-                  onNoteClick={handleNoteClick}
-                  onDeleteNote={(id) => {
-                    if (!userId) {
-                      onAuthRequired?.();
-                      return;
-                    }
-                    deleteNote(id);
-                  }}
-                  onNoteHover={handleNoteHover}
-                  onLinkClick={handleLinkClick}
-                  onNoteDragStart={userId ? handleNoteDragStart : undefined}
-                  onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
-                  onDrop={userId ? handleNoteDrop : undefined}
-                  onDragOver={userId ? handleDragOver : undefined}
-                  textOverflowMode={textOverflowMode}
-                  isLinkMode={isLinkMode}
-                  connectedNoteIds={uniqueConnectedNoteIds}
-                  highlightedNoteIds={highlightedNoteIds}
-                  draggedNoteId={draggedNoteId}
-                />
+        <div
+          ref={contentRef}
+          className="origin-top-left transition-none relative"
+          style={{
+            transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+          }}
+        >
+          {/* Multiple Year Calendars */}
+          <div ref={gridRef} className="flex flex-col items-start gap-12 p-10">
+            {years.map((year, index) => {
+              const isLast = index === years.length - 1;
+              const isHiding = yearBeingHidden === year;
+              return (
+                <div
+                  key={year}
+                  className={cn(
+                    "inline-block transition-opacity duration-500",
+                    isHiding && "opacity-0 pointer-events-none"
+                  )}
+                >
+                  <SingleYearGrid
+                    year={year}
+                    scale={scale}
+                    getNotesByDate={getNotesByDate}
+                    getEventsByDate={getGoogleEventsByDate}
+                    onCellClick={handleCellClick}
+                    onNoteClick={handleNoteClick}
+                    onDeleteNote={(id) => {
+                      if (!userId) {
+                        onAuthRequired?.();
+                        return;
+                      }
+                      deleteNote(id);
+                    }}
+                    onNoteHover={handleNoteHover}
+                    onLinkClick={handleLinkClick}
+                    onNoteDragStart={userId ? handleNoteDragStart : undefined}
+                    onNoteDragEnd={userId ? handleNoteDragEnd : undefined}
+                    onDrop={userId ? handleNoteDrop : undefined}
+                    onDragOver={userId ? handleDragOver : undefined}
+                    textOverflowMode={textOverflowMode}
+                    isLinkMode={isLinkMode}
+                    connectedNoteIds={uniqueConnectedNoteIds}
+                    highlightedNoteIds={highlightedNoteIds}
+                    draggedNoteId={draggedNoteId}
+                  />
 
-                {isLast && (onAddYear || onRemoveLastYear) && (
-                  <>
-                    {onAddYear && !onRemoveLastYear ? (
-                      <button
-                        type="button"
-                        className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-4 py-3 shadow-lg border border-border z-40 touch-auto cursor-pointer"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                          suppressNextCanvasClickRef.current = true;
-                          requestAnimationFrame(() => {
-                            suppressNextCanvasClickRef.current = false;
-                          });
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          focusAfterYearChangeRef.current = true;
-                          onAddYear();
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key !== "Enter" && e.key !== " ") return;
-                          e.preventDefault();
-                          focusAfterYearChangeRef.current = true;
-                          onAddYear();
-                        }}
-                        aria-label={`Add year ${years[years.length - 1] + 1}`}
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span className="font-medium">Add year {years[years.length - 1] + 1}</span>
-                      </button>
-                    ) : (
-                      <div
-                        className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-40 touch-auto"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                          suppressNextCanvasClickRef.current = true;
-                          requestAnimationFrame(() => {
-                            suppressNextCanvasClickRef.current = false;
-                          });
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {onAddYear && (
-                          <Button
-                            type="button"
-                            variant="default"
-                            size="sm"
-                            className="rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              focusAfterYearChangeRef.current = true;
-                              onAddYear();
-                            }}
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add {years[years.length - 1] + 1}
-                          </Button>
-                        )}
+                  {isLast && (onAddYear || onRemoveLastYear) && (
+                    <>
+                      {onAddYear && !onRemoveLastYear ? (
+                        <button
+                          type="button"
+                          className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-4 py-3 shadow-lg border border-border z-40 touch-auto cursor-pointer"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            suppressNextCanvasClickRef.current = true;
+                            requestAnimationFrame(() => {
+                              suppressNextCanvasClickRef.current = false;
+                            });
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            focusAfterYearChangeRef.current = true;
+                            onAddYear();
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter" && e.key !== " ") return;
+                            e.preventDefault();
+                            focusAfterYearChangeRef.current = true;
+                            onAddYear();
+                          }}
+                          aria-label={`Add year ${years[years.length - 1] + 1}`}
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span className="font-medium">Add year {years[years.length - 1] + 1}</span>
+                        </button>
+                      ) : (
+                        <div
+                          className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-40 touch-auto"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            suppressNextCanvasClickRef.current = true;
+                            requestAnimationFrame(() => {
+                              suppressNextCanvasClickRef.current = false;
+                            });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {onAddYear && (
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              className="rounded-full"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                focusAfterYearChangeRef.current = true;
+                                onAddYear();
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add {years[years.length - 1] + 1}
+                            </Button>
+                          )}
 
-                        {onAddYear && onRemoveLastYear && <div className="w-px h-6 bg-border mx-1" />}
+                          {onAddYear && onRemoveLastYear && <div className="w-px h-6 bg-border mx-1" />}
 
-                        {onRemoveLastYear && (
-                          <>
-                            {skipHideYearConfirm ? (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="rounded-full"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  beginHideLastYear({ showUndoToast: true });
-                                }}
-                              >
-                                <EyeOff className="h-4 w-4 mr-2" />
-                                Hide {years[years.length - 1]}
-                              </Button>
-                            ) : (
-                              <AlertDialog
-                                open={hideYearDialogOpen}
-                                onOpenChange={(open) => {
-                                  setHideYearDialogOpen(open);
-                                  if (open) setHideYearDialogDontShowAgain(false);
-                                }}
-                              >
-                                <AlertDialogTrigger asChild>
-                                  <Button type="button" variant="outline" size="sm" className="rounded-full">
-                                    <EyeOff className="h-4 w-4 mr-2" />
-                                    Hide {years[years.length - 1]}
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Hide this year from view?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This only hides the year. Your notes and dates are kept and will show again if you
-                                      add the year back.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
+                          {onRemoveLastYear && (
+                            <>
+                              {skipHideYearConfirm ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="rounded-full"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    beginHideLastYear({ showUndoToast: true });
+                                  }}
+                                >
+                                  <EyeOff className="h-4 w-4 mr-2" />
+                                  Hide {years[years.length - 1]}
+                                </Button>
+                              ) : (
+                                <AlertDialog
+                                  open={hideYearDialogOpen}
+                                  onOpenChange={(open) => {
+                                    setHideYearDialogOpen(open);
+                                    if (open) setHideYearDialogDontShowAgain(false);
+                                  }}
+                                >
+                                  <AlertDialogTrigger asChild>
+                                    <Button type="button" variant="outline" size="sm" className="rounded-full">
+                                      <EyeOff className="h-4 w-4 mr-2" />
+                                      Hide {years[years.length - 1]}
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Hide this year from view?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        This only hides the year. Your notes and dates are kept and will show again if you
+                                        add the year back.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
 
-                                  <div className="flex items-start gap-2">
-                                    <Checkbox
-                                      id="skip-hide-year-confirm"
-                                      checked={hideYearDialogDontShowAgain}
-                                      onCheckedChange={(checked) => setHideYearDialogDontShowAgain(checked === true)}
-                                    />
-                                    <Label htmlFor="skip-hide-year-confirm" className="leading-tight">
-                                      I understand — don’t show this again pls
-                                    </Label>
-                                  </div>
+                                    <div className="flex items-start gap-2">
+                                      <Checkbox
+                                        id="skip-hide-year-confirm"
+                                        checked={hideYearDialogDontShowAgain}
+                                        onCheckedChange={(checked) => setHideYearDialogDontShowAgain(checked === true)}
+                                      />
+                                      <Label htmlFor="skip-hide-year-confirm" className="leading-tight">
+                                        I understand — don’t show this again pls
+                                      </Label>
+                                    </div>
 
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel asChild>
-                                      <Button type="button" variant="outline">
-                                        Cancel
-                                      </Button>
-                                    </AlertDialogCancel>
-                                    <AlertDialogAction asChild>
-                                      <Button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          if (hideYearDialogDontShowAgain) onSkipHideYearConfirmChange?.(true);
-                                          beginHideLastYear();
-                                          setHideYearDialogOpen(false);
-                                        }}
-                                      >
-                                        Hide year
-                                      </Button>
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel asChild>
+                                        <Button type="button" variant="outline">
+                                          Cancel
+                                        </Button>
+                                      </AlertDialogCancel>
+                                      <AlertDialogAction asChild>
+                                        <Button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            if (hideYearDialogDontShowAgain) onSkipHideYearConfirmChange?.(true);
+                                            beginHideLastYear();
+                                            setHideYearDialogOpen(false);
+                                          }}
+                                        >
+                                          Hide year
+                                        </Button>
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
         {/* Canvas (undated, positioned) notes */}
         {canvasNotes.length > 0 && (
