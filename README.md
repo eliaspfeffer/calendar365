@@ -8,6 +8,7 @@ A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 
 - 365‑day year grid with zoom/pan
 - Sticky notes per day
+- Optional Google Calendar live sync (read-only, while app is open)
 - Optional sign-in + sync via Supabase
 - Shared calendars / public sharing (when Supabase is configured)
 
@@ -43,6 +44,10 @@ Create `.env.local`:
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_ANON_KEY
 ```
+
+## Google Calendar sync (optional)
+
+Set `VITE_GOOGLE_CLIENT_ID` to enable connecting a Google account and showing Google Calendar events inside the year view.
 
 ## Database migrations (Supabase)
 
