@@ -147,12 +147,15 @@ const Index = () => {
   }, [calendars, effectiveVisibleCalendarIds]);
 
   const toggleCalendarVisibility = (calendarId: string, visible: boolean) => {
-    const baseline = settings.visibleCalendarIds ?? (effectiveCalendarId ? [effectiveCalendarId] : []);
-    const next = visible
-      ? Array.from(new Set([...baseline, calendarId]))
-      : baseline.filter((id) => id !== calendarId);
-    if (next.length === 0) return;
-    updateSettings({ visibleCalendarIds: next });
+    updateSettings((prev) => {
+      const effectiveId = prev.activeCalendarId ?? defaultCalendarId ?? null;
+      const baseline = prev.visibleCalendarIds ?? (effectiveId ? [effectiveId] : []);
+      const next = visible
+        ? Array.from(new Set([...baseline, calendarId]))
+        : baseline.filter((id) => id !== calendarId);
+      if (next.length === 0) return {};
+      return { visibleCalendarIds: next };
+    });
   };
 
   const updateCalendarDefaultNoteColor = async (calendarId: string, color: StickyColor) => {
@@ -390,7 +393,7 @@ const Index = () => {
                       <div key={c.id} className="flex items-center gap-2">
                         <Checkbox
                           checked={visible}
-                          onCheckedChange={(v) => toggleCalendarVisibility(c.id, Boolean(v))}
+                          onCheckedChange={(v) => toggleCalendarVisibility(c.id, v === true)}
                         />
                         <div className="flex-1 truncate">{c.name}</div>
                         <div className="flex items-center gap-1">
