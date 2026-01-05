@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Calendar, Mail, Loader2 } from 'lucide-react';
+import { Calendar, Loader2 } from 'lucide-react';
 
 export default function Auth() {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
-  const { user, isLoading, signInWithMagicLink } = useAuth();
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const { user, isLoading, signInWithPassword, signUpWithPassword } = useAuth();
   const { toast } = useToast();
   const location = useLocation();
 
@@ -25,7 +29,9 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    setNeedsEmailConfirmation(false);
+
     if (!email.trim()) {
       toast({
         title: 'Email required',
@@ -46,24 +52,74 @@ export default function Auth() {
       return;
     }
 
-    setIsSubmitting(true);
-    
-    const { error } = await signInWithMagicLink(email);
-    
-    if (error) {
+    if (!password) {
       toast({
-        title: 'Error',
-        description: error.message,
+        title: 'Password required',
+        description: 'Please enter your password.',
         variant: 'destructive',
       });
-    } else {
-      setEmailSent(true);
-      toast({
-        title: 'Check your email',
-        description: 'We sent you a magic link to sign in.',
-      });
+      return;
     }
-    
+
+    if (password.length < 6) {
+      toast({
+        title: 'Password too short',
+        description: 'Please use at least 6 characters.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (mode === 'register' && password !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: 'Please confirm your password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    if (mode === 'login') {
+      const { error } = await signInWithPassword(email, password);
+      if (error) {
+        const messageLc = error.message.toLowerCase();
+        const hint = messageLc.includes("invalid login credentials")
+          ? ' If you previously signed in via magic link, use "Forgot password?" to set a password.'
+          : '';
+        toast({
+          title: 'Error',
+          description: `${error.message}${hint}`,
+          variant: 'destructive',
+        });
+      }
+    } else {
+      const { error, needsEmailConfirmation } = await signUpWithPassword(email, password);
+      if (error) {
+        const messageLc = error.message.toLowerCase();
+        const hint = messageLc.includes("already registered") || messageLc.includes("user already registered")
+          ? ' Account already exists — use "Forgot password?" to set a password.'
+          : '';
+        toast({
+          title: 'Error',
+          description: `${error.message}${hint}`,
+          variant: 'destructive',
+        });
+      } else if (needsEmailConfirmation) {
+        setNeedsEmailConfirmation(true);
+        toast({
+          title: 'Confirm your email',
+          description: 'Check your email to confirm your account, then come back to log in.',
+        });
+      } else {
+        toast({
+          title: 'Account created',
+          description: 'You are now signed in.',
+        });
+      }
+    }
+
     setIsSubmitting(false);
   };
 
@@ -84,59 +140,126 @@ export default function Auth() {
           </div>
           <CardTitle className="font-display text-4xl tracking-wide">365 Calendar</CardTitle>
           <CardDescription>
-            {emailSent 
-              ? 'Check your email for the magic link to sign in.'
-              : 'Sign in with your email to access your personal calendar.'}
+            {needsEmailConfirmation
+              ? 'Confirm your email address to finish creating your account.'
+              : mode === 'register'
+                ? 'Create an account with email and password.'
+                : 'Sign in with your email and password.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {emailSent ? (
-            <div className="space-y-4 text-center">
-              <div className="p-4 bg-secondary/50 rounded-lg">
-                <Mail className="h-12 w-12 mx-auto text-primary mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  We sent a magic link to <strong>{email}</strong>
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setEmailSent(false);
-                  setEmail('');
-                }}
-              >
-                Try a different email
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isSubmitting}
-                  className="h-12"
-                />
-              </div>
-              <Button
-                type="submit"
-                className="w-full h-12"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending magic link...
-                  </>
-                ) : (
-                  'Send magic link'
-                )}
-              </Button>
-            </form>
-          )}
+          <Tabs
+            value={mode}
+            onValueChange={(v) => {
+              setMode(v as 'login' | 'register');
+              setNeedsEmailConfirmation(false);
+              setPassword('');
+              setConfirmPassword('');
+            }}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login" disabled={isSubmitting}>
+                Login
+              </TabsTrigger>
+              <TabsTrigger value="register" disabled={isSubmitting}>
+                Register
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="login">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting}
+                    className="h-12"
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isSubmitting}
+                    className="h-12"
+                    autoComplete="current-password"
+                  />
+                </div>
+                <Button type="submit" className="w-full h-12" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
+                </Button>
+                <Button asChild variant="link" className="w-full px-0">
+                  <Link to={`/reset-password?email=${encodeURIComponent(email)}`}>Forgot password?</Link>
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="register">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting}
+                    className="h-12"
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Password (min 6 chars)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isSubmitting}
+                    className="h-12"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="password"
+                    placeholder="Confirm password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={isSubmitting}
+                    className="h-12"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <Button type="submit" className="w-full h-12" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    'Create account'
+                  )}
+                </Button>
+                <Button asChild variant="link" className="w-full px-0">
+                  <Link to={`/reset-password?email=${encodeURIComponent(email)}`}>
+                    Already used magic link before? Set a password
+                  </Link>
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

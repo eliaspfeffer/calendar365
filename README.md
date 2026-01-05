@@ -55,14 +55,20 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-## Custom magic-link email (Supabase Auth)
+## Auth (Supabase)
 
-Supabase sends the magic-link email using its Auth email template.
+This app uses email + password auth. If your Supabase project requires email confirmation on sign-up, customize the template:
 
-- Go to Supabase Dashboard → Authentication → Templates → `Magic Link`
-- Set the subject to: `Sign in to Calendar365`
-- Paste `supabase/email-templates/magic-link.html` as the template body (uses `{{ .ConfirmationURL }}`)
-- Optional: keep `supabase/email-templates/magic-link.txt` as a plaintext fallback reference
+- Supabase Dashboard → Authentication → Templates → `Confirm signup`
+- Optional: use `supabase/email-templates/magic-link.html` as a starting point (it uses `{{ .ConfirmationURL }}`)
+
+If you previously used magic-link sign-in, use the password reset flow in the app (`/reset-password`) to set a password for your existing account.
+
+If password reset emails fail (e.g. 500 "Error sending recovery email"), configure email delivery in Supabase:
+
+- Supabase Dashboard → Authentication → Logs (look for SMTP/mailer errors)
+- Supabase Dashboard → Authentication → Providers → Email (SMTP settings / rate limits)
+- Supabase Dashboard → Authentication → URL Configuration (ensure your site URL / redirect URLs include `/reset-password`)
 
 ## Tech stack
 
