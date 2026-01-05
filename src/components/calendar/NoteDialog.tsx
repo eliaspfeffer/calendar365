@@ -15,7 +15,7 @@ interface NoteDialogProps {
   onOpenChange: (open: boolean) => void;
   date: string | null;
   existingNote?: StickyNote | null;
-  onSave: (text: string, color: StickyColor) => Promise<boolean> | boolean;
+  onSave: (text: string, color: StickyColor, date: string | null) => Promise<boolean> | boolean;
   onDelete?: () => void;
   onMove?: (newDate: string | null) => Promise<boolean> | boolean;
   calendarOptions?: Array<{ id: string; name: string }>;
@@ -73,7 +73,7 @@ export function NoteDialog({
         const moved = await onMove(normalizedNewDate);
         if (moved === false) return;
       }
-      const saved = await onSave(text.trim(), color);
+      const saved = await onSave(text.trim(), color, normalizedNewDate);
       if (saved === false) return;
       onOpenChange(false);
     }

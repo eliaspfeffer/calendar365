@@ -789,7 +789,7 @@ export function YearCalendar({
   );
 
   const handleSaveNote = useCallback(
-    async (text: string, color: StickyColor) => {
+    async (text: string, color: StickyColor, date: string | null) => {
       if (!userId) {
         onAuthRequired?.();
         return false;
@@ -807,10 +807,10 @@ export function YearCalendar({
         return true;
       } else {
         const created = await addNote(
-          selectedDate,
+          date,
           text,
           color,
-          selectedDate ? null : newNotePosition,
+          date ? null : newNotePosition,
           newNoteCalendarId
         );
         if (!created) {
@@ -828,7 +828,7 @@ export function YearCalendar({
         return true;
       }
     },
-    [editingNote, selectedDate, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition, newNoteCalendarId]
+    [editingNote, addNote, updateNote, toast, onAuthRequired, userId, newNotePosition, newNoteCalendarId]
   );
 
   const handleDeleteNote = useCallback(() => {
@@ -1144,11 +1144,11 @@ export function YearCalendar({
 
         {/* Canvas (undated, positioned) notes */}
         {canvasNotes.length > 0 && (
-          <div className="absolute inset-0 z-30">
+          <div className="absolute inset-0 z-30 pointer-events-none">
             {canvasNotes.map((note) => (
               <div
                 key={note.id}
-                className="absolute"
+                className="absolute pointer-events-auto"
                 style={{
                   left: note.pos_x as number,
                   top: note.pos_y as number,
