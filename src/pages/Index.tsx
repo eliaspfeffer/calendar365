@@ -9,6 +9,7 @@ import { GripVertical, LogOut, Loader2, LogIn, Pencil, Settings, Share2, Plus, L
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
+import { GitHubStarsBadge } from "@/components/github/GitHubStarsBadge";
 import { useCalendars, type CalendarSummary } from '@/hooks/useCalendars';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CalendarShareDialog } from '@/components/calendar/CalendarShareDialog';
@@ -715,6 +716,7 @@ const Index = () => {
 
       {/* Header with settings and auth buttons */}
       <div data-top-controls className="fixed right-4 z-50 flex gap-2 top-16 sm:top-4">
+        <GitHubStarsBadge />
         <Button
           variant="outline"
           size="sm"
