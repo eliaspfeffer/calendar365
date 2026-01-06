@@ -4,18 +4,18 @@ import { coerceStickyColor } from "@/lib/stickyNoteColors";
 
 export type YamlNoteEntry = {
   id?: string;
-  calendar: string;
-  date: string | null;
-  float: { x: number; y: number } | null;
+  date?: string | null;
+  float?: { x: number; y: number } | null;
   text: string;
-  color: StickyColor;
-  connection: string[] | null;
+  color?: StickyColor;
+  connection?: string[] | null;
 };
 
 export type YamlCalendarNotesDocumentV1 = {
   schema: "calendar365.notes.v1";
   language: "YAML 1.2";
   calendar: string;
+  default_color?: StickyColor;
   mode?: "merge" | "replace";
   notes: YamlNoteEntry[];
 };
@@ -87,6 +87,12 @@ export function parseYamlNotesDocument(input: string): ParseYamlNotesResult {
   const calendar = coerceString(raw.calendar);
   if (!calendar) errors.push(`Missing "calendar" (string).`);
 
+  const defaultColorRaw = coerceString(raw.default_color);
+  const default_color = defaultColorRaw ? coerceStickyColor(defaultColorRaw, "yellow") : undefined;
+  if (defaultColorRaw && default_color !== defaultColorRaw) {
+    warnings.push(`default_color: coerced "${defaultColorRaw}" -> "${default_color}"`);
+  }
+
   const mode = raw.mode === "merge" || raw.mode === "replace" ? raw.mode : undefined;
 
   if (!Array.isArray(raw.notes)) errors.push(`Missing "notes" (array).`);
@@ -109,14 +115,14 @@ export function parseYamlNotesDocument(input: string): ParseYamlNotesResult {
       continue;
     }
 
-    const noteCalendar = coerceString(entry.calendar) ?? calendar!;
-    const colorRaw = coerceString(entry.color) ?? "yellow";
-    const color = coerceStickyColor(colorRaw, "yellow");
-    if (colorRaw !== color) warnings.push(`notes[${i}].color: coerced "${colorRaw}" -> "${color}"`);
-
     const id = coerceString(entry.id) ?? undefined;
-    const date = coerceStringOrNull(entry.date);
-    const float = coerceFloat(entry.float);
+    const date = entry.date === undefined ? null : coerceStringOrNull(entry.date);
+    const float = entry.float === undefined ? null : coerceFloat(entry.float);
+
+    const colorRaw = entry.color === undefined ? null : coerceString(entry.color);
+    const color = colorRaw ? coerceStickyColor(colorRaw, "yellow") : undefined;
+    if (colorRaw && colorRaw !== color) warnings.push(`notes[${i}].color: coerced "${colorRaw}" -> "${color}"`);
+
     const connection = coerceConnection(entry.connection ?? entry.connects_to);
     if (entry.connects_to !== undefined && entry.connection === undefined) {
       warnings.push(`notes[${i}]: "connects_to" is deprecated; use "connection"`);
@@ -124,7 +130,6 @@ export function parseYamlNotesDocument(input: string): ParseYamlNotesResult {
 
     notes.push({
       id,
-      calendar: noteCalendar,
       date,
       float,
       text,
@@ -141,6 +146,7 @@ export function parseYamlNotesDocument(input: string): ParseYamlNotesResult {
       schema: "calendar365.notes.v1",
       language: "YAML 1.2",
       calendar: calendar!,
+      default_color,
       mode,
       notes,
     },
@@ -162,26 +168,21 @@ export function makeYamlNotesExample(calendarName: string): string {
     'schema: "calendar365.notes.v1"',
     'language: "YAML 1.2"',
     `calendar: "${calendarName.replaceAll('"', '\\"')}"`,
+    "# default_color: yellow   # optional: omitted colors will use this",
     "# mode: merge   # merge (default) or replace (delete existing notes in this calendar)",
     "notes:",
     "  # One entry per note",
-    "  - # id: \"uuid-from-export\"",
-    `    calendar: "${calendarName.replaceAll('"', '\\"')}"`,
+    "  - # id: \"uuid-from-export\"  # keep to update the same note",
     "    date: 2026-01-06",
-    "    float: null",
     "    text: |",
     "      Example note text (multi-line is allowed).",
     "      - Markdown-ish text is fine; it’s stored as plain text.",
-    "    color: yellow",
-    "    connection: null",
+    "    # color: green  # optional (defaults to default_color)",
+    "    # connection: [\"Some other note text\"]  # optional",
     "",
-    "  - calendar: \"" + calendarName.replaceAll('"', '\\"') + "\"",
-    "    date: null",
-    "    float: { x: 220, y: 140 }  # position for undated notes",
+    "  - float: { x: 220, y: 140 }  # undated note position",
     "    text: \"Undated note that floats on the canvas\"",
-    "    color: pink",
-    "    connection:",
-    "      - \"Example note text (multi-line is allowed).\\n- Markdown-ish text is fine; it’s stored as plain text.\\n\"",
+    "    color: pink  # optional (only needed if not default_color)",
     "",
   ].join("\n");
 }

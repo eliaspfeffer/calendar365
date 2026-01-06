@@ -55,7 +55,12 @@ async function copyToClipboard(text: string) {
   }
 }
 
-function toYamlForCalendar(calendarName: string, notes: StickyNote[], connections: NoteConnection[]) {
+function toYamlForCalendar(
+  calendarName: string,
+  defaultColor: "yellow" | "pink" | "green" | "blue" | "orange" | "purple",
+  notes: StickyNote[],
+  connections: NoteConnection[]
+) {
   const byId = new Map(notes.map((n) => [n.id, n]));
   const connectionsByNoteId = new Map<string, string[]>();
   for (const c of connections) {
@@ -77,14 +82,14 @@ function toYamlForCalendar(calendarName: string, notes: StickyNote[], connection
     schema: "calendar365.notes.v1",
     language: "YAML 1.2",
     calendar: calendarName,
+    default_color: defaultColor,
     notes: sorted.map((n) => ({
       id: n.id,
-      calendar: calendarName,
-      date: n.date ?? null,
-      float: n.date ? null : n.pos_x != null && n.pos_y != null ? { x: n.pos_x, y: n.pos_y } : null,
+      date: n.date && n.date.length > 0 ? n.date : undefined,
+      float: n.date ? undefined : n.pos_x != null && n.pos_y != null ? { x: n.pos_x, y: n.pos_y } : undefined,
       text: n.text,
-      color: n.color,
-      connection: connectionsByNoteId.get(n.id) ?? null,
+      color: n.color === defaultColor ? undefined : n.color,
+      connection: connectionsByNoteId.get(n.id) ?? undefined,
     })),
   });
 }
@@ -116,6 +121,11 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
     return selectedCalendar?.name ?? "Calendar";
   }, [isSignedIn, selectedCalendar?.name]);
 
+  const selectedCalendarDefaultColor = useMemo(() => {
+    if (!isSignedIn) return "yellow";
+    return coerceStickyColor(selectedCalendar?.default_note_color ?? null, "yellow");
+  }, [isSignedIn, selectedCalendar?.default_note_color]);
+
   useEffect(() => {
     if (!open) return;
     if (!isSignedIn) {
@@ -131,7 +141,7 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
     try {
       if (!isSignedIn) {
         const guestNotes = loadGuestNotes().filter((n) => n.user_id === GUEST_USER_ID);
-        setExportYaml(toYamlForCalendar("Local (guest)", guestNotes, []));
+        setExportYaml(toYamlForCalendar("Local (guest)", "yellow", guestNotes, []));
         return;
       }
 
@@ -149,13 +159,20 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
           const legacy = await supabase.from("note_connections").select("*").eq("user_id", userId);
           if (legacy.error) throw legacy.error;
           const legacyConnections = (legacy.data ?? []) as NoteConnection[];
-          setExportYaml(toYamlForCalendar(calName, notes, legacyConnections.filter((c) => c.calendar_id === calId)));
+          setExportYaml(
+            toYamlForCalendar(
+              calName,
+              selectedCalendarDefaultColor,
+              notes,
+              legacyConnections.filter((c) => c.calendar_id === calId)
+            )
+          );
           return;
         }
         throw connectionsRes.error;
       }
       const connections = (connectionsRes.data ?? []) as NoteConnection[];
-      setExportYaml(toYamlForCalendar(calName, notes, connections));
+      setExportYaml(toYamlForCalendar(calName, selectedCalendarDefaultColor, notes, connections));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Couldn’t export YAML";
       toast({ title: "YAML export failed", description: message, variant: "destructive" });
@@ -163,7 +180,7 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
     } finally {
       setExportLoading(false);
     }
-  }, [isSignedIn, selectedCalendarId, selectedCalendarName, toast, userId]);
+  }, [isSignedIn, selectedCalendarDefaultColor, selectedCalendarId, selectedCalendarName, toast, userId]);
 
   useEffect(() => {
     if (!open) return;
@@ -210,15 +227,19 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
         for (const note of doc.notes) {
           const id = note.id ?? makeGuestId();
           const existing = byId.get(id);
+          const effectiveColor = coerceStickyColor(note.color ?? doc.default_color ?? "yellow", "yellow");
+          const date = note.date ?? null;
           const updated: StickyNote = {
             id,
             user_id: GUEST_USER_ID,
             calendar_id: GUEST_CALENDAR_ID,
-            date: note.date ?? null,
+            date,
             text: note.text,
-            color: coerceStickyColor(note.color, "yellow"),
-            pos_x: note.date ? null : note.float?.x ?? null,
-            pos_y: note.date ? null : note.float?.y ?? null,
+            color: effectiveColor,
+            is_struck: false,
+            pos_x: date ? null : note.float?.x ?? null,
+            pos_y: date ? null : note.float?.y ?? null,
+            sort_order: null,
           };
           if (existing && !effectiveReplace) {
             const idx = next.findIndex((n) => n.id === id);
@@ -278,7 +299,7 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
           calendar_id: calId,
           date,
           text: note.text,
-          color: coerceStickyColor(note.color, "yellow"),
+          color: coerceStickyColor(note.color ?? doc.default_color ?? selectedCalendarDefaultColor ?? "yellow", "yellow"),
           pos_x: date ? null : note.float?.x ?? null,
           pos_y: date ? null : note.float?.y ?? null,
         };
