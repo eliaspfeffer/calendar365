@@ -810,9 +810,23 @@ export function YearCalendar({
       }
 
       // If the click happened inside a calendar day cell, treat it as a date click
-      // (even if the event bubbled to the outer container) so new notes "stick" to that date.
-      const cell = target.closest<HTMLElement>("[data-date-key]");
-      const dateKey = cell?.dataset?.dateKey ?? null;
+      // (even if an overlay element was the event target) so new notes "stick" to that date.
+      const directCell = target.closest<HTMLElement>("[data-date-key]");
+      let dateKey = directCell?.dataset?.dateKey ?? null;
+      const hitStack =
+        !dateKey && typeof document !== "undefined"
+          ? document.elementsFromPoint(e.clientX, e.clientY)
+          : [];
+      if (!dateKey && hitStack.length > 0) {
+        for (const el of hitStack) {
+          const cell = (el as HTMLElement | null)?.closest?.("[data-date-key]") as HTMLElement | null;
+          const key = cell?.dataset?.dateKey ?? null;
+          if (key) {
+            dateKey = key;
+            break;
+          }
+        }
+      }
       if (dateKey) {
         setSelectedDate(dateKey);
         setEditingNote(null);
@@ -824,7 +838,12 @@ export function YearCalendar({
         return;
       }
 
-      if (target.closest(".year-calendar-grid")) {
+      // Never create "canvas" notes when clicking anywhere over the calendar grid
+      // (month labels, borders, overlays, etc).
+      const isOverGrid =
+        target.closest(".year-calendar-grid") ||
+        hitStack.some((el) => (el as HTMLElement | null)?.closest?.(".year-calendar-grid"));
+      if (isOverGrid) {
         return;
       }
 
