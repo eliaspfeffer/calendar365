@@ -85,12 +85,19 @@ export function WalkthroughTour({
         targetSelector: '[data-tour-id=\"zoom-controls\"]',
       },
       {
-        id: "inbox",
-        title: "Inbox for “not scheduled yet”",
+        id: "todo",
+        title: "Todo List for “not scheduled yet”",
         body:
-          "Notes without a date live in the inbox. Drag them onto a day when you know where they belong.",
+          "Notes without a date live in the Todo List. Drag them onto a day when you know where they belong.",
         targetSelector: '[data-tour-id=\"inbox-panel\"]',
         optional: true,
+      },
+      {
+        id: "share-and-calendars",
+        title: "Share & sub-calendars",
+        body:
+          "Create multiple sub-calendars (each with its own default sticky-note color) and share calendars with others when you sign in.",
+        targetSelector: '[data-tour-id=\"auth-button\"]',
       },
       {
         id: "years",
@@ -98,6 +105,31 @@ export function WalkthroughTour({
         body:
           "Need more runway? Add future years, or hide the last year to keep the view focused. Your notes stay safe.",
         targetSelector: '[data-tour-id=\"year-controls\"]',
+        optional: true,
+      },
+      {
+        id: "calendars-ui",
+        title: "Multiple calendars",
+        body: "Switch between your sub-calendars here.",
+        targetSelector: '[data-tour-id=\"calendar-switcher\"]',
+        when: ({ isAuthed }) => isAuthed,
+        optional: true,
+      },
+      {
+        id: "calendar-colors",
+        title: "Default colors per calendar",
+        body:
+          "Each calendar can have its own default sticky-note color — handy for visual separation.",
+        targetSelector: '[data-tour-id=\"calendar-visibility\"]',
+        when: ({ isAuthed }) => isAuthed,
+        optional: true,
+      },
+      {
+        id: "share-ui",
+        title: "Share with others",
+        body: "Share a calendar or invite others (depending on your setup and permissions).",
+        targetSelector: '[data-tour-id=\"calendar-share\"]',
+        when: ({ isAuthed }) => isAuthed,
         optional: true,
       },
       {
