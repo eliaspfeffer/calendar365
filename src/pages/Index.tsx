@@ -128,11 +128,23 @@ const Index = () => {
 
   useEffect(() => {
     if (!user) return;
-    if (!settings.visibleCalendarIds) return;
-    if (!effectiveCalendarId) return;
-    if (settings.visibleCalendarIds.includes(effectiveCalendarId)) return;
-    updateSettings({ visibleCalendarIds: [...settings.visibleCalendarIds, effectiveCalendarId] });
-  }, [user, settings.visibleCalendarIds, effectiveCalendarId, updateSettings]);
+    const chosen = settings.visibleCalendarIds;
+    if (!chosen) return;
+
+    const validVisible = chosen.filter((id) => byId.has(id));
+    if (validVisible.length === 0) return;
+
+    if (validVisible.length !== chosen.length) {
+      updateSettings({ visibleCalendarIds: validVisible });
+      return;
+    }
+
+    if (effectiveCalendarId && validVisible.includes(effectiveCalendarId)) return;
+    const nextActive = validVisible[0] ?? null;
+    if (!nextActive) return;
+    if (settings.activeCalendarId === nextActive) return;
+    updateSettings({ activeCalendarId: nextActive });
+  }, [user, settings.visibleCalendarIds, byId, effectiveCalendarId, settings.activeCalendarId, updateSettings]);
 
   const calendarDefaultNoteColorById = useMemo(() => {
     const entries = calendars.map((c) => [c.id, coerceStickyColor(c.default_note_color, "yellow")] as const);
