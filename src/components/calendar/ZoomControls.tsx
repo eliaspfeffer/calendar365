@@ -11,6 +11,7 @@ interface ZoomControlsProps {
 export function ZoomControls({ onZoomIn, onZoomOut, onReset, scale }: ZoomControlsProps) {
   return (
     <div
+      data-tour-id="zoom-controls"
       className="zoom-controls fixed bottom-4 right-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-50 touch-auto"
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}

@@ -171,7 +171,7 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
         if (!next) setInviteToken(null);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" data-tour-id="share-dialog">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide text-primary">Kalender teilen</DialogTitle>
           {calendar ? (
