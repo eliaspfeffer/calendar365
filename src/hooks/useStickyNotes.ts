@@ -29,19 +29,20 @@ function loadGuestNotes(): StickyNote[] {
       .map((n) => n as Partial<StickyNote>)
       .filter((n) => typeof n.id === "string" && typeof n.text === "string" && typeof n.color === "string")
       .map(
-	        (n): StickyNote => ({
-	          id: n.id as string,
-	          calendar_id: typeof n.calendar_id === "string" ? n.calendar_id : GUEST_CALENDAR_ID,
-	          user_id: typeof n.user_id === "string" ? n.user_id : GUEST_USER_ID,
-	          date: typeof n.date === "string" || n.date === null ? (n.date as string | null) : null,
-	          text: n.text as string,
-	          color: n.color as StickyColor,
-	          is_struck: typeof n.is_struck === "boolean" ? n.is_struck : false,
-	          pos_x: typeof n.pos_x === "number" ? n.pos_x : null,
-	          pos_y: typeof n.pos_y === "number" ? n.pos_y : null,
-	        })
-	      )
-	      .filter((n) => n.user_id === GUEST_USER_ID);
+        (n): StickyNote => ({
+          id: n.id as string,
+          calendar_id: typeof n.calendar_id === "string" ? n.calendar_id : GUEST_CALENDAR_ID,
+          user_id: typeof n.user_id === "string" ? n.user_id : GUEST_USER_ID,
+          date: typeof n.date === "string" || n.date === null ? (n.date as string | null) : null,
+          text: n.text as string,
+          color: n.color as StickyColor,
+          is_struck: typeof n.is_struck === "boolean" ? n.is_struck : false,
+          pos_x: typeof n.pos_x === "number" ? n.pos_x : null,
+          pos_y: typeof n.pos_y === "number" ? n.pos_y : null,
+          sort_order: typeof n.sort_order === "number" ? n.sort_order : null,
+        })
+      )
+      .filter((n) => n.user_id === GUEST_USER_ID);
   } catch {
     return [];
   }
@@ -88,6 +89,15 @@ function addDaysToDate(dateStr: string, days: number): string {
   return format(addDays(date, days), 'yyyy-MM-dd');
 }
 
+function getNextSortOrder(all: StickyNote[], date: string): number {
+  const dateNotes = all.filter((n) => n.date === date);
+  const existing = dateNotes
+    .map((n) => (typeof n.sort_order === "number" ? n.sort_order : null))
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (existing.length > 0) return Math.max(...existing) + 1;
+  return dateNotes.length;
+}
+
 export function useStickyNotes(
   userId: string | null,
   calendarIds: string[] | null,
@@ -128,7 +138,8 @@ export function useStickyNotes(
       text: string,
       color: StickyColor,
       position: NotePosition | null | undefined,
-      insertCalendarId: string | null
+      insertCalendarId: string | null,
+      sortOrder: number | null | undefined
     ) => {
       const base = {
         user_id: userId,
@@ -136,6 +147,7 @@ export function useStickyNotes(
         text,
         color,
         ...(position ? { pos_x: position.x, pos_y: position.y } : {}),
+        ...(typeof sortOrder === "number" ? { sort_order: sortOrder } : {}),
       };
 
       const targetCalendarId = insertCalendarId ?? defaultInsertCalendarId ?? null;
@@ -172,11 +184,99 @@ export function useStickyNotes(
     [defaultInsertCalendarId, userId, isMissingCalendarIdColumn]
   );
 
+  const normalizeSortOrders = useCallback((all: StickyNote[]) => {
+    const indexById = new Map<string, number>();
+    all.forEach((n, idx) => indexById.set(n.id, idx));
+
+    const byDate = new Map<string, StickyNote[]>();
+    for (const note of all) {
+      if (!note.date) continue;
+      if (note.date === "") continue;
+      const list = byDate.get(note.date) ?? [];
+      list.push(note);
+      byDate.set(note.date, list);
+    }
+
+    const sortByCreatedOrIndex = (a: StickyNote, b: StickyNote) => {
+      const ac = a.created_at ?? "";
+      const bc = b.created_at ?? "";
+      if (ac && bc && ac !== bc) return ac.localeCompare(bc);
+      const ai = indexById.get(a.id) ?? 0;
+      const bi = indexById.get(b.id) ?? 0;
+      return ai - bi;
+    };
+
+    const updates = new Map<string, number>();
+    for (const [, group] of byDate) {
+      const existing = group
+        .map((n) => (typeof n.sort_order === "number" ? n.sort_order : null))
+        .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+      let next = existing.length > 0 ? Math.max(...existing) + 1 : 0;
+
+      const missing = group.filter((n) => typeof n.sort_order !== "number").slice().sort(sortByCreatedOrIndex);
+      for (const m of missing) {
+        updates.set(m.id, next);
+        next += 1;
+      }
+    }
+
+    if (updates.size === 0) return all;
+    return all.map((n) => (updates.has(n.id) ? { ...n, sort_order: updates.get(n.id) } : n));
+  }, []);
+
+  const persistSortOrders = useCallback(
+    async (updated: StickyNote[], original: StickyNote[]) => {
+      if (!userId) return;
+      const originalById = new Map(original.map((n) => [n.id, typeof n.sort_order === "number" ? n.sort_order : null] as const));
+
+      for (const note of updated) {
+        const prev = originalById.get(note.id) ?? null;
+        const next = typeof note.sort_order === "number" ? note.sort_order : null;
+        if (prev === next) continue;
+
+        const { error } = await supabase.from("sticky_notes").update({ sort_order: next }).eq("id", note.id);
+        if (error) {
+          if (isMissingColumn(error, "sort_order")) return;
+          console.warn("Could not persist sort order:", error);
+          return;
+        }
+      }
+    },
+    [isMissingColumn, userId]
+  );
+
+  const reorderNotesInDate = useCallback(
+    async (date: string, orderedIds: string[]) => {
+      const sortOrderById = new Map<string, number>();
+      orderedIds.forEach((id, idx) => sortOrderById.set(id, idx));
+
+      if (!userId) {
+        setNotes((prev) => {
+          const next = prev.map((n) => (sortOrderById.has(n.id) ? { ...n, sort_order: sortOrderById.get(n.id) } : n));
+          saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
+          return next;
+        });
+        return { ok: true as const };
+      }
+
+      for (const id of orderedIds) {
+        const order = sortOrderById.get(id) ?? null;
+        const { error } = await supabase.from("sticky_notes").update({ sort_order: order }).eq("id", id);
+        if (error) {
+          if (isMissingColumn(error, "sort_order")) return { ok: true as const };
+          return { ok: false as const, error: error as unknown as SupabaseErrorLike };
+        }
+      }
+      return { ok: true as const };
+    },
+    [isMissingColumn, userId]
+  );
+
   // Fetch notes from Supabase
   useEffect(() => {
     if (!userId) {
       const guestNotes = loadGuestNotes();
-      setNotes([...exampleNotes, ...guestNotes]);
+      setNotes(normalizeSortOrders([...exampleNotes, ...guestNotes]));
       setIsLoading(false);
       return;
     }
@@ -205,7 +305,14 @@ export function useStickyNotes(
           let insertedOk = false;
 
           for (let attempt = 0; attempt < 3; attempt += 1) {
-            const result = await insertStickyNote(currentDate, guest.text, guest.color, currentPosition, defaultCalendarId);
+            const result = await insertStickyNote(
+              currentDate,
+              guest.text,
+              guest.color,
+              currentPosition,
+              defaultCalendarId,
+              guest.sort_order ?? null
+            );
             const { data, error } = result as typeof result & { error?: { code?: string } | null };
 
             if (!error && data) {
@@ -245,20 +352,25 @@ export function useStickyNotes(
           setNotes([]);
         } else {
           const rows = (legacy.data ?? []) as unknown as StickyNotesRowLike[];
-	          const mapped: StickyNote[] = rows.map((note) => ({
-	            id: note.id,
-	            calendar_id: note.calendar_id ?? "",
-	            user_id: note.user_id,
-	            date: note.date,
-	            text: note.text,
-	            color: note.color as StickyColor,
-	            is_struck:
-	              typeof (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
-	                ? (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
-	                : false,
-	          }));
-	          setNotes(mapped);
-	        }
+          const mapped: StickyNote[] = rows.map((note) => ({
+            id: note.id,
+            calendar_id: note.calendar_id ?? "",
+            user_id: note.user_id,
+            date: note.date,
+            text: note.text,
+            color: note.color as StickyColor,
+            is_struck:
+              typeof (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
+                ? (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
+                : false,
+            sort_order: null,
+            created_at: (note as StickyNotesRowLike & { created_at?: string }).created_at,
+            updated_at: (note as StickyNotesRowLike & { updated_at?: string }).updated_at,
+          }));
+          const normalized = normalizeSortOrders(mapped);
+          setNotes(normalized);
+          persistSortOrders(normalized, mapped);
+        }
         setIsLoading(false);
         return;
       }
@@ -281,14 +393,19 @@ export function useStickyNotes(
               : false,
           pos_x: note.pos_x ?? null,
           pos_y: note.pos_y ?? null,
+          sort_order: (note as StickyNotesRowLike & { sort_order?: number | null }).sort_order ?? null,
+          created_at: (note as StickyNotesRowLike & { created_at?: string }).created_at,
+          updated_at: (note as StickyNotesRowLike & { updated_at?: string }).updated_at,
         }));
-        setNotes(mapped);
+        const normalized = normalizeSortOrders(mapped);
+        setNotes(normalized);
+        persistSortOrders(normalized, mapped);
       }
       setIsLoading(false);
     };
 
     fetchNotes();
-  }, [userId, calendarIds, isMissingCalendarIdColumn, insertStickyNote, isMissingColumn]);
+  }, [userId, calendarIds, isMissingCalendarIdColumn, insertStickyNote, isMissingColumn, normalizeSortOrders, persistSortOrders]);
 
   const addNote = useCallback(
     async (
@@ -298,18 +415,19 @@ export function useStickyNotes(
       position: NotePosition | null | undefined,
       insertCalendarId: string | null
     ) => {
-	      if (!userId) {
-	        const newNote: StickyNote = {
-	          id: makeGuestId(),
-	          calendar_id: GUEST_CALENDAR_ID,
-	          user_id: GUEST_USER_ID,
-	          date,
-	          text,
-	          color,
-	          is_struck: false,
-	          pos_x: position ? position.x : null,
-	          pos_y: position ? position.y : null,
-	        };
+      if (!userId) {
+        const newNote: StickyNote = {
+          id: makeGuestId(),
+          calendar_id: GUEST_CALENDAR_ID,
+          user_id: GUEST_USER_ID,
+          date,
+          text,
+          color,
+          is_struck: false,
+          pos_x: position ? position.x : null,
+          pos_y: position ? position.y : null,
+          sort_order: typeof date === "string" && date.length > 0 ? getNextSortOrder(notes, date) : null,
+        };
         setNotes((prev) => {
           const next = [...prev, newNote];
           saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
@@ -326,34 +444,44 @@ export function useStickyNotes(
       // - coerce undated notes to empty string if `date` is still NOT NULL
       let currentDate: string | null = date;
       let currentPosition: NotePosition | null | undefined = position;
+      let currentSortOrder: number | null = typeof date === "string" && date.length > 0 ? getNextSortOrder(notes, date) : null;
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        const result = await insertStickyNote(currentDate, text, color, currentPosition, insertCalendarId);
+        const result = await insertStickyNote(currentDate, text, color, currentPosition, insertCalendarId, currentSortOrder);
         const { data, error } = result as typeof result & { error?: { code?: string } | null };
 
-	        if (!error && data) {
-	          const row = data as unknown as StickyNotesRowLike & { pos_x?: number | null; pos_y?: number | null };
-	          const newNote: StickyNote = {
-	            id: row.id,
-	            calendar_id: row.calendar_id ?? "",
-	            user_id: row.user_id,
-	            date: row.date,
-	            text: row.text,
-	            color: row.color as StickyColor,
-	            is_struck:
-	              typeof (row as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
-	                ? (row as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
-	                : false,
-	            pos_x: row.pos_x ?? null,
-	            pos_y: row.pos_y ?? null,
-	          };
-	          setNotes((prev) => [...prev, newNote]);
-	          return { note: newNote, error: null };
-	        }
+        if (!error && data) {
+          const row = data as unknown as StickyNotesRowLike & { pos_x?: number | null; pos_y?: number | null };
+          const newNote: StickyNote = {
+            id: row.id,
+            calendar_id: row.calendar_id ?? "",
+            user_id: row.user_id,
+            date: row.date,
+            text: row.text,
+            color: row.color as StickyColor,
+            is_struck:
+              typeof (row as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
+                ? (row as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
+                : false,
+            pos_x: row.pos_x ?? null,
+            pos_y: row.pos_y ?? null,
+            sort_order: (row as StickyNotesRowLike & { sort_order?: number | null }).sort_order ?? null,
+            created_at: (row as StickyNotesRowLike & { created_at?: string }).created_at,
+            updated_at: (row as StickyNotesRowLike & { updated_at?: string }).updated_at,
+          };
+          setNotes((prev) => normalizeSortOrders([...prev, newNote]));
+          return { note: newNote, error: null };
+        }
 
         // Undefined column (older schema): drop position fields and retry once.
         if (currentPosition && (isMissingColumn(error, "pos_x") || isMissingColumn(error, "pos_y"))) {
           currentPosition = null;
+          continue;
+        }
+
+        // Undefined column (older schema): drop sort_order and retry once.
+        if (currentSortOrder != null && isMissingColumn(error, "sort_order")) {
+          currentSortOrder = null;
           continue;
         }
 
@@ -369,7 +497,7 @@ export function useStickyNotes(
 
       return { note: null, error: { message: "Unknown error" } satisfies SupabaseErrorLike };
     },
-    [userId, insertStickyNote, isMissingColumn]
+    [insertStickyNote, isMissingColumn, normalizeSortOrders, notes, userId]
   );
 
   const updateNote = useCallback(
@@ -436,17 +564,52 @@ export function useStickyNotes(
     [isMissingColumn, userId]
   );
 
-  const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[]) => {
+  const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[], insertIndex?: number) => {
     if (!userId) {
       const noteToMove = notes.find((n) => n.id === id) ?? null;
       if (!noteToMove || noteToMove.user_id !== GUEST_USER_ID) {
         return { ok: false as const, error: { message: "Not signed in" } satisfies SupabaseErrorLike };
       }
-      if (noteToMove.date === newDate) return { ok: true as const };
+      if (noteToMove.date === newDate && typeof insertIndex !== "number") return { ok: true as const };
       setNotes((prev) => {
-        const next = prev.map((n) =>
-          n.id === id ? { ...n, date: newDate, pos_x: null, pos_y: null } : n
-        );
+        const isDatedTarget = typeof newDate === "string" && newDate.length > 0;
+
+        if (!isDatedTarget) {
+          const next = prev.map((n) =>
+            n.id === id ? { ...n, date: newDate, pos_x: null, pos_y: null, sort_order: null } : n
+          );
+          saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
+          return next;
+        }
+
+        const siblings = prev
+          .filter((n) => n.date === newDate && n.id !== id)
+          .slice()
+          .sort((a, b) => {
+            const ao = typeof a.sort_order === "number" ? a.sort_order : Number.POSITIVE_INFINITY;
+            const bo = typeof b.sort_order === "number" ? b.sort_order : Number.POSITIVE_INFINITY;
+            if (ao !== bo) return ao - bo;
+            const ac = a.created_at ?? "";
+            const bc = b.created_at ?? "";
+            if (ac && bc && ac !== bc) return ac.localeCompare(bc);
+            return a.id.localeCompare(b.id);
+          });
+
+        const orderedIds = siblings.map((n) => n.id);
+        const idx = Math.max(0, Math.min(typeof insertIndex === "number" ? insertIndex : orderedIds.length, orderedIds.length));
+        orderedIds.splice(idx, 0, id);
+
+        const sortOrderById = new Map<string, number>();
+        orderedIds.forEach((nid, i) => sortOrderById.set(nid, i));
+
+        const next = prev.map((n) => {
+          if (n.id === id) {
+            return { ...n, date: newDate, pos_x: null, pos_y: null, sort_order: sortOrderById.get(id) ?? null };
+          }
+          if (n.date !== newDate) return n;
+          const order = sortOrderById.get(n.id);
+          return typeof order === "number" ? { ...n, sort_order: order } : n;
+        });
         saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
         return next;
       });
@@ -454,7 +617,7 @@ export function useStickyNotes(
     }
     const noteToMove = notes.find((n) => n.id === id) ?? null;
 
-    if (noteToMove && noteToMove.date === newDate) return { ok: true as const };
+    if (noteToMove && noteToMove.date === newDate && typeof insertIndex !== "number") return { ok: true as const };
 
     // Get all connected note IDs
     const connectedNoteIds: string[] = [];
@@ -465,6 +628,98 @@ export function useStickyNotes(
         connectedNoteIds.push(conn.source_note_id);
       }
     });
+
+    const isDatedTarget = typeof newDate === "string" && newDate.length > 0;
+
+    if (isDatedTarget) {
+      const siblings = notes
+        .filter((n) => n.date === newDate && n.id !== id)
+        .slice()
+        .sort((a, b) => {
+          const ao = typeof a.sort_order === "number" ? a.sort_order : Number.POSITIVE_INFINITY;
+          const bo = typeof b.sort_order === "number" ? b.sort_order : Number.POSITIVE_INFINITY;
+          if (ao !== bo) return ao - bo;
+          const ac = a.created_at ?? "";
+          const bc = b.created_at ?? "";
+          if (ac && bc && ac !== bc) return ac.localeCompare(bc);
+          return a.id.localeCompare(b.id);
+        });
+      const orderedIds = siblings.map((n) => n.id);
+      const idx = Math.max(0, Math.min(typeof insertIndex === "number" ? insertIndex : orderedIds.length, orderedIds.length));
+      orderedIds.splice(idx, 0, id);
+
+      // Reorder within a day without touching dates / connections.
+      if (noteToMove?.date === newDate) {
+        const reordered = await reorderNotesInDate(newDate, orderedIds);
+        if (!reordered.ok) return reordered;
+        setNotes((prev) =>
+          prev.map((n) => {
+            if (n.date !== newDate) return n;
+            const order = orderedIds.indexOf(n.id);
+            return order >= 0 ? { ...n, sort_order: order } : n;
+          })
+        );
+        return { ok: true as const };
+      }
+
+      // Moving across dates: first move, then apply ordering in the destination date.
+      const canComputeDiff = Boolean(noteToMove?.date) && Boolean(newDate);
+      const daysDiff = canComputeDiff
+        ? getDaysDifference(noteToMove?.date as string, newDate as string)
+        : 0;
+
+      const primary = await supabase
+        .from('sticky_notes')
+        .update({ date: newDate, pos_x: null, pos_y: null })
+        .eq('id', id);
+      let mainError = primary.error;
+
+      if (mainError && (isMissingColumn(mainError, "pos_x") || isMissingColumn(mainError, "pos_y"))) {
+        const retry = await supabase
+          .from("sticky_notes")
+          .update({ date: newDate })
+          .eq("id", id);
+        mainError = retry.error;
+      }
+
+      if (mainError) {
+        console.error('Error moving note:', mainError);
+        return { ok: false as const, error: mainError as unknown as SupabaseErrorLike };
+      }
+
+      if (noteToMove && canComputeDiff && daysDiff !== 0) {
+        for (const connectedId of connectedNoteIds) {
+          const connectedNote = notes.find((n) => n.id === connectedId);
+          if (connectedNote?.date) {
+            const newConnectedDate = addDaysToDate(connectedNote.date, daysDiff);
+            await supabase
+              .from('sticky_notes')
+              .update({ date: newConnectedDate })
+              .eq('id', connectedId);
+          }
+        }
+      }
+
+      const reordered = await reorderNotesInDate(newDate, orderedIds);
+      if (!reordered.ok) return reordered;
+
+      setNotes((prev) =>
+        prev.map((note) => {
+          if (note.id === id) {
+            return { ...note, date: newDate, pos_x: null, pos_y: null, sort_order: orderedIds.indexOf(id) };
+          }
+          if (noteToMove && canComputeDiff && daysDiff !== 0 && connectedNoteIds.includes(note.id) && note.date) {
+            return { ...note, date: addDaysToDate(note.date, daysDiff) };
+          }
+          if (note.date === newDate) {
+            const order = orderedIds.indexOf(note.id);
+            return order >= 0 ? { ...note, sort_order: order } : note;
+          }
+          return note;
+        })
+      );
+      return { ok: true as const };
+    }
 
     const canComputeDiff = Boolean(noteToMove?.date) && Boolean(newDate);
     const daysDiff = canComputeDiff
@@ -510,7 +765,7 @@ export function useStickyNotes(
       }
       setNotes((prev) =>
         prev.map((note) =>
-          note.id === id ? { ...note, date: '', pos_x: null, pos_y: null } : note
+          note.id === id ? { ...note, date: '', pos_x: null, pos_y: null, sort_order: null } : note
         )
       );
       return { ok: true as const };
@@ -539,7 +794,7 @@ export function useStickyNotes(
     setNotes((prev) =>
       prev.map((note) => {
         if (note.id === id) {
-          return { ...note, date: newDate, pos_x: null, pos_y: null };
+          return { ...note, date: newDate, pos_x: null, pos_y: null, sort_order: null };
         }
         if (noteToMove && canComputeDiff && daysDiff !== 0 && connectedNoteIds.includes(note.id) && note.date) {
           return { ...note, date: addDaysToDate(note.date, daysDiff) };
@@ -548,7 +803,7 @@ export function useStickyNotes(
       })
     );
     return { ok: true as const };
-  }, [notes, userId, isMissingColumn]);
+  }, [notes, userId, isMissingColumn, reorderNotesInDate]);
 
   const moveNoteToCanvas = useCallback(async (id: string, position: NotePosition) => {
     if (!userId) {
@@ -556,7 +811,7 @@ export function useStickyNotes(
       if (!noteToMove || noteToMove.user_id !== GUEST_USER_ID) return false;
       setNotes((prev) => {
         const next = prev.map((n) =>
-          n.id === id ? { ...n, date: null, pos_x: position.x, pos_y: position.y } : n
+          n.id === id ? { ...n, date: null, pos_x: position.x, pos_y: position.y, sort_order: null } : n
         );
         saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
         return next;
@@ -583,7 +838,7 @@ export function useStickyNotes(
         return false;
       }
       setNotes((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, date: null, pos_x: null, pos_y: null } : n))
+        prev.map((n) => (n.id === id ? { ...n, date: null, pos_x: null, pos_y: null, sort_order: null } : n))
       );
       return true;
     }
@@ -602,7 +857,7 @@ export function useStickyNotes(
       setNotes((prev) =>
         prev.map((n) =>
           n.id === id
-            ? { ...n, date: '', pos_x: position.x, pos_y: position.y }
+            ? { ...n, date: '', pos_x: position.x, pos_y: position.y, sort_order: null }
             : n
         )
       );
@@ -616,7 +871,7 @@ export function useStickyNotes(
 
     setNotes((prev) =>
       prev.map((n) =>
-        n.id === id ? { ...n, date: null, pos_x: position.x, pos_y: position.y } : n
+        n.id === id ? { ...n, date: null, pos_x: position.x, pos_y: position.y, sort_order: null } : n
       )
     );
     return true;
@@ -687,7 +942,19 @@ export function useStickyNotes(
   }, [userId]);
 
   const getNotesByDate = useCallback(
-    (date: string) => notes.filter((note) => note.date === date),
+    (date: string) =>
+      notes
+        .filter((note) => note.date === date)
+        .slice()
+        .sort((a, b) => {
+          const ao = typeof a.sort_order === "number" ? a.sort_order : Number.POSITIVE_INFINITY;
+          const bo = typeof b.sort_order === "number" ? b.sort_order : Number.POSITIVE_INFINITY;
+          if (ao !== bo) return ao - bo;
+          const ac = a.created_at ?? "";
+          const bc = b.created_at ?? "";
+          if (ac && bc && ac !== bc) return ac.localeCompare(bc);
+          return a.id.localeCompare(b.id);
+        }),
     [notes]
   );
 

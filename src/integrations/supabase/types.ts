@@ -221,6 +221,7 @@ export type Database = {
           is_struck: boolean
           pos_x: number | null
           pos_y: number | null
+          sort_order: number | null
           text: string
           updated_at: string
           user_id: string
@@ -234,6 +235,7 @@ export type Database = {
           is_struck?: boolean
           pos_x?: number | null
           pos_y?: number | null
+          sort_order?: number | null
           text: string
           updated_at?: string
           user_id: string
@@ -247,6 +249,7 @@ export type Database = {
           is_struck?: boolean
           pos_x?: number | null
           pos_y?: number | null
+          sort_order?: number | null
           text?: string
           updated_at?: string
           user_id?: string
