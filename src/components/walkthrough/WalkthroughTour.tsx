@@ -105,7 +105,6 @@ export function WalkthroughTour({
         title: "Kalender teilen",
         body: "Use this button to share the current calendar (invite link or public link).",
         targetSelector: '[data-tour-id=\"calendar-share\"]',
-        when: ({ isAuthed }) => isAuthed,
         optional: true,
       },
       {
@@ -114,7 +113,6 @@ export function WalkthroughTour({
         body:
           "Create invite links with permissions (can edit / view only), or publish a public share link (optionally password-protected).",
         targetSelector: '[data-tour-id=\"share-dialog\"]',
-        when: ({ isAuthed }) => isAuthed,
         optional: true,
         onEnter: () => {
           onRequestOpenShare();
@@ -133,7 +131,6 @@ export function WalkthroughTour({
         title: "Neuen Kalender erstellen",
         body: "Create a new sub-calendar for different projects/areas (work, family, etc.).",
         targetSelector: '[data-tour-id=\"calendar-create\"]',
-        when: ({ isAuthed }) => isAuthed,
         optional: true,
       },
       {
@@ -142,7 +139,6 @@ export function WalkthroughTour({
         body:
           "Choose a default sticky-note color for this calendar. New notes in this calendar start with that color so you can recognize entries at a glance.",
         targetSelector: '[data-tour-id=\"create-calendar-default-color\"]',
-        when: ({ isAuthed }) => isAuthed,
         optional: true,
         onEnter: () => {
           onRequestOpenCreateCalendar();
