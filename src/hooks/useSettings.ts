@@ -16,6 +16,7 @@ interface Settings {
   activeCalendarId: string | null;
   shareBaseUrl: string | null;
   visibleCalendarIds: string[] | null;
+  calendarOrderIds: string[] | null;
   googleSyncEnabled: boolean;
   googleSelectedCalendarIds: string[] | null;
 }
@@ -38,6 +39,7 @@ const defaultSettings: Settings = {
   activeCalendarId: null,
   shareBaseUrl: null,
   visibleCalendarIds: null,
+  calendarOrderIds: null,
   googleSyncEnabled: false,
   googleSelectedCalendarIds: null,
 };
@@ -90,6 +92,7 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (typeof raw.activeCalendarId === "string" || raw.activeCalendarId === null) out.activeCalendarId = raw.activeCalendarId;
   if (typeof raw.shareBaseUrl === "string" || raw.shareBaseUrl === null) out.shareBaseUrl = raw.shareBaseUrl;
   if (isStringArray(raw.visibleCalendarIds) || raw.visibleCalendarIds === null) out.visibleCalendarIds = raw.visibleCalendarIds;
+  if (isStringArray(raw.calendarOrderIds) || raw.calendarOrderIds === null) out.calendarOrderIds = raw.calendarOrderIds;
   if (typeof raw.googleSyncEnabled === "boolean") out.googleSyncEnabled = raw.googleSyncEnabled;
   if (isStringArray(raw.googleSelectedCalendarIds) || raw.googleSelectedCalendarIds === null) {
     out.googleSelectedCalendarIds = raw.googleSelectedCalendarIds;

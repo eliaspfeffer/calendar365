@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { YearCalendar } from '@/components/calendar/YearCalendar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { useGoogleCalendarSync } from "@/hooks/useGoogleCalendarSync";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { LogOut, Loader2, LogIn, Settings, Share2, Plus } from 'lucide-react';
+import { GripVertical, LogOut, Loader2, LogIn, Pencil, Settings, Share2, Plus, Layers, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Layers, Trash2 } from 'lucide-react';
+import { Input } from "@/components/ui/input";
 import { STICKY_NOTE_COLORS, coerceStickyColor } from '@/lib/stickyNoteColors';
 import type { StickyColor } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,6 +49,12 @@ const Index = () => {
   const [pendingDeleteNoteCount, setPendingDeleteNoteCount] = useState<number | null>(null);
   const [isLoadingDeleteNoteCount, setIsLoadingDeleteNoteCount] = useState(false);
   const [isDeletingCalendar, setIsDeletingCalendar] = useState(false);
+  const [renamingCalendarId, setRenamingCalendarId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [isRenamingCalendar, setIsRenamingCalendar] = useState(false);
+  const [draggingCalendarId, setDraggingCalendarId] = useState<string | null>(null);
+  const [dragOverCalendarId, setDragOverCalendarId] = useState<string | null>(null);
+  const [appearingCalendarId, setAppearingCalendarId] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
@@ -66,6 +72,40 @@ const Index = () => {
     createCalendar,
     createInvite,
   } = useCalendars(user?.id || null);
+
+  useEffect(() => {
+    if (!user) return;
+    const currentOrder = settings.calendarOrderIds;
+    if (!currentOrder || currentOrder.length === 0) return;
+
+    const known = new Set(calendars.map((c) => c.id));
+    const next: string[] = currentOrder.filter((id) => known.has(id));
+    for (const c of calendars) {
+      if (!currentOrder.includes(c.id)) next.push(c.id);
+    }
+
+    if (next.length !== currentOrder.length || next.some((id, i) => id !== currentOrder[i])) {
+      updateSettings({ calendarOrderIds: next });
+    }
+  }, [user, calendars, settings.calendarOrderIds, updateSettings]);
+
+  const orderedCalendars = useMemo(() => {
+    const order = settings.calendarOrderIds;
+    if (!order || order.length === 0) return calendars;
+    const by = new Map(calendars.map((c) => [c.id, c] as const));
+    const seen = new Set<string>();
+    const out: CalendarSummary[] = [];
+    for (const id of order) {
+      const cal = by.get(id);
+      if (!cal) continue;
+      seen.add(id);
+      out.push(cal);
+    }
+    for (const cal of calendars) {
+      if (!seen.has(cal.id)) out.push(cal);
+    }
+    return out;
+  }, [calendars, settings.calendarOrderIds]);
 
   const { yearStart, yearEnd } = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -147,16 +187,16 @@ const Index = () => {
   }, [user, settings.visibleCalendarIds, byId, effectiveCalendarId, settings.activeCalendarId, updateSettings]);
 
   const calendarDefaultNoteColorById = useMemo(() => {
-    const entries = calendars.map((c) => [c.id, coerceStickyColor(c.default_note_color, "yellow")] as const);
+    const entries = orderedCalendars.map((c) => [c.id, coerceStickyColor(c.default_note_color, "yellow")] as const);
     return Object.fromEntries(entries) as Record<string, StickyColor>;
-  }, [calendars]);
+  }, [orderedCalendars]);
 
   const editableVisibleCalendars = useMemo(() => {
     const visible = new Set(effectiveVisibleCalendarIds ?? []);
-    return calendars
+    return orderedCalendars
       .filter((c) => visible.has(c.id) && (c.role === "owner" || c.role === "editor"))
       .map((c) => ({ id: c.id, name: c.name }));
-  }, [calendars, effectiveVisibleCalendarIds]);
+  }, [orderedCalendars, effectiveVisibleCalendarIds]);
 
   const toggleCalendarVisibility = (calendarId: string, visible: boolean) => {
     updateSettings((prev) => {
@@ -270,6 +310,8 @@ const Index = () => {
     if (!user) return;
 
     setCalendarVisibilityPopoverOpen(false);
+    setRenamingCalendarId(null);
+    setRenameDraft("");
     setCalendarPendingDelete(calendar);
     setPendingDeleteNoteCount(null);
     setIsLoadingDeleteNoteCount(true);
@@ -294,9 +336,84 @@ const Index = () => {
     setPendingDeleteNoteCount(count ?? 0);
   };
 
+  const startRenameCalendar = (calendar: CalendarSummary) => {
+    setRenamingCalendarId(calendar.id);
+    setRenameDraft(calendar.name);
+  };
+
+  const cancelRenameCalendar = () => {
+    setRenamingCalendarId(null);
+    setRenameDraft("");
+  };
+
+  const commitRenameCalendar = useCallback(
+    async (calendarId: string) => {
+      const nextName = renameDraft.trim();
+      if (!nextName) {
+        toast({ title: "Please enter a calendar name", variant: "destructive" });
+        return;
+      }
+      setIsRenamingCalendar(true);
+      const { error } = await supabase.from("calendars").update({ name: nextName }).eq("id", calendarId);
+      setIsRenamingCalendar(false);
+
+      if (error) {
+        toast({
+          title: "Couldn’t rename calendar",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      cancelRenameCalendar();
+      await refreshCalendars();
+      toast({ title: "Calendar renamed" });
+    },
+    [renameDraft, refreshCalendars, toast]
+  );
+
+  const applyCalendarReorder = useCallback(
+    (fromId: string, toId: string) => {
+      if (fromId === toId) return;
+      const baseline =
+        settings.calendarOrderIds && settings.calendarOrderIds.length > 0
+          ? settings.calendarOrderIds
+          : orderedCalendars.map((c) => c.id);
+      const fromIndex = baseline.indexOf(fromId);
+      const toIndex = baseline.indexOf(toId);
+      if (fromIndex < 0 || toIndex < 0) return;
+      const next = [...baseline];
+      next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, fromId);
+      updateSettings({ calendarOrderIds: next });
+    },
+    [orderedCalendars, settings.calendarOrderIds, updateSettings]
+  );
+
   const confirmDeleteCalendar = async () => {
     if (!calendarPendingDelete) return;
     setIsDeletingCalendar(true);
+
+    const isLastRemainingCalendar = calendars.length === 1 && calendars[0]?.id === calendarPendingDelete.id;
+    let replacementCalendarId: string | null = null;
+
+    if (isLastRemainingCalendar) {
+      const created = await createCalendar("clear new calendar");
+      if (!created.id) {
+        setIsDeletingCalendar(false);
+        toast({
+          title: "Couldn’t create replacement calendar",
+          description: created.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      replacementCalendarId = created.id;
+      setAppearingCalendarId(replacementCalendarId);
+      window.setTimeout(() => setAppearingCalendarId(null), 1200);
+      updateSettings({ activeCalendarId: replacementCalendarId, visibleCalendarIds: null, calendarOrderIds: [replacementCalendarId] });
+    }
 
     const { error } = await supabase.from("calendars").delete().eq("id", calendarPendingDelete.id);
 
@@ -312,12 +429,14 @@ const Index = () => {
     }
 
     const updates: Partial<typeof settings> = {};
-    if (settings.activeCalendarId === calendarPendingDelete.id) {
-      updates.activeCalendarId = null;
-    }
-    if (settings.visibleCalendarIds) {
+    if (!replacementCalendarId && settings.activeCalendarId === calendarPendingDelete.id) updates.activeCalendarId = null;
+    if (!replacementCalendarId && settings.visibleCalendarIds) {
       const nextVisible = settings.visibleCalendarIds.filter((id) => id !== calendarPendingDelete.id);
       updates.visibleCalendarIds = nextVisible.length > 0 ? nextVisible : null;
+    }
+    if (!replacementCalendarId && settings.calendarOrderIds) {
+      const nextOrder = settings.calendarOrderIds.filter((id) => id !== calendarPendingDelete.id);
+      updates.calendarOrderIds = nextOrder.length > 0 ? nextOrder : null;
     }
     if (Object.keys(updates).length > 0) updateSettings(updates);
 
@@ -348,13 +467,18 @@ const Index = () => {
           <Select
             value={effectiveCalendarId ?? ''}
             onValueChange={(id) => updateSettings({ activeCalendarId: id })}
-            disabled={calendarsLoading || calendars.length === 0}
+            disabled={calendarsLoading || orderedCalendars.length === 0}
           >
-            <SelectTrigger className="w-[160px] max-w-[60vw] bg-background/80 backdrop-blur-sm sm:w-[220px]">
+            <SelectTrigger
+              className={[
+                "w-[160px] max-w-[60vw] bg-background/80 backdrop-blur-sm sm:w-[220px]",
+                appearingCalendarId && effectiveCalendarId === appearingCalendarId ? "animate-in fade-in-0 zoom-in-95" : "",
+              ].join(" ")}
+            >
               <SelectValue placeholder={calendarsLoading ? 'Lade Kalender…' : 'Kalender wählen'} />
             </SelectTrigger>
             <SelectContent>
-              {calendars.map((c) => (
+              {orderedCalendars.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.name}
                 </SelectItem>
@@ -369,7 +493,7 @@ const Index = () => {
                 size="sm"
                 className="bg-background/80 backdrop-blur-sm"
                 title="Kalender anzeigen/ausblenden + Standardfarben"
-                disabled={calendarsLoading || calendars.length === 0}
+                disabled={calendarsLoading || orderedCalendars.length === 0}
               >
                 <Layers className="h-4 w-4" />
               </Button>
@@ -389,7 +513,7 @@ const Index = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => updateSettings({ visibleCalendarIds: calendars.map((c) => c.id) })}
+                    onClick={() => updateSettings({ visibleCalendarIds: orderedCalendars.map((c) => c.id) })}
                   >
                     All
                   </Button>
@@ -398,17 +522,92 @@ const Index = () => {
               <Separator className="my-3" />
               <ScrollArea className="h-[260px] pr-2">
                 <div className="space-y-2">
-                  {calendars.map((c) => {
+                  {orderedCalendars.map((c) => {
                     const visible = (effectiveVisibleCalendarIds ?? []).includes(c.id);
                     const currentColor = calendarDefaultNoteColorById[c.id] ?? "yellow";
+                    const isRenaming = renamingCalendarId === c.id;
+                    const canEditCalendar = c.role === "owner";
                     return (
-                      <div key={c.id} className="flex items-center gap-2">
+                      <div
+                        key={c.id}
+                        className={[
+                          "flex items-center gap-2 rounded-md px-1 overflow-x-auto",
+                          draggingCalendarId === c.id ? "opacity-60" : "",
+                          dragOverCalendarId === c.id ? "bg-muted/60" : "",
+                          appearingCalendarId === c.id ? "animate-in fade-in-0 zoom-in-95" : "",
+                        ].join(" ")}
+                        onDragOver={(e) => {
+                          if (!draggingCalendarId) return;
+                          e.preventDefault();
+                          setDragOverCalendarId(c.id);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fromId = e.dataTransfer.getData("text/plain") || draggingCalendarId;
+                          if (!fromId) return;
+                          applyCalendarReorder(fromId, c.id);
+                          setDraggingCalendarId(null);
+                          setDragOverCalendarId(null);
+                        }}
+                      >
+                        <button
+                          className="h-7 w-7 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                          title="Drag to reorder"
+                          draggable={!isRenaming && !isDeletingCalendar && !isRenamingCalendar}
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", c.id);
+                            setDraggingCalendarId(c.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingCalendarId(null);
+                            setDragOverCalendarId(null);
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                          }}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </button>
                         <Checkbox
                           checked={visible}
                           onCheckedChange={(v) => toggleCalendarVisibility(c.id, v === true)}
                         />
-                        <div className="flex-1 truncate">{c.name}</div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex-1 min-w-0 py-0.5">
+                          {isRenaming ? (
+                            <Input
+                              value={renameDraft}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitRenameCalendar(c.id);
+                                if (e.key === "Escape") cancelRenameCalendar();
+                              }}
+                              onBlur={() => commitRenameCalendar(c.id)}
+                              disabled={isRenamingCalendar}
+                              className="h-8 flex-none"
+                              style={{ width: `${Math.max(8, renameDraft.length + 1)}ch` }}
+                              autoFocus
+                            />
+                          ) : (
+                            <div className="truncate">{c.name}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 py-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title={canEditCalendar ? "Rename calendar" : "Only the owner can rename"}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!canEditCalendar) return;
+                              startRenameCalendar(c);
+                            }}
+                            disabled={!canEditCalendar || isDeletingCalendar || isRenamingCalendar}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           {c.role === "owner" && (
                             <>
                               {STICKY_NOTE_COLORS.map((col) => (
@@ -425,22 +624,21 @@ const Index = () => {
                                   onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
                                 />
                               ))}
-                              {c.id !== defaultCalendarId && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                  title="Delete calendar"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    requestDeleteCalendar(c);
-                                  }}
-                                  disabled={isDeletingCalendar}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                title="Delete calendar"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  cancelRenameCalendar();
+                                  requestDeleteCalendar(c);
+                                }}
+                                disabled={isDeletingCalendar}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </>
                           )}
                         </div>
@@ -450,7 +648,7 @@ const Index = () => {
                 </div>
               </ScrollArea>
               <div className="mt-3 text-xs text-muted-foreground">
-                Showing {(effectiveVisibleCalendarIds ?? []).length || 0} of {calendars.length}
+                Showing {(effectiveVisibleCalendarIds ?? []).length || 0} of {orderedCalendars.length}
               </div>
             </PopoverContent>
           </Popover>
