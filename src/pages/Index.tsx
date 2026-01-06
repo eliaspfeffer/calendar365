@@ -342,12 +342,15 @@ const Index = () => {
     if (isLoading) return;
     if (user) return;
     let completed = false;
+    let hasProgress = false;
     try {
       completed = window.localStorage.getItem("calendar365_walkthrough_v1_completed") === "1";
+      hasProgress = window.localStorage.getItem("calendar365_walkthrough_v1_progress") !== null;
     } catch {
       completed = false;
+      hasProgress = false;
     }
-    if (completed) return;
+    if (completed || hasProgress) return;
     const t = window.setTimeout(() => setWalkthroughOpen(true), 900);
     return () => window.clearTimeout(t);
   }, [isLoading, user]);
@@ -969,6 +972,7 @@ const Index = () => {
         onOpenChange={setWalkthroughOpen}
         isAuthed={!!user}
         onRequestOpenSettings={() => setSettingsDialogOpen(true)}
+        onRequestCloseSettings={() => setSettingsDialogOpen(false)}
       />
     </div>
   );
