@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { DonateDialog } from "@/components/payments/DonateDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useEntitlement } from "@/hooks/useEntitlement";
+import { useVisitStats } from "@/hooks/useVisitStats";
 
 export function LegalLinks() {
   const location = useLocation();
@@ -10,6 +11,7 @@ export function LegalLinks() {
   const [donateOpen, setDonateOpen] = useState(false);
   const { user } = useAuth();
   const entitlement = useEntitlement(user?.id ?? null);
+  const { stats, isConfigured } = useVisitStats({ intervalMs: 30_000 });
 
   if (isLegalPage) return null;
 
@@ -34,6 +36,14 @@ export function LegalLinks() {
         >
           Privacy
         </Link>
+        {isConfigured && stats.uniqueVisitors !== null && stats.liveVisitors !== null && (
+          <>
+            <span className="opacity-60">·</span>
+            <span className="tabular-nums">
+              Besucher {stats.uniqueVisitors} · Live {stats.liveVisitors}
+            </span>
+          </>
+        )}
         <span className="opacity-60">·</span>
         <button type="button" className="hover:text-foreground" onClick={() => setDonateOpen(true)}>
           Donate
