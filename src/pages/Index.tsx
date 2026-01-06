@@ -975,6 +975,8 @@ const Index = () => {
         onRequestCloseSettings={() => setSettingsDialogOpen(false)}
         onRequestOpenShare={() => setShareDialogOpen(true)}
         onRequestCloseShare={() => setShareDialogOpen(false)}
+        onRequestOpenCreateCalendar={() => setCreateCalendarDialogOpen(true)}
+        onRequestCloseCreateCalendar={() => setCreateCalendarDialogOpen(false)}
       />
     </div>
   );

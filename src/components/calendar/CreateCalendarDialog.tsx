@@ -46,7 +46,7 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-tour-id="create-calendar-dialog">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide text-primary">Neuer Kalender</DialogTitle>
         </DialogHeader>
@@ -61,7 +61,7 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2" data-tour-id="create-calendar-default-color">
           <Label>Standard-Notizfarbe</Label>
           <div className="flex gap-2 justify-center">
             {STICKY_NOTE_COLORS.map((c) => (

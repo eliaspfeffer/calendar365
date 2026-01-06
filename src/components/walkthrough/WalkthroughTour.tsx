@@ -48,6 +48,8 @@ export function WalkthroughTour({
   onRequestCloseSettings,
   onRequestOpenShare,
   onRequestCloseShare,
+  onRequestOpenCreateCalendar,
+  onRequestCloseCreateCalendar,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,6 +58,8 @@ export function WalkthroughTour({
   onRequestCloseSettings: () => void;
   onRequestOpenShare: () => void;
   onRequestCloseShare: () => void;
+  onRequestOpenCreateCalendar: () => void;
+  onRequestCloseCreateCalendar: () => void;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -125,21 +129,24 @@ export function WalkthroughTour({
         optional: true,
       },
       {
-        id: "calendars-ui",
-        title: "Multiple calendars",
-        body: "Switch between your sub-calendars here.",
-        targetSelector: '[data-tour-id=\"calendar-switcher\"]',
+        id: "create-calendar-button",
+        title: "Neuen Kalender erstellen",
+        body: "Create a new sub-calendar for different projects/areas (work, family, etc.).",
+        targetSelector: '[data-tour-id=\"calendar-create\"]',
         when: ({ isAuthed }) => isAuthed,
         optional: true,
       },
       {
-        id: "calendar-colors",
-        title: "Default colors per calendar",
+        id: "create-calendar-color",
+        title: "Pick a default color",
         body:
-          "Each calendar can have its own default sticky-note color — handy for visual separation.",
-        targetSelector: '[data-tour-id=\"calendar-visibility\"]',
+          "Choose a default sticky-note color for this calendar. New notes in this calendar start with that color so you can recognize entries at a glance.",
+        targetSelector: '[data-tour-id=\"create-calendar-default-color\"]',
         when: ({ isAuthed }) => isAuthed,
         optional: true,
+        onEnter: () => {
+          onRequestOpenCreateCalendar();
+        },
       },
       {
         id: "settings",
@@ -174,7 +181,7 @@ export function WalkthroughTour({
         targetSelector: '[data-tour-id=\"auth-button\"]',
       },
     ],
-    [isAuthed, onRequestOpenSettings]
+    [isAuthed, onRequestOpenSettings, onRequestOpenShare, onRequestOpenCreateCalendar]
   );
 
   const visibleStepIndices = useMemo(() => {
@@ -270,6 +277,12 @@ export function WalkthroughTour({
     if (currentStep.id === "share-dialog") onRequestOpenShare();
     else onRequestCloseShare();
   }, [open, currentStep.id, onRequestCloseShare, onRequestOpenShare]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (currentStep.id === "create-calendar-color") onRequestOpenCreateCalendar();
+    else onRequestCloseCreateCalendar();
+  }, [open, currentStep.id, onRequestCloseCreateCalendar, onRequestOpenCreateCalendar]);
 
   useEffect(() => {
     if (!open) return;
