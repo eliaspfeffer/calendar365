@@ -24,7 +24,7 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [paypalContainer, setPaypalContainer] = useState<HTMLDivElement | null>(null);
   const [amountInput, setAmountInput] = useState("4");
   const [isUnlockingFree, setIsUnlockingFree] = useState(false);
   const paypalClientId = (import.meta.env.VITE_PAYPAL_CLIENT_ID as string | undefined)?.trim() ?? "";
@@ -52,10 +52,10 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
   useEffect(() => {
     if (!open) return;
     if (!canPay) return;
-    if (!containerRef.current) return;
+    if (!paypalContainer) return;
 
     if (amountCents <= 0) {
-      containerRef.current.innerHTML = "";
+      paypalContainer.innerHTML = "";
       return;
     }
 
@@ -66,9 +66,9 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
         await loadPayPalSdk(paypalClientId);
         if (cancelled) return;
         if (!window.paypal?.Buttons) throw new Error("PayPal SDK not available");
-        if (!containerRef.current) return;
+        if (!paypalContainer) return;
 
-        containerRef.current.innerHTML = "";
+        paypalContainer.innerHTML = "";
 
         window.paypal
           .Buttons({
@@ -100,7 +100,7 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
               });
             },
           })
-          .render(containerRef.current);
+          .render(paypalContainer);
       } catch (err) {
         console.error(err);
         toast({
@@ -117,7 +117,7 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [open, canPay, paypalClientId, toast, onUnlocked, onOpenChange, amountCents]);
+  }, [open, canPay, paypalClientId, toast, onUnlocked, onOpenChange, amountCents, paypalContainer]);
 
   const unlockForFree = async () => {
     if (isUnlockingFree) return;
@@ -232,7 +232,7 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
                   Unlock Premium
                 </Button>
               ) : (
-                <div ref={containerRef} className="min-h-10" />
+                <div ref={setPaypalContainer} className="min-h-10" />
               )}
             </>
           )}
@@ -241,4 +241,3 @@ export function DonateDialog({ open, onOpenChange, onUnlocked }: Props) {
     </Dialog>
   );
 }
-
