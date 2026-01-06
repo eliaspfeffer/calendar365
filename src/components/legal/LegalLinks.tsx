@@ -1,8 +1,15 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { DonateDialog } from "@/components/payments/DonateDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { useEntitlement } from "@/hooks/useEntitlement";
 
 export function LegalLinks() {
   const location = useLocation();
   const isLegalPage = location.pathname === "/imprint" || location.pathname === "/privacy";
+  const [donateOpen, setDonateOpen] = useState(false);
+  const { user } = useAuth();
+  const entitlement = useEntitlement(user?.id ?? null);
 
   if (isLegalPage) return null;
 
@@ -27,7 +34,12 @@ export function LegalLinks() {
         >
           Privacy
         </Link>
+        <span className="opacity-60">·</span>
+        <button type="button" className="hover:text-foreground" onClick={() => setDonateOpen(true)}>
+          Donate
+        </button>
       </div>
+      <DonateDialog open={donateOpen} onOpenChange={setDonateOpen} onUnlocked={entitlement.refresh} />
     </div>
   );
 }
