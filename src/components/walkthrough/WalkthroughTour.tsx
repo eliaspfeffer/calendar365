@@ -176,6 +176,34 @@ export function WalkthroughTour({
           : "Signing in lets you create multiple calendars, share them publicly, and invite others — while keeping your notes in sync.",
         targetSelector: '[data-tour-id=\"auth-button\"]',
       },
+      {
+        id: "feature-map",
+        title: "Tour guide",
+        body: `60 seconds, done.
+
+1. Pick a day → click/tap → write a sticky note.
+2. Drag notes between days; drag off the grid to park it in Todo List (undated).
+3. Hold Ctrl/⌘ and click two dated notes to link them (hover to see the line).
+4. If signed in: create calendars, invite others, or generate a public share link.
+
+Feature map (fast)
+
+- 🗓️ 365‑day year grid (multi‑year)
+- 🔍 Zoom + pan (touch/trackpad)
+- 📝 Sticky notes per day (color + strike)
+- 🧲 Drag‑and‑drop reschedule
+- 🧾 Todo List (undated notes)
+- 🧩 Freeform canvas notes (undated)
+- 🔗 Link notes (Ctrl/⌘ mode)
+- 👥 Multiple calendars + per‑calendar color
+- 👀 Toggle calendar visibility
+- 🔐 Optional sign‑in + cloud sync (Supabase)
+- 🤝 Invites with roles + expiry
+- 🌐 Public share links (+ optional password)
+- 📅 Google Calendar overlay (read‑only while open)
+- 💳 Optional PayPal unlock (unlimited notes)
+- 🧳 Works without login (local guest notes)`,
+      },
     ],
     [isAuthed, onRequestOpenSettings, onRequestOpenShare, onRequestOpenCreateCalendar]
   );
@@ -417,7 +445,9 @@ export function WalkthroughTour({
           </Button>
         </div>
 
-        <div className="mt-2 text-sm text-muted-foreground">{currentStep.body}</div>
+        <div className="mt-2 max-h-[50vh] overflow-auto pr-1 text-sm text-muted-foreground whitespace-pre-line">
+          {currentStep.body}
+        </div>
 
         {currentStep.id === "google" && !targetRect && (
           <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
