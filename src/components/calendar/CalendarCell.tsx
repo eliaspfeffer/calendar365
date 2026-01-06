@@ -19,7 +19,7 @@ interface CalendarCellProps {
   onLinkClick?: (noteId: string) => void;
   onNoteDragStart?: (noteId: string, e: React.DragEvent) => void;
   onNoteDragEnd?: () => void;
-  onDrop?: (date: string, noteId: string) => void;
+  onDrop?: (date: string, noteId: string, insertIndex?: number) => void;
   onDragOver?: (e: React.DragEvent) => void;
   scale: number;
   textOverflowMode: TextOverflowMode;
@@ -82,7 +82,28 @@ export function CalendarCell({
     if (noteId) {
       e.preventDefault();
       e.stopPropagation();
-      onDrop?.(dateKey, noteId);
+      const cell = e.currentTarget as HTMLElement;
+      const noteElements = Array.from(cell.querySelectorAll<HTMLElement>("[data-note-id]"));
+      const noteIds = noteElements
+        .map((el) => el.getAttribute("data-note-id"))
+        .filter((v): v is string => typeof v === "string" && v.length > 0);
+
+      let insertIndex = noteIds.length;
+      for (let i = 0; i < noteElements.length; i += 1) {
+        const rect = noteElements[i].getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        if (e.clientY < midpoint) {
+          insertIndex = i;
+          break;
+        }
+      }
+
+      const draggedIndex = noteIds.indexOf(noteId);
+      if (draggedIndex !== -1 && insertIndex > draggedIndex) {
+        insertIndex -= 1;
+      }
+
+      onDrop?.(dateKey, noteId, insertIndex);
     }
   };
 

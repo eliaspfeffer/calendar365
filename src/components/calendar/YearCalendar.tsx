@@ -623,7 +623,7 @@ export function YearCalendar({
   }, []);
 
   const handleNoteDrop = useCallback(
-    async (date: string, noteId: string) => {
+    async (date: string, noteId: string, insertIndex?: number) => {
       if (!noteId) {
         setDraggedNoteId(null);
         return;
@@ -633,8 +633,8 @@ export function YearCalendar({
         setDraggedNoteId(null);
         return;
       }
-      if (note && note.date !== date) {
-        const moved = await moveNote(noteId, date, connections);
+      if (note) {
+        const moved = await moveNote(noteId, date, connections, insertIndex);
         if (!moved.ok) {
           const err = moved.error;
           const details = err?.message
@@ -658,10 +658,12 @@ export function YearCalendar({
           setDraggedNoteId(null);
           return;
         }
-        toast({
-          title: "Note moved",
-          description: `Note moved to ${new Date(date).toLocaleDateString()}`,
-        });
+        if (note.date !== date) {
+          toast({
+            title: "Note moved",
+            description: `Note moved to ${new Date(date).toLocaleDateString()}`,
+          });
+        }
       } else if (!note) {
         console.warn("Note not found:", noteId);
       }

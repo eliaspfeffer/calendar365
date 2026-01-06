@@ -10,6 +10,9 @@ export interface StickyNote {
   is_struck?: boolean;
   pos_x?: number | null; // For undated notes placed on the canvas
   pos_y?: number | null; // For undated notes placed on the canvas
+  sort_order?: number | null; // Ordering within a single day (lower = higher)
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface NoteConnection {
