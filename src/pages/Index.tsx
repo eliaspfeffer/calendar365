@@ -973,6 +973,8 @@ const Index = () => {
         isAuthed={!!user}
         onRequestOpenSettings={() => setSettingsDialogOpen(true)}
         onRequestCloseSettings={() => setSettingsDialogOpen(false)}
+        onRequestOpenShare={() => setShareDialogOpen(true)}
+        onRequestCloseShare={() => setShareDialogOpen(false)}
       />
     </div>
   );

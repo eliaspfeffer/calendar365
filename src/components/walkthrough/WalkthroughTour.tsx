@@ -46,12 +46,16 @@ export function WalkthroughTour({
   isAuthed,
   onRequestOpenSettings,
   onRequestCloseSettings,
+  onRequestOpenShare,
+  onRequestCloseShare,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isAuthed: boolean;
   onRequestOpenSettings: () => void;
   onRequestCloseSettings: () => void;
+  onRequestOpenShare: () => void;
+  onRequestCloseShare: () => void;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -93,11 +97,24 @@ export function WalkthroughTour({
         optional: true,
       },
       {
-        id: "share-and-calendars",
-        title: "Share & sub-calendars",
+        id: "share-button",
+        title: "Kalender teilen",
+        body: "Use this button to share the current calendar (invite link or public link).",
+        targetSelector: '[data-tour-id=\"calendar-share\"]',
+        when: ({ isAuthed }) => isAuthed,
+        optional: true,
+      },
+      {
+        id: "share-dialog",
+        title: "Invite others or publish a link",
         body:
-          "Create multiple sub-calendars (each with its own default sticky-note color) and share calendars with others when you sign in.",
-        targetSelector: '[data-tour-id=\"auth-button\"]',
+          "Create invite links with permissions (can edit / view only), or publish a public share link (optionally password-protected).",
+        targetSelector: '[data-tour-id=\"share-dialog\"]',
+        when: ({ isAuthed }) => isAuthed,
+        optional: true,
+        onEnter: () => {
+          onRequestOpenShare();
+        },
       },
       {
         id: "years",
@@ -121,14 +138,6 @@ export function WalkthroughTour({
         body:
           "Each calendar can have its own default sticky-note color — handy for visual separation.",
         targetSelector: '[data-tour-id=\"calendar-visibility\"]',
-        when: ({ isAuthed }) => isAuthed,
-        optional: true,
-      },
-      {
-        id: "share-ui",
-        title: "Share with others",
-        body: "Share a calendar or invite others (depending on your setup and permissions).",
-        targetSelector: '[data-tour-id=\"calendar-share\"]',
         when: ({ isAuthed }) => isAuthed,
         optional: true,
       },
@@ -252,9 +261,15 @@ export function WalkthroughTour({
 
   useEffect(() => {
     if (!open) return;
-    if (currentStep.id === "google") return;
-    onRequestCloseSettings();
-  }, [open, currentStep.id, onRequestCloseSettings]);
+    if (currentStep.id === "google") onRequestOpenSettings();
+    else onRequestCloseSettings();
+  }, [open, currentStep.id, onRequestCloseSettings, onRequestOpenSettings]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (currentStep.id === "share-dialog") onRequestOpenShare();
+    else onRequestCloseShare();
+  }, [open, currentStep.id, onRequestCloseShare, onRequestOpenShare]);
 
   useEffect(() => {
     if (!open) return;
