@@ -90,7 +90,7 @@ function SingleYearGrid({
       {/* Header */}
       <div className="bg-calendar-header px-8 py-6">
         <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-primary-foreground tracking-wider text-center">
-          WWW.CALENDAR365.APP YEAR {year}
+          YEAR {year} www.calendar365.app
         </h1>
       </div>
 
