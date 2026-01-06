@@ -797,7 +797,6 @@ export function YearCalendar({
 
       const target = e.target as HTMLElement;
       if (
-        target.closest(".year-calendar-grid") ||
         target.closest(".inbox-notes-panel") ||
         target.closest(".zoom-controls") ||
         target.closest(".year-range-controls") ||
@@ -805,6 +804,23 @@ export function YearCalendar({
         target.closest('[data-radix-dialog-content]') ||
         target.closest('[role="dialog"]')
       ) {
+        return;
+      }
+
+      // If the click happened inside a calendar day cell, treat it as a date click
+      // (even if the event bubbled to the outer container) so new notes "stick" to that date.
+      const cell = target.closest<HTMLElement>("[data-date-key]");
+      const dateKey = cell?.dataset?.dateKey ?? null;
+      if (dateKey) {
+        setSelectedDate(dateKey);
+        setEditingNote(null);
+        setNewNotePosition(null);
+        setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+        setDialogOpen(true);
+        return;
+      }
+
+      if (target.closest(".year-calendar-grid")) {
         return;
       }
 
