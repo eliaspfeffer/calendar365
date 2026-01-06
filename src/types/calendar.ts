@@ -7,6 +7,7 @@ export interface StickyNote {
   date: string | null; // Format: YYYY-MM-DD (null means "Todo List"/undated)
   text: string;
   color: StickyColor;
+  is_struck?: boolean;
   pos_x?: number | null; // For undated notes placed on the canvas
   pos_y?: number | null; // For undated notes placed on the canvas
 }

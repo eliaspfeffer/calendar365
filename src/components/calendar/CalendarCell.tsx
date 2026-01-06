@@ -13,6 +13,7 @@ interface CalendarCellProps {
   events?: GoogleCalendarDayEvent[];
   onCellClick: () => void;
   onNoteClick: (note: StickyNote) => void;
+  onToggleNoteStrikethrough?: (noteId: string, next: boolean) => void;
   onDeleteNote: (id: string) => void;
   onNoteHover: (noteId: string | null) => void;
   onLinkClick?: (noteId: string) => void;
@@ -36,6 +37,7 @@ export function CalendarCell({
   events = [],
   onCellClick,
   onNoteClick,
+  onToggleNoteStrikethrough,
   onDeleteNote,
   onNoteHover,
   onLinkClick,
@@ -155,6 +157,7 @@ export function CalendarCell({
               note={note}
               onDelete={onDeleteNote}
               onClick={() => onNoteClick(note)}
+              onToggleStrikethrough={onToggleNoteStrikethrough}
               onHover={onNoteHover}
               onLinkClick={onLinkClick}
               onDragStart={onNoteDragStart}
@@ -190,6 +193,7 @@ export function CalendarCell({
               note={note}
               onDelete={onDeleteNote}
               onClick={() => onNoteClick(note)}
+              onToggleStrikethrough={onToggleNoteStrikethrough}
               onHover={onNoteHover}
               onLinkClick={onLinkClick}
               onDragStart={onNoteDragStart}
@@ -225,6 +229,7 @@ export function CalendarCell({
               note={note}
               onDelete={onDeleteNote}
               onClick={() => onNoteClick(note)}
+              onToggleStrikethrough={onToggleNoteStrikethrough}
               onHover={onNoteHover}
               onLinkClick={onLinkClick}
               onDragStart={onNoteDragStart}

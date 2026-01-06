@@ -39,6 +39,7 @@ interface SingleYearGridProps {
   getEventsByDate?: (date: string) => GoogleCalendarDayEvent[];
   onCellClick: (date: Date) => void;
   onNoteClick: (note: StickyNote) => void;
+  onToggleNoteStrikethrough?: (noteId: string, next: boolean) => void;
   onDeleteNote: (id: string) => void;
   onNoteHover: (noteId: string | null) => void;
   onLinkClick?: (noteId: string) => void;
@@ -62,6 +63,7 @@ function SingleYearGrid({
   getEventsByDate,
   onCellClick,
   onNoteClick,
+  onToggleNoteStrikethrough,
   onDeleteNote,
   onNoteHover,
   onLinkClick,
@@ -114,6 +116,7 @@ function SingleYearGrid({
                   events={getEventsByDate?.(formatDateKey(day.date)) ?? []}
                   onCellClick={() => onCellClick(day.date)}
                   onNoteClick={onNoteClick}
+                  onToggleNoteStrikethrough={onToggleNoteStrikethrough}
                   onDeleteNote={onDeleteNote}
                   onNoteHover={onNoteHover}
                   onLinkClick={onLinkClick}
@@ -213,6 +216,7 @@ export function YearCalendar({
     notes,
     addNote,
     updateNote,
+    setNoteStruck,
     moveNote,
     moveNoteToCanvas,
     deleteNote,
@@ -513,6 +517,14 @@ export function YearCalendar({
       setDialogOpen(true);
     },
     [isDragging, draggedNoteId, userId, isGuestNote]
+  );
+
+  const handleToggleNoteStrikethrough = useCallback(
+    (noteId: string, next: boolean) => {
+      if (isLinkMode) return;
+      void setNoteStruck(noteId, next);
+    },
+    [isLinkMode, setNoteStruck]
   );
 
   const handleLinkClick = useCallback(
@@ -1019,6 +1031,7 @@ export function YearCalendar({
                       getEventsByDate={getGoogleEventsByDate}
                       onCellClick={handleCellClick}
                       onNoteClick={handleNoteClick}
+                      onToggleNoteStrikethrough={handleToggleNoteStrikethrough}
                       onDeleteNote={(id) => {
                       deleteNote(id);
                       }}
@@ -1203,6 +1216,7 @@ export function YearCalendar({
                       deleteNote(id);
                     }}
                     onClick={() => handleNoteClick(note)}
+                    onToggleStrikethrough={handleToggleNoteStrikethrough}
                     onHover={handleNoteHover}
                     onLinkClick={handleLinkClick}
                     onDragStart={handleNoteDragStart}
@@ -1259,6 +1273,7 @@ export function YearCalendar({
             setDialogOpen(true);
           }}
           onNoteClick={handleInboxNoteClick}
+          onToggleNoteStrikethrough={handleToggleNoteStrikethrough}
           onDeleteNote={(id) => {
             deleteNote(id);
           }}

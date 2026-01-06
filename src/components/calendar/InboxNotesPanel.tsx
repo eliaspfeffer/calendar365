@@ -12,6 +12,7 @@ interface InboxNotesPanelProps {
   notes: StickyNote[];
   onNewNote: () => void;
   onNoteClick: (note: StickyNote) => void;
+  onToggleNoteStrikethrough?: (noteId: string, next: boolean) => void;
   onDeleteNote: (id: string) => void;
   onNoteHover: (noteId: string | null) => void;
   onDropToInbox: (noteId: string) => void;
@@ -25,6 +26,7 @@ export function InboxNotesPanel({
   notes,
   onNewNote,
   onNoteClick,
+  onToggleNoteStrikethrough,
   onDeleteNote,
   onNoteHover,
   onDropToInbox,
@@ -155,6 +157,7 @@ export function InboxNotesPanel({
                     note={note}
                     onDelete={onDeleteNote}
                     onClick={() => onNoteClick(note)}
+                    onToggleStrikethrough={onToggleNoteStrikethrough}
                     onHover={onNoteHover}
                     scale={1}
                     textOverflowMode={textOverflowMode}

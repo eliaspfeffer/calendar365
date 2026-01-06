@@ -8,6 +8,7 @@ interface StickyNoteComponentProps {
   note: StickyNote;
   onDelete: (id: string) => void;
   onClick: () => void;
+  onToggleStrikethrough?: (noteId: string, next: boolean) => void;
   onHover: (noteId: string | null) => void;
   onLinkClick?: (noteId: string) => void;
   onDragStart?: (noteId: string, e: React.DragEvent) => void;
@@ -35,6 +36,7 @@ export function StickyNoteComponent({
   note,
   onDelete,
   onClick,
+  onToggleStrikethrough,
   onHover,
   onLinkClick,
   onDragStart,
@@ -85,6 +87,12 @@ export function StickyNoteComponent({
       hasDraggedRef.current = false;
       e.preventDefault();
       e.stopPropagation();
+      return;
+    }
+    if (!isLinkMode && e.altKey && onToggleStrikethrough) {
+      e.preventDefault();
+      e.stopPropagation();
+      onToggleStrikethrough(note.id, !note.is_struck);
       return;
     }
     if (isLinkMode && onLinkClick) {
@@ -200,6 +208,7 @@ export function StickyNoteComponent({
       <p
         className={cn(
           "font-medium text-foreground/90 leading-tight pr-3",
+          note.is_struck && "line-through text-foreground/60",
           getTextStyles()
         )}
         style={{ wordBreak: "break-word" }}

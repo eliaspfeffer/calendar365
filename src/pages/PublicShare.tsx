@@ -88,6 +88,7 @@ export default function PublicShare() {
           date: string | null;
           text: string;
           color: StickyColor;
+          is_struck?: boolean;
           pos_x: number | null;
           pos_y: number | null;
         }>;
@@ -108,6 +109,7 @@ export default function PublicShare() {
           date: n.date,
           text: n.text,
           color: n.color,
+          is_struck: typeof n.is_struck === "boolean" ? n.is_struck : false,
           pos_x: n.pos_x,
           pos_y: n.pos_y,
         }))
