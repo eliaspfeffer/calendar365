@@ -157,6 +157,7 @@ interface YearCalendarProps {
   userId: string | null;
   visibleCalendarIds: string[] | null;
   activeCalendarId: string | null;
+  refreshToken?: number;
   onAuthRequired?: () => void;
   skipHideYearConfirm?: boolean;
   onSkipHideYearConfirmChange?: (skip: boolean) => void;
@@ -182,6 +183,7 @@ export function YearCalendar({
   userId,
   visibleCalendarIds,
   activeCalendarId,
+  refreshToken = 0,
   onAuthRequired,
   skipHideYearConfirm = false,
   onSkipHideYearConfirmChange,
@@ -222,14 +224,14 @@ export function YearCalendar({
     moveNoteToCanvas,
     deleteNote,
     getNotesByDate,
-  } = useStickyNotes(userId, visibleCalendarIds, activeCalendarId);
+  } = useStickyNotes(userId, visibleCalendarIds, activeCalendarId, refreshToken);
   const {
     connections,
     addConnection,
     deleteConnection,
     getConnectedNotes,
     getConnectionsForNote,
-  } = useNoteConnections(userId, visibleCalendarIds, activeCalendarId);
+  } = useNoteConnections(userId, visibleCalendarIds, activeCalendarId, refreshToken);
   const { toast } = useToast();
   const {
     scale,
