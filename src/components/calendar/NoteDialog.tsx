@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,18 +42,39 @@ export function NoteDialog({
   const [colorTouched, setColorTouched] = useState(false);
   const [newDate, setNewDate] = useState<string>('');
 
+  const prevOpenRef = useRef(false);
+  const prevExistingNoteIdRef = useRef<string | null>(null);
+  const prevDateRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (existingNote) {
-      setText(existingNote.text);
-      setColor(existingNote.color);
-      setColorTouched(true);
-      setNewDate(existingNote.date ?? '');
-    } else {
-      setText('');
-      setColor(defaultColor ?? 'yellow');
-      setColorTouched(false);
-      setNewDate(date || '');
+    const prevOpen = prevOpenRef.current;
+    const prevExistingNoteId = prevExistingNoteIdRef.current;
+    const prevDate = prevDateRef.current;
+
+    const justOpened = open && !prevOpen;
+    const existingNoteId = existingNote?.id ?? null;
+    const existingNoteChanged = existingNoteId !== prevExistingNoteId;
+    const dateChanged = date !== prevDate;
+
+    if (open) {
+      if (existingNote) {
+        if (justOpened || existingNoteChanged) {
+          setText(existingNote.text);
+          setColor(existingNote.color);
+          setColorTouched(true);
+          setNewDate(existingNote.date ?? '');
+        }
+      } else if (justOpened || dateChanged || existingNoteChanged) {
+        setText('');
+        setColor(defaultColor ?? 'yellow');
+        setColorTouched(false);
+        setNewDate(date || '');
+      }
     }
+
+    prevOpenRef.current = open;
+    prevExistingNoteIdRef.current = existingNoteId;
+    prevDateRef.current = date;
   }, [existingNote, open, date, defaultColor]);
 
   useEffect(() => {
