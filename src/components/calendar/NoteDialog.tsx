@@ -87,7 +87,11 @@ export function NoteDialog({
   const handleSave = async () => {
     if (text.trim()) {
       const normalizedExistingDate = existingNote?.date ?? null;
-      const normalizedNewDate = newDate.trim() ? newDate : null;
+      // New notes don't expose an editable date field, so rely on the provided `date`
+      // prop to avoid saving with a stale `newDate` value before effects run.
+      const normalizedNewDate = existingNote
+        ? (newDate.trim() ? newDate : null)
+        : (date?.trim() ? date : null);
       const normalizedCalendarId = calendarId ?? existingNote?.calendar_id ?? null;
 
       // Check if date changed for existing note
