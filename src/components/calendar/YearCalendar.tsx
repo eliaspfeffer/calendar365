@@ -217,6 +217,7 @@ export function YearCalendar({
     addNote,
     updateNote,
     setNoteStruck,
+    updateNoteCalendar,
     moveNote,
     moveNoteToCanvas,
     deleteNote,
@@ -225,6 +226,7 @@ export function YearCalendar({
   const {
     connections,
     addConnection,
+    deleteConnection,
     getConnectedNotes,
     getConnectionsForNote,
   } = useNoteConnections(userId, visibleCalendarIds, activeCalendarId);
@@ -251,6 +253,7 @@ export function YearCalendar({
   const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
   const [newNotePosition, setNewNotePosition] = useState<{ x: number; y: number } | null>(null);
   const [newNoteCalendarId, setNewNoteCalendarId] = useState<string | null>(activeCalendarId);
+  const [editingNoteCalendarId, setEditingNoteCalendarId] = useState<string | null>(null);
   const didAutoFocusTodayRef = useRef(false);
   const [yearBeingHidden, setYearBeingHidden] = useState<number | null>(null);
   const focusAfterYearChangeRef = useRef(false);
@@ -488,6 +491,7 @@ export function YearCalendar({
       if (draggedNoteId) return; // Don't open dialog while dragging
       setSelectedDate(formatDateKey(date));
       setEditingNote(null);
+      setEditingNoteCalendarId(null);
       setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
       setDialogOpen(true);
     },
@@ -502,6 +506,7 @@ export function YearCalendar({
       if (!userId && !isGuestNote(note)) return;
       setSelectedDate(note.date ?? null);
       setEditingNote(note);
+      setEditingNoteCalendarId(note.calendar_id ?? null);
       setDialogOpen(true);
     },
     [isDragging, isLinkMode, draggedNoteId, userId, isGuestNote]
@@ -514,6 +519,7 @@ export function YearCalendar({
       if (!userId && !isGuestNote(note)) return;
       setSelectedDate(note.date ?? null);
       setEditingNote(note);
+      setEditingNoteCalendarId(note.calendar_id ?? null);
       setDialogOpen(true);
     },
     [isDragging, draggedNoteId, userId, isGuestNote]
@@ -805,6 +811,7 @@ export function YearCalendar({
 
       setSelectedDate(null);
       setEditingNote(null);
+      setEditingNoteCalendarId(null);
       setNewNotePosition(point);
       setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
       setDialogOpen(true);
@@ -813,9 +820,30 @@ export function YearCalendar({
   );
 
   const handleSaveNote = useCallback(
-    async (text: string, color: StickyColor, date: string | null) => {
+    async (text: string, color: StickyColor, date: string | null, calendarId: string | null) => {
       if (editingNote) {
         if (!userId && !isGuestNote(editingNote)) return false;
+        const targetCalendarId = calendarId ?? editingNote.calendar_id ?? null;
+        if (userId && targetCalendarId && targetCalendarId !== editingNote.calendar_id) {
+          const conns = getConnectionsForNote(editingNote.id);
+          if (conns.length > 0) {
+            // Links are only allowed within the same calendar; changing calendars should drop existing links.
+            await Promise.all(conns.map((c) => deleteConnection(c.id)));
+          }
+
+          const movedCalendar = await updateNoteCalendar(editingNote.id, targetCalendarId);
+          if (!movedCalendar.ok) {
+            const details = movedCalendar.error?.message
+              ? `${movedCalendar.error.message}${movedCalendar.error.code ? ` (${movedCalendar.error.code})` : ""}`
+              : null;
+            toast({
+              title: "Couldn’t change calendar",
+              description: details ? `The change wasn’t saved: ${details}` : "The change wasn’t saved to Supabase.",
+              variant: "destructive",
+            });
+            return false;
+          }
+        }
         const updated = await updateNote(editingNote.id, text, color);
         if (!updated) {
           toast({
@@ -837,7 +865,7 @@ export function YearCalendar({
           text,
           color,
           date ? null : newNotePosition,
-          newNoteCalendarId
+          calendarId ?? newNoteCalendarId
         );
         if (!result.note) {
           const msg = `${result.error?.message ?? ""} ${result.error?.details ?? ""}`.toLowerCase();
@@ -879,11 +907,14 @@ export function YearCalendar({
       editingNote,
       addNote,
       updateNote,
+      updateNoteCalendar,
       toast,
       onAuthRequired,
       userId,
       newNotePosition,
       newNoteCalendarId,
+      getConnectionsForNote,
+      deleteConnection,
       isGuestNote,
       hasLifetimeAccess,
       noteCount,
@@ -1270,6 +1301,7 @@ export function YearCalendar({
           onNewNote={() => {
             setSelectedDate(null);
             setEditingNote(null);
+            setEditingNoteCalendarId(null);
             setNewNotePosition(null);
             setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
             setDialogOpen(true);
@@ -1300,8 +1332,8 @@ export function YearCalendar({
         onDelete={editingNote ? handleDeleteNote : undefined}
         onMove={editingNote ? handleMoveNote : undefined}
         calendarOptions={calendarOptions && calendarOptions.length > 1 ? calendarOptions : undefined}
-        calendarId={!editingNote ? newNoteCalendarId : null}
-        onCalendarChange={!editingNote ? setNewNoteCalendarId : undefined}
+        calendarId={editingNote ? (editingNoteCalendarId ?? editingNote.calendar_id ?? null) : newNoteCalendarId}
+        onCalendarChange={editingNote ? setEditingNoteCalendarId : setNewNoteCalendarId}
         defaultColor={
           !editingNote && newNoteCalendarId
             ? coerceStickyColor(calendarDefaultNoteColorById?.[newNoteCalendarId], "yellow")
