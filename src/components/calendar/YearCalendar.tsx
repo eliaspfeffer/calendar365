@@ -1025,6 +1025,7 @@ export function YearCalendar({
   return (
     <div
       ref={containerRef}
+      data-tour-id="calendar-canvas"
       className={cn(
         "w-full h-screen overflow-hidden bg-muted relative touch-none select-none",
         draggedNoteId ? "cursor-grabbing" : "cursor-grab active:cursor-grabbing"
@@ -1089,6 +1090,7 @@ export function YearCalendar({
                       {onAddYear && !onRemoveLastYear ? (
                         <button
                           type="button"
+                          data-tour-id="year-controls"
                           className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-4 py-3 shadow-lg border border-border z-40 touch-auto cursor-pointer"
                           onMouseDown={(e) => e.stopPropagation()}
                           onPointerDown={(e) => {
@@ -1116,6 +1118,7 @@ export function YearCalendar({
                         </button>
                       ) : (
                         <div
+                          data-tour-id="year-controls"
                           className="year-range-controls mt-4 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-3 py-2 shadow-lg border border-border z-40 touch-auto"
                           onMouseDown={(e) => e.stopPropagation()}
                           onPointerDown={(e) => {

@@ -153,7 +153,10 @@ export function SettingsDialog({
           onOpenChange(nextOpen);
         }}
       >
-        <DialogContent className="sm:max-w-md flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden">
+        <DialogContent
+          data-tour-id="settings-dialog"
+          className="sm:max-w-md flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden"
+        >
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
@@ -362,7 +365,7 @@ export function SettingsDialog({
             </div>
 
             <Separator />
-            <div className="space-y-3">
+            <div className="space-y-3" data-tour-id="settings-google-sync">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <Label className="text-base font-medium" htmlFor="google-sync-enabled">

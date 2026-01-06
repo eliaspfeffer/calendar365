@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { useGoogleCalendarSync } from "@/hooks/useGoogleCalendarSync";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { GripVertical, LogOut, Loader2, LogIn, Pencil, Settings, Share2, Plus, Layers, Trash2, FileCode2 } from 'lucide-react';
+import { LogOut, Loader2, LogIn, Settings, Share2, Plus, Sparkles, GripVertical, Pencil, Layers, Trash2, FileCode2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
@@ -35,6 +35,7 @@ import {
 import { PaywallDialog } from "@/components/payments/PaywallDialog";
 import { getFreeNotesLimit } from "@/lib/paywallConfig";
 import { YamlImportExportDialog } from "@/components/yaml/YamlImportExportDialog";
+import { WalkthroughTour } from "@/components/walkthrough/WalkthroughTour";
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
@@ -61,6 +62,7 @@ const Index = () => {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [yamlDialogOpen, setYamlDialogOpen] = useState(false);
   const [calendarDataRefreshToken, setCalendarDataRefreshToken] = useState(0);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
 
   const entitlement = useEntitlement(user?.id ?? null);
   const freeNotesLimit = useMemo(() => getFreeNotesLimit(), []);
@@ -335,6 +337,21 @@ const Index = () => {
     setLoginDialogOpen(true);
   };
 
+  // Auto-open tour for first-time visitors when logged out.
+  useEffect(() => {
+    if (isLoading) return;
+    if (user) return;
+    let completed = false;
+    try {
+      completed = window.localStorage.getItem("calendar365_walkthrough_v1_completed") === "1";
+    } catch {
+      completed = false;
+    }
+    if (completed) return;
+    const t = window.setTimeout(() => setWalkthroughOpen(true), 900);
+    return () => window.clearTimeout(t);
+  }, [isLoading, user]);
+
   const requestDeleteCalendar = async (calendar: CalendarSummary) => {
     if (!user) return;
 
@@ -499,6 +516,7 @@ const Index = () => {
             disabled={calendarsLoading || orderedCalendars.length === 0}
           >
             <SelectTrigger
+              data-tour-id="calendar-switcher"
               className={[
                 "w-[160px] max-w-[60vw] bg-background/80 backdrop-blur-sm sm:w-[220px]",
                 appearingCalendarId && effectiveCalendarId === appearingCalendarId ? "animate-in fade-in-0 zoom-in-95" : "",
@@ -518,6 +536,7 @@ const Index = () => {
           <Popover open={calendarVisibilityPopoverOpen} onOpenChange={setCalendarVisibilityPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
+                data-tour-id="calendar-visibility"
                 variant="outline"
                 size="sm"
                 className="bg-background/80 backdrop-blur-sm"
@@ -683,6 +702,7 @@ const Index = () => {
           </Popover>
 
           <Button
+            data-tour-id="calendar-create"
             variant="outline"
             size="sm"
             onClick={() => {
@@ -705,6 +725,7 @@ const Index = () => {
           </Button>
 
           <Button
+            data-tour-id="calendar-share"
             variant="outline"
             size="sm"
             onClick={() => setShareDialogOpen(true)}
@@ -721,6 +742,18 @@ const Index = () => {
       <div data-top-controls className="fixed right-4 z-50 flex gap-2 top-16 sm:top-4">
         <GitHubStarsBadge />
         <Button
+          data-tour-id="tour-button"
+          variant="outline"
+          size="sm"
+          onClick={() => setWalkthroughOpen(true)}
+          className="bg-background/80 backdrop-blur-sm"
+          title="Take a quick tour"
+        >
+          <Sparkles className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Tour</span>
+        </Button>
+        <Button
+          data-tour-id="settings-button"
           variant="outline"
           size="sm"
           onClick={() => setYamlDialogOpen(true)}
@@ -739,6 +772,7 @@ const Index = () => {
         </Button>
         {user ? (
           <Button
+            data-tour-id="auth-button"
             variant="outline"
             size="sm"
             onClick={handleSignOut}
@@ -749,6 +783,7 @@ const Index = () => {
           </Button>
         ) : (
           <Button
+            data-tour-id="auth-button"
             variant="outline"
             size="sm"
             onClick={() => setLoginDialogOpen(true)}
@@ -928,6 +963,13 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <WalkthroughTour
+        open={walkthroughOpen}
+        onOpenChange={setWalkthroughOpen}
+        isAuthed={!!user}
+        onRequestOpenSettings={() => setSettingsDialogOpen(true)}
+      />
     </div>
   );
 };
