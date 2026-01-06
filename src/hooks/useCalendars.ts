@@ -154,7 +154,9 @@ export function useCalendars(userId: string | null) {
       if (!userId) return { id: null, error: "Nicht angemeldet." };
       const attemptWithColor = await supabase.rpc("create_calendar", {
         p_name: name,
-        ...(defaultNoteColor ? { p_default_note_color: defaultNoteColor } : {}),
+        // Always provide a color to avoid PostgREST ambiguity when both
+        // `create_calendar(text)` and `create_calendar(text, text DEFAULT ...)` exist.
+        p_default_note_color: defaultNoteColor ?? "yellow",
       });
       let data = attemptWithColor.data;
       let error = attemptWithColor.error;
