@@ -494,10 +494,12 @@ export function YearCalendar({
       setSelectedDate(formatDateKey(date));
       setEditingNote(null);
       setEditingNoteCalendarId(null);
-      setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+      setNewNoteCalendarId(
+        userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+      );
       setDialogOpen(true);
     },
-    [userId, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds]
+    [userId, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds, calendarOptions]
   );
 
   const handleNoteClick = useCallback(
@@ -815,7 +817,9 @@ export function YearCalendar({
         setSelectedDate(dateKey);
         setEditingNote(null);
         setNewNotePosition(null);
-        setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+        setNewNoteCalendarId(
+          userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+        );
         setDialogOpen(true);
         return;
       }
@@ -831,10 +835,12 @@ export function YearCalendar({
       setEditingNote(null);
       setEditingNoteCalendarId(null);
       setNewNotePosition(point);
-      setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+      setNewNoteCalendarId(
+        userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+      );
       setDialogOpen(true);
     },
-    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds]
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds, calendarOptions]
   );
 
   const handleSaveNote = useCallback(
@@ -1324,7 +1330,9 @@ export function YearCalendar({
             setEditingNote(null);
             setEditingNoteCalendarId(null);
             setNewNotePosition(null);
-            setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+            setNewNoteCalendarId(
+              userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+            );
             setDialogOpen(true);
           }}
           onNoteClick={handleInboxNoteClick}
@@ -1352,7 +1360,7 @@ export function YearCalendar({
         onSave={handleSaveNote}
         onDelete={editingNote ? handleDeleteNote : undefined}
         onMove={editingNote ? handleMoveNote : undefined}
-        calendarOptions={calendarOptions && calendarOptions.length > 1 ? calendarOptions : undefined}
+        calendarOptions={calendarOptions ?? undefined}
         calendarId={editingNote ? (editingNoteCalendarId ?? editingNote.calendar_id ?? null) : newNoteCalendarId}
         onCalendarChange={editingNote ? setEditingNoteCalendarId : setNewNoteCalendarId}
         defaultColor={
