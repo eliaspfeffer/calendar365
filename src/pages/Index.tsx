@@ -211,6 +211,7 @@ const Index = () => {
   };
 
   const updateCalendarDefaultNoteColor = async (calendarId: string, color: StickyColor) => {
+    const previousDefault = calendarDefaultNoteColorById[calendarId] ?? "yellow";
     const { error } = await supabase.from("calendars").update({ default_note_color: color }).eq("id", calendarId);
     if (error) {
       toast({
@@ -220,6 +221,30 @@ const Index = () => {
       });
       return;
     }
+
+    // Keep existing notes in sync with the calendar's default color, but only if they
+    // still use the previous default (so manual per-note color choices are preserved).
+    if (previousDefault !== color) {
+      const notesUpdate = await supabase
+        .from("sticky_notes")
+        .update({ color })
+        .eq("calendar_id", calendarId)
+        .eq("color", previousDefault);
+
+      if (notesUpdate.error) {
+        const msg = `${notesUpdate.error.message ?? ""} ${notesUpdate.error.details ?? ""}`.toLowerCase();
+        const isMissingCalendarId =
+          notesUpdate.error.code === "42703" || (msg.includes("calendar_id") && msg.includes("does not exist"));
+        if (!isMissingCalendarId) {
+          toast({
+            title: "Calendar color updated, but some notes weren’t updated",
+            description: notesUpdate.error.message,
+            variant: "destructive",
+          });
+        }
+      }
+    }
+
     refreshCalendars();
     toast({ title: "Default note color updated" });
   };
