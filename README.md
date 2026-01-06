@@ -17,6 +17,14 @@ A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 - Touch: pinch to zoom, drag to pan
 - Trackpad: pinch (or Ctrl/⌘ + scroll) to zoom, scroll to pan
 
+## YAML import/export
+
+- Open the `YAML import/export` dialog via the code icon in the top-right controls.
+- Select a sub-calendar and use **Export** to copy a YAML 1.2 document you can paste into any chat/LLM.
+- Edit the YAML and use **Import** to merge changes (or choose “Replace existing notes in this calendar”).
+
+Schema: `calendar365.notes.v1` with one entry per note. Fields include `calendar`, `date` (or `float` for undated notes), `text`, `color`, and `connection`.
+
 ## Local development
 
 Prereqs: Node.js 18+ and npm (or Bun).

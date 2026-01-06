@@ -7,7 +7,8 @@ import { exampleConnections } from '@/data/exampleCalendar';
 export function useNoteConnections(
   userId: string | null,
   calendarIds: string[] | null,
-  defaultInsertCalendarId: string | null
+  defaultInsertCalendarId: string | null,
+  refreshToken = 0
 ) {
   const [connections, setConnections] = useState<NoteConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,7 +81,7 @@ export function useNoteConnections(
     };
 
     fetchConnections();
-  }, [userId, calendarIds, isMissingCalendarIdColumn]);
+  }, [userId, calendarIds, isMissingCalendarIdColumn, refreshToken]);
 
   const deleteConnection = useCallback(async (id: string) => {
     if (!userId) return;

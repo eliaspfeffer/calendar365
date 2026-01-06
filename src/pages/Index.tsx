@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSettings } from '@/hooks/useSettings';
 import { useGoogleCalendarSync } from "@/hooks/useGoogleCalendarSync";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { GripVertical, LogOut, Loader2, LogIn, Pencil, Settings, Share2, Plus, Layers, Trash2 } from 'lucide-react';
+import { GripVertical, LogOut, Loader2, LogIn, Pencil, Settings, Share2, Plus, Layers, Trash2, FileCode2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { LoginDialog } from '@/components/auth/LoginDialog';
 import { SettingsDialog } from '@/components/settings/SettingsDialog';
@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PaywallDialog } from "@/components/payments/PaywallDialog";
 import { getFreeNotesLimit } from "@/lib/paywallConfig";
+import { YamlImportExportDialog } from "@/components/yaml/YamlImportExportDialog";
 
 const Index = () => {
   const { user, isLoading, signOut } = useAuth();
@@ -58,6 +59,8 @@ const Index = () => {
   const [appearingCalendarId, setAppearingCalendarId] = useState<string | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [yamlDialogOpen, setYamlDialogOpen] = useState(false);
+  const [calendarDataRefreshToken, setCalendarDataRefreshToken] = useState(0);
 
   const entitlement = useEntitlement(user?.id ?? null);
   const freeNotesLimit = useMemo(() => getFreeNotesLimit(), []);
@@ -720,6 +723,15 @@ const Index = () => {
         <Button
           variant="outline"
           size="sm"
+          onClick={() => setYamlDialogOpen(true)}
+          className="bg-background/80 backdrop-blur-sm"
+          title="YAML import/export"
+        >
+          <FileCode2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setSettingsDialogOpen(true)}
           className="bg-background/80 backdrop-blur-sm"
         >
@@ -753,6 +765,7 @@ const Index = () => {
         userId={user?.id || null}
         visibleCalendarIds={effectiveVisibleCalendarIds}
         activeCalendarId={effectiveCalendarId}
+        refreshToken={calendarDataRefreshToken}
         onAuthRequired={handleAuthRequired}
         skipHideYearConfirm={settings.skipHideYearConfirm}
         onSkipHideYearConfirmChange={(skip) => updateSettings({ skipHideYearConfirm: skip })}
@@ -778,6 +791,14 @@ const Index = () => {
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />
+      <YamlImportExportDialog
+        open={yamlDialogOpen}
+        onOpenChange={setYamlDialogOpen}
+        userId={user?.id || null}
+        calendars={orderedCalendars}
+        activeCalendarId={effectiveCalendarId}
+        onImported={() => setCalendarDataRefreshToken((v) => v + 1)}
+      />
       <PaywallDialog
         open={paywallOpen}
         onOpenChange={setPaywallOpen}
