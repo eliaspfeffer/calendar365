@@ -531,7 +531,7 @@ const Index = () => {
                       <div
                         key={c.id}
                         className={[
-                          "rounded-md px-1 overflow-x-auto",
+                          "flex items-center gap-2 rounded-md px-1 overflow-x-auto",
                           draggingCalendarId === c.id ? "opacity-60" : "",
                           dragOverCalendarId === c.id ? "bg-muted/60" : "",
                           appearingCalendarId === c.id ? "animate-in fade-in-0 zoom-in-95" : "",
@@ -550,99 +550,97 @@ const Index = () => {
                           setDragOverCalendarId(null);
                         }}
                       >
-                        <div className="flex items-center gap-2 min-w-max py-0.5">
-                          <button
-                            className="h-7 w-7 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-                            title="Drag to reorder"
-                            draggable={!isRenaming && !isDeletingCalendar && !isRenamingCalendar}
-                            onDragStart={(e) => {
-                              e.dataTransfer.effectAllowed = "move";
-                              e.dataTransfer.setData("text/plain", c.id);
-                              setDraggingCalendarId(c.id);
-                            }}
-                            onDragEnd={() => {
-                              setDraggingCalendarId(null);
-                              setDragOverCalendarId(null);
-                            }}
+                        <button
+                          className="h-7 w-7 shrink-0 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                          title="Drag to reorder"
+                          draggable={!isRenaming && !isDeletingCalendar && !isRenamingCalendar}
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", c.id);
+                            setDraggingCalendarId(c.id);
+                          }}
+                          onDragEnd={() => {
+                            setDraggingCalendarId(null);
+                            setDragOverCalendarId(null);
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                          }}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </button>
+                        <Checkbox
+                          checked={visible}
+                          onCheckedChange={(v) => toggleCalendarVisibility(c.id, v === true)}
+                        />
+                        <div className="flex-1 min-w-0 py-0.5">
+                          {isRenaming ? (
+                            <Input
+                              value={renameDraft}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitRenameCalendar(c.id);
+                                if (e.key === "Escape") cancelRenameCalendar();
+                              }}
+                              onBlur={() => commitRenameCalendar(c.id)}
+                              disabled={isRenamingCalendar}
+                              className="h-8 flex-none"
+                              style={{ width: `${Math.max(8, renameDraft.length + 1)}ch` }}
+                              autoFocus
+                            />
+                          ) : (
+                            <div className="truncate">{c.name}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 py-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            title={canEditCalendar ? "Rename calendar" : "Only the owner can rename"}
                             onClick={(e) => {
                               e.preventDefault();
+                              e.stopPropagation();
+                              if (!canEditCalendar) return;
+                              startRenameCalendar(c);
                             }}
+                            disabled={!canEditCalendar || isDeletingCalendar || isRenamingCalendar}
                           >
-                            <GripVertical className="h-4 w-4" />
-                          </button>
-                          <Checkbox
-                            checked={visible}
-                            onCheckedChange={(v) => toggleCalendarVisibility(c.id, v === true)}
-                          />
-                          <div className="flex-1 min-w-[10rem]">
-                            {isRenaming ? (
-                              <Input
-                                value={renameDraft}
-                                onChange={(e) => setRenameDraft(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") commitRenameCalendar(c.id);
-                                  if (e.key === "Escape") cancelRenameCalendar();
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {c.role === "owner" && (
+                            <>
+                              {STICKY_NOTE_COLORS.map((col) => (
+                                <button
+                                  key={col.value}
+                                  className={[
+                                    "h-4 w-4 rounded-full border",
+                                    col.className,
+                                    col.value === currentColor
+                                      ? "border-foreground"
+                                      : "border-transparent opacity-70 hover:opacity-100",
+                                  ].join(" ")}
+                                  title={`Default: ${col.label}`}
+                                  onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
+                                />
+                              ))}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                title="Delete calendar"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  cancelRenameCalendar();
+                                  requestDeleteCalendar(c);
                                 }}
-                                onBlur={() => commitRenameCalendar(c.id)}
-                                disabled={isRenamingCalendar}
-                                className="h-8 w-auto"
-                                style={{ width: `${Math.max(12, renameDraft.length + 1)}ch` }}
-                                autoFocus
-                              />
-                            ) : (
-                              <div className="truncate max-w-[16rem]">{c.name}</div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              title={canEditCalendar ? "Rename calendar" : "Only the owner can rename"}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (!canEditCalendar) return;
-                                startRenameCalendar(c);
-                              }}
-                              disabled={!canEditCalendar || isDeletingCalendar || isRenamingCalendar}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {c.role === "owner" && (
-                              <>
-                                {STICKY_NOTE_COLORS.map((col) => (
-                                  <button
-                                    key={col.value}
-                                    className={[
-                                      "h-4 w-4 rounded-full border",
-                                      col.className,
-                                      col.value === currentColor
-                                        ? "border-foreground"
-                                        : "border-transparent opacity-70 hover:opacity-100",
-                                    ].join(" ")}
-                                    title={`Default: ${col.label}`}
-                                    onClick={() => updateCalendarDefaultNoteColor(c.id, col.value)}
-                                  />
-                                ))}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                  title="Delete calendar"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    cancelRenameCalendar();
-                                    requestDeleteCalendar(c);
-                                  }}
-                                  disabled={isDeletingCalendar}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                                disabled={isDeletingCalendar}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
