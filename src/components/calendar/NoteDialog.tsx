@@ -15,7 +15,7 @@ interface NoteDialogProps {
   onOpenChange: (open: boolean) => void;
   date: string | null;
   existingNote?: StickyNote | null;
-  onSave: (text: string, color: StickyColor, date: string | null) => Promise<boolean> | boolean;
+  onSave: (text: string, color: StickyColor, date: string | null, calendarId: string | null) => Promise<boolean> | boolean;
   onDelete?: () => void;
   onMove?: (newDate: string | null) => Promise<boolean> | boolean;
   calendarOptions?: Array<{ id: string; name: string }>;
@@ -88,13 +88,14 @@ export function NoteDialog({
     if (text.trim()) {
       const normalizedExistingDate = existingNote?.date ?? null;
       const normalizedNewDate = newDate.trim() ? newDate : null;
+      const normalizedCalendarId = calendarId ?? existingNote?.calendar_id ?? null;
 
       // Check if date changed for existing note
       if (existingNote && normalizedNewDate !== normalizedExistingDate && onMove) {
         const moved = await onMove(normalizedNewDate);
         if (moved === false) return;
       }
-      const saved = await onSave(text.trim(), color, normalizedNewDate);
+      const saved = await onSave(text.trim(), color, normalizedNewDate, normalizedCalendarId);
       if (saved === false) return;
       onOpenChange(false);
     }
@@ -137,7 +138,7 @@ export function NoteDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {!existingNote && calendarOptions && calendarId && onCalendarChange && (
+          {calendarOptions && calendarId && onCalendarChange && (
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Calendar</Label>
               <Select value={calendarId} onValueChange={onCalendarChange}>

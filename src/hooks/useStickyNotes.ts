@@ -564,6 +564,40 @@ export function useStickyNotes(
     [isMissingColumn, userId]
   );
 
+  const updateNoteCalendar = useCallback(
+    async (id: string, calendarId: string) => {
+      if (!userId) {
+        let ok = false;
+        setNotes((prev) => {
+          const next = prev.map((note) => {
+            if (note.id !== id) return note;
+            if (note.user_id !== GUEST_USER_ID) return note;
+            ok = true;
+            return { ...note, calendar_id: calendarId };
+          });
+          if (ok) saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
+          return next;
+        });
+        return { ok, error: ok ? undefined : ({ message: "Not signed in" } satisfies SupabaseErrorLike) };
+      }
+
+      const { error } = await supabase.from("sticky_notes").update({ calendar_id: calendarId }).eq("id", id);
+      if (error) {
+        if (isMissingColumn(error, "calendar_id")) {
+          console.warn("Missing sticky_notes.calendar_id column; run latest migrations to persist calendar changes.");
+          setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, calendar_id: calendarId } : note)));
+          return { ok: true as const };
+        }
+        console.error("Error updating note calendar:", error);
+        return { ok: false as const, error: error as unknown as SupabaseErrorLike };
+      }
+
+      setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, calendar_id: calendarId } : note)));
+      return { ok: true as const };
+    },
+    [isMissingColumn, userId]
+  );
+
   const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[], insertIndex?: number) => {
     if (!userId) {
       const noteToMove = notes.find((n) => n.id === id) ?? null;
@@ -964,6 +998,7 @@ export function useStickyNotes(
     addNote,
     updateNote,
     setNoteStruck,
+    updateNoteCalendar,
     moveNote,
     moveNoteToCanvas,
     setNoteCanvasPosition,
