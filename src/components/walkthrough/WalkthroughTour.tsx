@@ -56,6 +56,7 @@ export function WalkthroughTour({
   const [stepIndex, setStepIndex] = useState(0);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const wasOpenRef = useRef(false);
   const [targetEl, setTargetEl] = useState<HTMLElement | null>(null);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [cardPos, setCardPos] = useState<{ top: number; left: number }>({ top: 24, left: 24 });
@@ -188,7 +189,10 @@ export function WalkthroughTour({
   };
 
   useEffect(() => {
-    if (!open) return;
+    const didOpen = open && !wasOpenRef.current;
+    wasOpenRef.current = open;
+    if (!didOpen) return;
+
     let next = visibleStepIndices[0] ?? 0;
     try {
       const raw = window.localStorage.getItem(STORAGE_PROGRESS_KEY);
@@ -201,6 +205,7 @@ export function WalkthroughTour({
     } catch {
       // ignore
     }
+
     setStepIndex(next);
     const t = window.setTimeout(() => {
       primaryButtonRef.current?.focus();
