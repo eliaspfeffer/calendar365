@@ -29,18 +29,19 @@ function loadGuestNotes(): StickyNote[] {
       .map((n) => n as Partial<StickyNote>)
       .filter((n) => typeof n.id === "string" && typeof n.text === "string" && typeof n.color === "string")
       .map(
-        (n): StickyNote => ({
-          id: n.id as string,
-          calendar_id: typeof n.calendar_id === "string" ? n.calendar_id : GUEST_CALENDAR_ID,
-          user_id: typeof n.user_id === "string" ? n.user_id : GUEST_USER_ID,
-          date: typeof n.date === "string" || n.date === null ? (n.date as string | null) : null,
-          text: n.text as string,
-          color: n.color as StickyColor,
-          pos_x: typeof n.pos_x === "number" ? n.pos_x : null,
-          pos_y: typeof n.pos_y === "number" ? n.pos_y : null,
-        })
-      )
-      .filter((n) => n.user_id === GUEST_USER_ID);
+	        (n): StickyNote => ({
+	          id: n.id as string,
+	          calendar_id: typeof n.calendar_id === "string" ? n.calendar_id : GUEST_CALENDAR_ID,
+	          user_id: typeof n.user_id === "string" ? n.user_id : GUEST_USER_ID,
+	          date: typeof n.date === "string" || n.date === null ? (n.date as string | null) : null,
+	          text: n.text as string,
+	          color: n.color as StickyColor,
+	          is_struck: typeof n.is_struck === "boolean" ? n.is_struck : false,
+	          pos_x: typeof n.pos_x === "number" ? n.pos_x : null,
+	          pos_y: typeof n.pos_y === "number" ? n.pos_y : null,
+	        })
+	      )
+	      .filter((n) => n.user_id === GUEST_USER_ID);
   } catch {
     return [];
   }
@@ -244,16 +245,20 @@ export function useStickyNotes(
           setNotes([]);
         } else {
           const rows = (legacy.data ?? []) as unknown as StickyNotesRowLike[];
-          const mapped: StickyNote[] = rows.map((note) => ({
-            id: note.id,
-            calendar_id: note.calendar_id ?? "",
-            user_id: note.user_id,
-            date: note.date,
-            text: note.text,
-            color: note.color as StickyColor,
-          }));
-          setNotes(mapped);
-        }
+	          const mapped: StickyNote[] = rows.map((note) => ({
+	            id: note.id,
+	            calendar_id: note.calendar_id ?? "",
+	            user_id: note.user_id,
+	            date: note.date,
+	            text: note.text,
+	            color: note.color as StickyColor,
+	            is_struck:
+	              typeof (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
+	                ? (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
+	                : false,
+	          }));
+	          setNotes(mapped);
+	        }
         setIsLoading(false);
         return;
       }
@@ -270,6 +275,10 @@ export function useStickyNotes(
           date: note.date,
           text: note.text,
           color: note.color as StickyColor,
+          is_struck:
+            typeof (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
+              ? (note as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
+              : false,
           pos_x: note.pos_x ?? null,
           pos_y: note.pos_y ?? null,
         }));
@@ -289,17 +298,18 @@ export function useStickyNotes(
       position: NotePosition | null | undefined,
       insertCalendarId: string | null
     ) => {
-      if (!userId) {
-        const newNote: StickyNote = {
-          id: makeGuestId(),
-          calendar_id: GUEST_CALENDAR_ID,
-          user_id: GUEST_USER_ID,
-          date,
-          text,
-          color,
-          pos_x: position ? position.x : null,
-          pos_y: position ? position.y : null,
-        };
+	      if (!userId) {
+	        const newNote: StickyNote = {
+	          id: makeGuestId(),
+	          calendar_id: GUEST_CALENDAR_ID,
+	          user_id: GUEST_USER_ID,
+	          date,
+	          text,
+	          color,
+	          is_struck: false,
+	          pos_x: position ? position.x : null,
+	          pos_y: position ? position.y : null,
+	        };
         setNotes((prev) => {
           const next = [...prev, newNote];
           saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
@@ -321,21 +331,25 @@ export function useStickyNotes(
         const result = await insertStickyNote(currentDate, text, color, currentPosition, insertCalendarId);
         const { data, error } = result as typeof result & { error?: { code?: string } | null };
 
-        if (!error && data) {
-          const row = data as unknown as StickyNotesRowLike & { pos_x?: number | null; pos_y?: number | null };
-          const newNote: StickyNote = {
-            id: row.id,
-            calendar_id: row.calendar_id ?? "",
-            user_id: row.user_id,
-            date: row.date,
-            text: row.text,
-            color: row.color as StickyColor,
-            pos_x: row.pos_x ?? null,
-            pos_y: row.pos_y ?? null,
-          };
-          setNotes((prev) => [...prev, newNote]);
-          return { note: newNote, error: null };
-        }
+	        if (!error && data) {
+	          const row = data as unknown as StickyNotesRowLike & { pos_x?: number | null; pos_y?: number | null };
+	          const newNote: StickyNote = {
+	            id: row.id,
+	            calendar_id: row.calendar_id ?? "",
+	            user_id: row.user_id,
+	            date: row.date,
+	            text: row.text,
+	            color: row.color as StickyColor,
+	            is_struck:
+	              typeof (row as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck === "boolean"
+	                ? (row as StickyNotesRowLike & { is_struck?: boolean | null }).is_struck
+	                : false,
+	            pos_x: row.pos_x ?? null,
+	            pos_y: row.pos_y ?? null,
+	          };
+	          setNotes((prev) => [...prev, newNote]);
+	          return { note: newNote, error: null };
+	        }
 
         // Undefined column (older schema): drop position fields and retry once.
         if (currentPosition && (isMissingColumn(error, "pos_x") || isMissingColumn(error, "pos_y"))) {
@@ -385,6 +399,41 @@ export function useStickyNotes(
       return true;
     },
     [userId]
+  );
+
+  const setNoteStruck = useCallback(
+    async (id: string, isStruck: boolean) => {
+      if (!userId) {
+        let ok = false;
+        setNotes((prev) => {
+          const next = prev.map((note) => {
+            if (note.id !== id) return note;
+            if (note.user_id !== GUEST_USER_ID) return note;
+            ok = true;
+            return { ...note, is_struck: isStruck };
+          });
+          if (ok) saveGuestNotes(next.filter((n) => n.user_id === GUEST_USER_ID));
+          return next;
+        });
+        return ok;
+      }
+
+      const { error } = await supabase.from("sticky_notes").update({ is_struck: isStruck }).eq("id", id);
+
+      if (error) {
+        if (isMissingColumn(error, "is_struck")) {
+          console.warn("Missing sticky_notes.is_struck column; run latest migrations to persist strikethrough.");
+          setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, is_struck: isStruck } : note)));
+          return true;
+        }
+        console.error("Error updating note strikethrough:", error);
+        return false;
+      }
+
+      setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, is_struck: isStruck } : note)));
+      return true;
+    },
+    [isMissingColumn, userId]
   );
 
   const moveNote = useCallback(async (id: string, newDate: string | null, connections: NoteConnection[]) => {
@@ -647,6 +696,7 @@ export function useStickyNotes(
     isLoading,
     addNote,
     updateNote,
+    setNoteStruck,
     moveNote,
     moveNoteToCanvas,
     setNoteCanvasPosition,

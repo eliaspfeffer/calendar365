@@ -218,6 +218,7 @@ export type Database = {
           created_at: string
           date: string | null
           id: string
+          is_struck: boolean
           pos_x: number | null
           pos_y: number | null
           text: string
@@ -230,6 +231,7 @@ export type Database = {
           created_at?: string
           date?: string | null
           id?: string
+          is_struck?: boolean
           pos_x?: number | null
           pos_y?: number | null
           text: string
@@ -242,6 +244,7 @@ export type Database = {
           created_at?: string
           date?: string | null
           id?: string
+          is_struck?: boolean
           pos_x?: number | null
           pos_y?: number | null
           text?: string
