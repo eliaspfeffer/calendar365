@@ -88,6 +88,7 @@ export function InboxNotesPanel({
 
   return (
     <Card
+      data-tour-id="inbox-panel"
       className={cn(
         "inbox-notes-panel fixed shadow-lg border border-border bg-card/90 backdrop-blur-sm z-50 touch-auto",
         isMobile
