@@ -20,6 +20,8 @@ interface Settings {
   googleSelectedCalendarIds: string[] | null;
 }
 
+type SettingsUpdater = Partial<Settings> | ((prev: Settings) => Partial<Settings>);
+
 const SETTINGS_KEY = 'calendar365_settings';
 
 const defaultYearStart = new Date().getFullYear();
@@ -222,8 +224,9 @@ export function useSettings(userId: string | null = null) {
   );
 
   const updateSettings = useCallback(
-    (updates: Partial<Settings>) => {
+    (updater: SettingsUpdater) => {
       setSettings((prev) => {
+        const updates = typeof updater === "function" ? updater(prev) : updater;
         const next = { ...prev, ...updates };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
         scheduleRemoteSave(next);
