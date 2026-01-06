@@ -132,9 +132,15 @@ export function YamlImportExportDialog({ open, onOpenChange, userId, calendars, 
       setSelectedCalendarId("__guest__");
       return;
     }
+
+    // Only auto-select a calendar on first open (or if the current selection is invalid).
+    // Don't override user selection when they switch the dropdown.
+    const isValidSelection = calendars.some((c) => c.id === selectedCalendarId);
+    if (isValidSelection) return;
+
     const preferred = writableCalendars.find((c) => c.id === activeCalendarId)?.id ?? writableCalendars[0]?.id ?? null;
-    if (preferred && preferred !== selectedCalendarId) setSelectedCalendarId(preferred);
-  }, [activeCalendarId, isSignedIn, open, selectedCalendarId, writableCalendars]);
+    if (preferred) setSelectedCalendarId(preferred);
+  }, [activeCalendarId, calendars, isSignedIn, open, selectedCalendarId, writableCalendars]);
 
   const refreshExport = useCallback(async () => {
     setExportLoading(true);
