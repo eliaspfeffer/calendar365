@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 type WalkthroughStep = {
   id: string;
@@ -15,6 +15,7 @@ type WalkthroughStep = {
 };
 
 const STORAGE_KEY = "calendar365_walkthrough_v1_completed";
+const STORAGE_PROGRESS_KEY = "calendar365_walkthrough_v1_progress";
 
 function safeLocalStorageSet(key: string, value: string) {
   try {
@@ -24,12 +25,15 @@ function safeLocalStorageSet(key: string, value: string) {
   }
 }
 
-function getRectForSelector(selector: string): DOMRect | null {
+function getTargetForSelector(selector: string): { el: HTMLElement | null; rect: DOMRect | null } {
   const el = document.querySelector(selector);
-  if (!(el instanceof HTMLElement)) return null;
+  if (!(el instanceof HTMLElement)) return { el: null, rect: null };
   const rect = el.getBoundingClientRect();
-  if (!rect.width || !rect.height) return null;
-  return rect;
+  if (!rect.width || !rect.height) return { el, rect: null };
+
+  const intersectsViewport =
+    rect.bottom > 8 && rect.right > 8 && rect.top < window.innerHeight - 8 && rect.left < window.innerWidth - 8;
+  return { el, rect: intersectsViewport ? rect : null };
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -41,16 +45,18 @@ export function WalkthroughTour({
   onOpenChange,
   isAuthed,
   onRequestOpenSettings,
+  onRequestCloseSettings,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isAuthed: boolean;
   onRequestOpenSettings: () => void;
+  onRequestCloseSettings: () => void;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [dontShowAgain, setDontShowAgain] = useState(true);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [targetEl, setTargetEl] = useState<HTMLElement | null>(null);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [cardPos, setCardPos] = useState<{ top: number; left: number }>({ top: 24, left: 24 });
 
@@ -60,9 +66,8 @@ export function WalkthroughTour({
     () => [
       {
         id: "welcome",
-        title: "Welcome to Calendar365",
-        body:
-          "A year-at-a-glance calendar where you can place sticky notes on days, keep an inbox, and zoom/pan like a canvas. You can try it instantly — sign in later to unlock sharing and multiple calendars.",
+        title: "Welcome 👋",
+        body: "Add notes to days, zoom/pan, use the inbox — then sign in to sync & share. ✨🗓️",
       },
       {
         id: "canvas",
@@ -110,6 +115,12 @@ export function WalkthroughTour({
         optional: true,
         onEnter: () => {
           onRequestOpenSettings();
+
+          // Give the dialog time to open, then scroll the section into view.
+          window.setTimeout(() => {
+            const el = document.querySelector<HTMLElement>('[data-tour-id="settings-google-sync"]');
+            el?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 120);
         },
       },
       {
@@ -150,20 +161,52 @@ export function WalkthroughTour({
   const goNext = () => goToVisibleIndex(currentVisibleIndex + 1);
   const goBack = () => goToVisibleIndex(currentVisibleIndex - 1);
 
+  const saveProgress = (stepId: string) => {
+    safeLocalStorageSet(
+      STORAGE_PROGRESS_KEY,
+      JSON.stringify({ stepId, updatedAt: Date.now() })
+    );
+  };
+
+  const clearProgress = () => {
+    try {
+      window.localStorage.removeItem(STORAGE_PROGRESS_KEY);
+    } catch {
+      // ignore
+    }
+  };
+
+  const close = () => {
+    saveProgress(currentStep.id);
+    onOpenChange(false);
+  };
+
   const finish = () => {
-    if (dontShowAgain) safeLocalStorageSet(STORAGE_KEY, "1");
+    safeLocalStorageSet(STORAGE_KEY, "1");
+    clearProgress();
     onOpenChange(false);
   };
 
   useEffect(() => {
     if (!open) return;
-    setStepIndex(visibleStepIndices[0] ?? 0);
+    let next = visibleStepIndices[0] ?? 0;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_PROGRESS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { stepId?: unknown } | null;
+        const stepId = typeof parsed?.stepId === "string" ? parsed.stepId : null;
+        const idx = stepId ? steps.findIndex((s) => s.id === stepId) : -1;
+        if (idx >= 0) next = idx;
+      }
+    } catch {
+      // ignore
+    }
+    setStepIndex(next);
     const t = window.setTimeout(() => {
       primaryButtonRef.current?.focus();
     }, 80);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, steps, visibleStepIndices]);
 
   useEffect(() => {
     if (!open) return;
@@ -172,10 +215,16 @@ export function WalkthroughTour({
 
   useEffect(() => {
     if (!open) return;
+    if (currentStep.id === "google") return;
+    onRequestCloseSettings();
+  }, [open, currentStep.id, onRequestCloseSettings]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        finish();
+        close();
       }
       if (e.key === "ArrowRight") {
         if (currentVisibleIndex < visibleStepIndices.length - 1) goNext();
@@ -194,8 +243,9 @@ export function WalkthroughTour({
 
     const compute = () => {
       const selector = currentStep.targetSelector;
-      const rect = selector ? getRectForSelector(selector) : null;
-      setTargetRect(rect);
+      const target = selector ? getTargetForSelector(selector) : { el: null, rect: null };
+      setTargetEl(target.el);
+      setTargetRect(target.rect);
       raf = window.requestAnimationFrame(compute);
     };
 
@@ -241,13 +291,15 @@ export function WalkthroughTour({
   useEffect(() => {
     if (!open) return;
     if (!currentStep.optional) return;
+    if (currentStep.id === "google") return;
     if (!currentStep.targetSelector) return;
     if (targetRect) return;
+    if (targetEl) return;
     const t = window.setTimeout(() => {
       if (currentVisibleIndex < visibleStepIndices.length - 1) goNext();
     }, 450);
     return () => window.clearTimeout(t);
-  }, [open, currentStep, targetRect, currentVisibleIndex, visibleStepIndices.length]);
+  }, [open, currentStep, targetRect, currentVisibleIndex, visibleStepIndices.length, targetEl]);
 
   if (!open) return null;
 
@@ -272,10 +324,9 @@ export function WalkthroughTour({
     : undefined;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000]">
+    <div className="fixed inset-0 z-[1000] pointer-events-none">
       <div
         className={cn("fixed inset-0", targetRect ? "bg-transparent" : "bg-black/55 backdrop-blur-sm")}
-        onMouseDown={() => finish()}
         aria-hidden="true"
       />
 
@@ -291,7 +342,7 @@ export function WalkthroughTour({
         ref={cardRef}
         role="dialog"
         aria-modal="true"
-        className="fixed w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border bg-card/95 backdrop-blur-sm shadow-2xl p-4"
+        className="fixed w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-border bg-card/95 backdrop-blur-sm shadow-2xl p-4 pointer-events-auto"
         style={cardPos}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -300,26 +351,23 @@ export function WalkthroughTour({
             <div className="text-xs text-muted-foreground">{progressLabel}</div>
             <div className="text-lg font-semibold leading-tight">{currentStep.title}</div>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => finish()} aria-label="Close tour">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => close()} aria-label="Close tour">
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="mt-2 text-sm text-muted-foreground">{currentStep.body}</div>
 
-        <label className="mt-3 flex items-center gap-2 text-sm text-muted-foreground select-none">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-primary"
-            checked={dontShowAgain}
-            onChange={(e) => setDontShowAgain(e.target.checked)}
-          />
-          Don’t show this automatically again
-        </label>
+        {currentStep.id === "google" && !targetRect && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+            <ArrowDown className="h-4 w-4 animate-bounce" />
+            Scroll inside Settings to find this section
+          </div>
+        )}
 
         <div className="mt-4 flex items-center justify-between gap-2">
-          <Button variant="outline" onClick={() => finish()}>
-            Skip
+          <Button variant="outline" onClick={() => close()}>
+            Close
           </Button>
           <div className="flex items-center gap-2">
             <Button
@@ -346,6 +394,14 @@ export function WalkthroughTour({
         </div>
       </div>
     </div>,
-    document.body
+    (() => {
+      const selector = currentStep.targetSelector;
+      const el = selector ? document.querySelector(selector) : null;
+      if (el instanceof HTMLElement) {
+        const dialog = el.closest<HTMLElement>("[data-radix-dialog-content]");
+        if (dialog) return dialog;
+      }
+      return document.body;
+    })()
   );
 }
