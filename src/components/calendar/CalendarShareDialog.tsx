@@ -19,8 +19,8 @@ interface CalendarShareDialogProps {
 
 const roleLabels: Record<CalendarMemberRole, string> = {
   owner: "Owner",
-  editor: "Kann bearbeiten",
-  viewer: "Nur ansehen",
+  editor: "Can edit",
+  viewer: "View only",
 };
 
 export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl, onCreateInvite }: CalendarShareDialogProps) {
@@ -99,7 +99,7 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
     const token = await onCreateInvite(role, Number.isFinite(days) ? days : 14);
     setIsCreating(false);
     if (!token) {
-      toast({ title: "Einladung konnte nicht erstellt werden", variant: "destructive" });
+      toast({ title: "Couldn’t create invite", variant: "destructive" });
       return;
     }
     setInviteToken(token);
@@ -109,18 +109,18 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
     if (!inviteUrl) return;
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      toast({ title: "Link kopiert" });
+      toast({ title: "Link copied" });
     } catch {
-      toast({ title: "Kopieren fehlgeschlagen", description: inviteUrl, variant: "destructive" });
+      toast({ title: "Copy failed", description: inviteUrl, variant: "destructive" });
     }
   };
 
   const handleCopyAny = async (value: string, label: string) => {
     try {
       await navigator.clipboard.writeText(value);
-      toast({ title: `${label} kopiert` });
+      toast({ title: `${label} copied` });
     } catch {
-      toast({ title: "Kopieren fehlgeschlagen", description: value, variant: "destructive" });
+      toast({ title: "Copy failed", description: value, variant: "destructive" });
     }
   };
 
@@ -133,7 +133,7 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/(^-+)|(-+$)/g, "");
     if (!slug) {
-      toast({ title: "Bitte einen Link-Namen eingeben", variant: "destructive" });
+      toast({ title: "Please enter a link name", variant: "destructive" });
       return;
     }
     setIsSavingPublic(true);
@@ -144,10 +144,10 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
     });
     setIsSavingPublic(false);
     if (!result.ok) {
-      toast({ title: "Konnte öffentlichen Link nicht speichern", description: result.error, variant: "destructive" });
+      toast({ title: "Couldn’t save public link", description: result.error, variant: "destructive" });
       return;
     }
-    toast({ title: "Öffentlicher Link aktualisiert" });
+    toast({ title: "Public link updated" });
   };
 
   const handleRevokePublic = async () => {
@@ -157,10 +157,10 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
     const result = await revokePublicShare();
     setIsSavingPublic(false);
     if (!result.ok) {
-      toast({ title: "Konnte Link nicht deaktivieren", description: result.error, variant: "destructive" });
+      toast({ title: "Couldn’t disable link", description: result.error, variant: "destructive" });
       return;
     }
-    toast({ title: "Öffentlicher Link deaktiviert" });
+    toast({ title: "Public link disabled" });
   };
 
   return (
@@ -173,39 +173,39 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
     >
       <DialogContent className="sm:max-w-lg" data-tour-id="share-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl tracking-wide text-primary">Kalender teilen</DialogTitle>
+          <DialogTitle className="font-display text-2xl tracking-wide text-primary">Share calendar</DialogTitle>
           {calendar ? (
             <p className="text-sm text-muted-foreground">
               {calendar.name} · {roleLabels[calendar.role]}
             </p>
           ) : (
-            <p className="text-sm text-muted-foreground">Kein Kalender ausgewählt.</p>
+            <p className="text-sm text-muted-foreground">No calendar selected.</p>
           )}
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "invite" | "public")} className="w-full">
           <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="invite">Einladung</TabsTrigger>
-            <TabsTrigger value="public">Öffentlicher Link</TabsTrigger>
+            <TabsTrigger value="invite">Invite</TabsTrigger>
+            <TabsTrigger value="public">Public link</TabsTrigger>
           </TabsList>
 
           <TabsContent value="invite">
             <div className="space-y-4 py-2">
               <div className="grid gap-2">
-                <Label>Rechte</Label>
+                <Label>Permissions</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as CalendarMemberRole)} disabled={!canShare}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="editor">Kann bearbeiten</SelectItem>
-                    <SelectItem value="viewer">Nur ansehen</SelectItem>
+                    <SelectItem value="editor">Can edit</SelectItem>
+                    <SelectItem value="viewer">View only</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="expires-days">Gültigkeit (Tage)</Label>
+                <Label htmlFor="expires-days">Expires (days)</Label>
                 <Input
                   id="expires-days"
                   inputMode="numeric"
@@ -217,15 +217,15 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
 
               {inviteUrl && (
                 <div className="grid gap-2">
-                  <Label>Einladungslink</Label>
+                  <Label>Invite link</Label>
                   <div className="flex gap-2">
                     <Input value={inviteUrl} readOnly />
                     <Button variant="outline" onClick={handleCopy}>
-                      Kopieren
+                      Copy
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Öffnen (oder weiterleiten) – eingeloggte Nutzer können dann dem Kalender beitreten.
+                    Open (or forward) — signed-in users can then join the calendar.
                   </p>
                 </div>
               )}
@@ -235,27 +235,27 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
           <TabsContent value="public">
             <div className="space-y-4 py-2">
               <div className="grid gap-2">
-                <Label htmlFor="public-slug">Link-Name (lesbar)</Label>
+                <Label htmlFor="public-slug">Link name (readable)</Label>
                 <Input
                   id="public-slug"
                   value={publicSlug}
                   onChange={(e) => setPublicSlug(e.target.value)}
                   disabled={!canShare || publicShareLoading}
-                  placeholder="mein-kalender"
+                  placeholder="my-calendar"
                   autoCapitalize="off"
                   autoCorrect="off"
                   spellCheck={false}
                 />
-                <p className="text-xs text-muted-foreground">Erlaubt: a–z, 0–9 und „-“ (3–64 Zeichen).</p>
+                <p className="text-xs text-muted-foreground">Allowed: a–z, 0–9, and “-” (3–64 characters).</p>
                 {isRenamingExistingPublicLink ? (
                   <p className="text-xs text-muted-foreground">
-                    Hinweis: Wenn du den Link-Namen änderst, wird der bisherige Link überschrieben und ist danach ungültig.
+                    Note: If you change the link name, the previous link will be overwritten and will become invalid.
                   </p>
                 ) : null}
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="public-password">Passwortschutz (optional)</Label>
+                <Label htmlFor="public-password">Password protection (optional)</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
@@ -263,7 +263,7 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
                     onClick={() => setPublicPasswordEnabled((v) => !v)}
                     disabled={!canShare || publicShareLoading}
                   >
-                    {publicPasswordEnabled ? "Aktiv" : "Aus"}
+                    {publicPasswordEnabled ? "On" : "Off"}
                   </Button>
                   <Input
                     id="public-password"
@@ -271,21 +271,21 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
                     value={publicPassword}
                     onChange={(e) => setPublicPassword(e.target.value)}
                     disabled={!canShare || publicShareLoading || !publicPasswordEnabled}
-                    placeholder={publicShare?.hasPassword && !publicPassword ? "Passwort gesetzt (versteckt)" : "Passwort eingeben"}
+                    placeholder={publicShare?.hasPassword && !publicPassword ? "Password set (hidden)" : "Enter password"}
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Das Passwort wird sicher gehasht gespeichert. Um einen „Link inkl. Passwort“ zu erzeugen, das Passwort hier einmal eingeben.
+                  The password is stored as a secure hash. To create a “link with password”, enter the password here once.
                 </p>
               </div>
 
               {publicLink && (
                 <div className="grid gap-2">
-                  <Label>Öffentlicher Link</Label>
+                  <Label>Public link</Label>
                   <div className="flex gap-2">
                     <Input value={publicLink} readOnly />
                     <Button variant="outline" onClick={() => handleCopyAny(publicLink, "Link")}>
-                      Kopieren
+                      Copy
                     </Button>
                   </div>
                 </div>
@@ -293,15 +293,15 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
 
               {publicLinkWithPassword && (
                 <div className="grid gap-2">
-                  <Label>Link inkl. Passwort</Label>
+                  <Label>Link with password</Label>
                   <div className="flex gap-2">
                     <Input value={publicLinkWithPassword} readOnly />
-                    <Button variant="outline" onClick={() => handleCopyAny(publicLinkWithPassword, "Link inkl. Passwort")}>
-                      Kopieren
+                    <Button variant="outline" onClick={() => handleCopyAny(publicLinkWithPassword, "Link with password")}>
+                      Copy
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Nutzt einen URL-Fragment-Teil („#pw=…“), der nicht automatisch an Server mitgesendet wird.
+                    Uses a URL fragment (“#pw=…”) which is not automatically sent to servers.
                   </p>
                 </div>
               )}
@@ -311,21 +311,21 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Schließen
+            Close
           </Button>
           {activeTab === "invite" ? (
             <Button onClick={handleCreate} disabled={!canShare || isCreating || !calendar}>
-              {isCreating ? "Erstelle…" : "Einladungslink erstellen"}
+              {isCreating ? "Creating…" : "Create invite link"}
             </Button>
           ) : (
             <div className="flex gap-2">
               {publicShare?.slug ? (
                 <Button variant="outline" onClick={handleRevokePublic} disabled={!canShare || isSavingPublic || publicShareLoading}>
-                  Deaktivieren
+                  Disable
                 </Button>
               ) : null}
               <Button onClick={handleSavePublic} disabled={!canShare || isSavingPublic || publicShareLoading}>
-                {isSavingPublic ? "Speichere…" : "Speichern"}
+                {isSavingPublic ? "Saving…" : "Save"}
               </Button>
             </div>
           )}

@@ -37,14 +37,14 @@ export default function Invite() {
       if (!calendarId) {
         setIsAccepting(false);
         toast({
-          title: "Einladung ungültig",
-          description: "Der Link ist abgelaufen oder existiert nicht mehr.",
+          title: "Invalid invite",
+          description: "The link has expired or no longer exists.",
           variant: "destructive",
         });
         return;
       }
       updateSettings({ activeCalendarId: calendarId });
-      toast({ title: "Kalender beigetreten" });
+      toast({ title: "Joined calendar" });
       navigate("/", { replace: true });
     })();
 
@@ -66,12 +66,12 @@ export default function Invite() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Einladung</CardTitle>
-            <CardDescription>Kein Token gefunden.</CardDescription>
+            <CardTitle>Invite</CardTitle>
+            <CardDescription>No token found.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link to="/">Zur Startseite</Link>
+              <Link to="/">Back to home</Link>
             </Button>
           </CardContent>
         </Card>
@@ -84,15 +84,15 @@ export default function Invite() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-2">
-            <CardTitle>Einladung annehmen</CardTitle>
-            <CardDescription>Bitte melde dich an, um dem Kalender beizutreten.</CardDescription>
+            <CardTitle>Accept invite</CardTitle>
+            <CardDescription>Please sign in to join the calendar.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button asChild className="w-full">
-              <Link to={nextAuthUrl}>Anmelden</Link>
+              <Link to={nextAuthUrl}>Sign in</Link>
             </Button>
             <Button asChild variant="outline" className="w-full">
-              <Link to="/">Abbrechen</Link>
+              <Link to="/">Cancel</Link>
             </Button>
           </CardContent>
         </Card>
@@ -104,8 +104,8 @@ export default function Invite() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2">
-          <CardTitle>Einladung wird angenommen…</CardTitle>
-          <CardDescription>Du wirst gleich weitergeleitet.</CardDescription>
+          <CardTitle>Accepting invite…</CardTitle>
+          <CardDescription>You’ll be redirected shortly.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-6">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

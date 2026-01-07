@@ -24,9 +24,9 @@ export function DemoCalendarShareDialog({
   const copy = async (value: string, label: string) => {
     try {
       await navigator.clipboard.writeText(value);
-      toast({ title: `${label} kopiert` });
+      toast({ title: `${label} copied` });
     } catch {
-      toast({ title: "Kopieren fehlgeschlagen", description: value, variant: "destructive" });
+      toast({ title: "Copy failed", description: value, variant: "destructive" });
     }
   };
 
@@ -34,33 +34,33 @@ export function DemoCalendarShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" data-tour-id="share-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl tracking-wide text-primary">Kalender teilen (Demo)</DialogTitle>
+          <DialogTitle className="font-display text-2xl tracking-wide text-primary">Share calendar (demo)</DialogTitle>
           <p className="text-sm text-muted-foreground">{calendarName}</p>
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "invite" | "public")} className="w-full">
           <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="invite">Einladung</TabsTrigger>
-            <TabsTrigger value="public">Öffentlicher Link</TabsTrigger>
+            <TabsTrigger value="invite">Invite</TabsTrigger>
+            <TabsTrigger value="public">Public link</TabsTrigger>
           </TabsList>
 
           <TabsContent value="invite">
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Im echten Modus kannst du einen Link erstellen, mit dem andere beitreten können — mit Rechten wie
-                <span className="font-medium"> Kann bearbeiten</span> oder <span className="font-medium">Nur ansehen</span>.
+                In full mode you can create a link that others can use to join — with permissions like
+                <span className="font-medium"> Can edit</span> or <span className="font-medium">View only</span>.
               </p>
               <div className="grid gap-2">
-                <Label>Einladungslink (Beispiel)</Label>
+                <Label>Invite link (example)</Label>
                 <div className="flex gap-2">
                   <Input value={exampleInviteUrl} readOnly />
                   <Button variant="outline" onClick={() => copy(exampleInviteUrl, "Link")}>
-                    Kopieren
+                    Copy
                   </Button>
                 </div>
               </div>
               <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                Zum Teilen wirklich nutzen: bitte einloggen/registrieren.
+                To actually share: please sign in / register.
               </div>
             </div>
           </TabsContent>
@@ -68,19 +68,19 @@ export function DemoCalendarShareDialog({
           <TabsContent value="public">
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Du kannst einen öffentlichen Share-Link erstellen (optional passwortgeschützt) — ideal zum “nur ansehen”.
+                You can create a public share link (optionally password-protected) — ideal for “view only”.
               </p>
               <div className="grid gap-2">
-                <Label>Öffentlicher Link (Beispiel)</Label>
+                <Label>Public link (example)</Label>
                 <div className="flex gap-2">
                   <Input value={examplePublicUrl} readOnly />
                   <Button variant="outline" onClick={() => copy(examplePublicUrl, "Link")}>
-                    Kopieren
+                    Copy
                   </Button>
                 </div>
               </div>
               <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                Zum Aktivieren/Passwort setzen: bitte einloggen/registrieren.
+                To enable / set a password: please sign in / register.
               </div>
             </div>
           </TabsContent>
@@ -89,4 +89,3 @@ export function DemoCalendarShareDialog({
     </Dialog>
   );
 }
-

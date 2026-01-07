@@ -69,14 +69,14 @@ export default function PublicShare() {
       if (error) {
         const message = error.message?.toLowerCase?.() ?? "";
         if (message.includes("invalid password")) {
-          setPasswordError("Falsches Passwort.");
+          setPasswordError("Incorrect password.");
           return;
         }
         if (message.includes("too many attempts")) {
-          setPasswordError("Zu viele Versuche. Bitte später erneut versuchen.");
+          setPasswordError("Too many attempts. Please try again later.");
           return;
         }
-        toast({ title: "Konnte Kalender nicht laden", description: error.message, variant: "destructive" });
+        toast({ title: "Couldn’t load calendar", description: error.message, variant: "destructive" });
         return;
       }
 
@@ -146,7 +146,7 @@ export default function PublicShare() {
       if (cancelled) return;
       if (error) {
         setIsLoading(false);
-        toast({ title: "Konnte Link nicht laden", description: error.message, variant: "destructive" });
+        toast({ title: "Couldn’t load link", description: error.message, variant: "destructive" });
         return;
       }
       const row = data?.[0] ?? null;
@@ -177,11 +177,11 @@ export default function PublicShare() {
   }, [slug, loadSnapshot, toast]);
 
   if (!slug) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Ungültiger Link.</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center">Invalid link.</div>;
   }
 
   if (!isLoading && !info) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Link nicht gefunden.</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center">Link not found.</div>;
   }
 
   if (info?.requires_password && notes === null && connections === null) {
@@ -196,7 +196,7 @@ export default function PublicShare() {
         >
           <div>
             <h1 className="text-xl font-semibold">{info.calendar_name}</h1>
-            <p className="text-sm text-muted-foreground">Dieser Kalender ist passwortgeschützt.</p>
+            <p className="text-sm text-muted-foreground">This calendar is password-protected.</p>
           </div>
 
           <div className="grid gap-2">
@@ -204,14 +204,14 @@ export default function PublicShare() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Passwort"
+              placeholder="Password"
               autoFocus
             />
             {passwordError ? <p className="text-sm text-destructive">{passwordError}</p> : null}
           </div>
 
           <Button type="submit" disabled={isLoading || !password}>
-            {isLoading ? "Lade…" : "Öffnen"}
+            {isLoading ? "Loading…" : "Open"}
           </Button>
         </form>
       </div>
@@ -219,7 +219,7 @@ export default function PublicShare() {
   }
 
   if (!notes || !connections) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Lade…</div>;
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading…</div>;
   }
 
   return <ReadOnlyYearCalendar years={years} notes={notes} connections={connections} textOverflowMode="expand" />;

@@ -102,7 +102,7 @@ export function WalkthroughTour({
       },
       {
         id: "share-button",
-        title: "Kalender teilen",
+        title: "Share calendar",
         body: "Use this button to share the current calendar (invite link or public link).",
         targetSelector: '[data-tour-id=\"calendar-share\"]',
         optional: true,
@@ -128,7 +128,7 @@ export function WalkthroughTour({
       },
       {
         id: "create-calendar-button",
-        title: "Neuen Kalender erstellen",
+        title: "Create new calendar",
         body: "Create a new sub-calendar for different projects/areas (work, family, etc.).",
         targetSelector: '[data-tour-id=\"calendar-create\"]',
         optional: true,

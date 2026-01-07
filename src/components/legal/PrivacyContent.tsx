@@ -6,7 +6,7 @@ export function PrivacyContent() {
   return (
     <div className="space-y-10">
       <header className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Privacy Policy (Datenschutzerklärung)</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground">
           This policy describes how personal data is processed when using this service.
         </p>
@@ -126,4 +126,3 @@ export function PrivacyContent() {
     </div>
   );
 }
-
