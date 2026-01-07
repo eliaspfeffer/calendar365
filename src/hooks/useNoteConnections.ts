@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { NoteConnection } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -12,6 +12,7 @@ export function useNoteConnections(
 ) {
   const [connections, setConnections] = useState<NoteConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const fetchSeqRef = useRef(0);
 
   type NoteConnectionsInsert = Database["public"]["Tables"]["note_connections"]["Insert"];
   type NoteConnectionsRow = Database["public"]["Tables"]["note_connections"]["Row"];
@@ -31,6 +32,9 @@ export function useNoteConnections(
 
   // Fetch connections from Supabase
   useEffect(() => {
+    const fetchSeq = (fetchSeqRef.current += 1);
+    let cancelled = false;
+
     if (!userId) {
       setConnections(exampleConnections);
       setIsLoading(false);
@@ -43,8 +47,11 @@ export function useNoteConnections(
         ? await supabase.from("note_connections").select("*").in("calendar_id", calendarIds)
         : await supabase.from("note_connections").select("*").eq("user_id", userId);
 
+      if (cancelled || fetchSeq !== fetchSeqRef.current) return;
+
       if (primary.error && calendarIds && calendarIds.length > 0 && isMissingCalendarIdColumn(primary.error)) {
         const legacy = await supabase.from("note_connections").select("*").eq("user_id", userId);
+        if (cancelled || fetchSeq !== fetchSeqRef.current) return;
         if (legacy.error) {
           console.error("Error fetching connections (legacy):", legacy.error);
           setConnections([]);
@@ -81,6 +88,10 @@ export function useNoteConnections(
     };
 
     fetchConnections();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId, calendarIds, isMissingCalendarIdColumn, refreshToken]);
 
   const deleteConnection = useCallback(async (id: string) => {
