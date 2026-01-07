@@ -909,6 +909,8 @@ const Index = () => {
       <SettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
+        colorScheme={settings.colorScheme}
+        onColorSchemeChange={(scheme) => updateSettings({ colorScheme: scheme })}
         yearStart={yearStart}
         yearEnd={yearEnd}
         onYearStartChange={(next) => {

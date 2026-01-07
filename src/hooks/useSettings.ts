@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import { SETTINGS_KEY } from '@/lib/settingsStorage';
+import { applyColorSchemePreference, type ColorSchemePreference } from '@/lib/systemColorScheme';
 
 export type TextOverflowMode = 'scroll' | 'truncate' | 'expand';
 export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'teal' | 'pink' | 'indigo';
 
 interface Settings {
+  colorScheme: ColorSchemePreference;
   yearStart: number;
   yearEnd: number;
   skipHideYearConfirm: boolean;
@@ -23,12 +26,11 @@ interface Settings {
 
 type SettingsUpdater = Partial<Settings> | ((prev: Settings) => Partial<Settings>);
 
-const SETTINGS_KEY = 'calendar365_settings';
-
 const defaultYearStart = new Date().getFullYear();
 const defaultYearEnd = defaultYearStart + 1;
 
 const defaultSettings: Settings = {
+  colorScheme: 'system',
   yearStart: defaultYearStart,
   yearEnd: defaultYearEnd,
   skipHideYearConfirm: false,
@@ -66,6 +68,10 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
 
   const out: Partial<Settings> = {};
 
+  if (raw.colorScheme === "system" || raw.colorScheme === "light" || raw.colorScheme === "dark") {
+    out.colorScheme = raw.colorScheme;
+  }
+
   const yearStart = coerceYear(raw.yearStart);
   if (yearStart !== null) out.yearStart = yearStart;
   const yearEnd = coerceYear(raw.yearEnd);
@@ -102,7 +108,17 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
 }
 
 export function useSettings(userId: string | null = null) {
-  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [settings, setSettings] = useState<Settings>(() => {
+    if (typeof window === "undefined") return defaultSettings;
+    const stored = window.localStorage.getItem(SETTINGS_KEY);
+    if (!stored) return defaultSettings;
+    try {
+      const parsed = JSON.parse(stored) as unknown;
+      return { ...defaultSettings, ...coercePartialSettings(parsed) };
+    } catch {
+      return defaultSettings;
+    }
+  });
   const settingsRef = useRef(settings);
   const saveTimeoutRef = useRef<number | null>(null);
   const pendingRemoteRef = useRef<Settings | null>(null);
@@ -131,16 +147,8 @@ export function useSettings(userId: string | null = null) {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as unknown;
-        setSettings({ ...defaultSettings, ...coercePartialSettings(parsed) });
-      } catch {
-        // Invalid JSON, use defaults
-      }
-    }
-  }, []);
+    applyColorSchemePreference(settings.colorScheme);
+  }, [settings.colorScheme]);
 
   useEffect(() => {
     if (!userId) return;
