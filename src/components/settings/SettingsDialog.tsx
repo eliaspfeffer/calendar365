@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
+import type { ColorSchemePreference } from '@/lib/systemColorScheme';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,6 +30,8 @@ import { useEffect, useMemo, useState } from 'react';
 interface SettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  colorScheme: ColorSchemePreference;
+  onColorSchemeChange: (scheme: ColorSchemePreference) => void;
   yearStart: number;
   yearEnd: number;
   onYearStartChange: (year: number) => void;
@@ -76,6 +79,8 @@ const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
 export function SettingsDialog({
   open,
   onOpenChange,
+  colorScheme,
+  onColorSchemeChange,
   yearStart,
   yearEnd,
   onYearStartChange,
@@ -254,6 +259,37 @@ export function SettingsDialog({
               <p className="text-sm text-muted-foreground">
                 Set a range (e.g. 2025–2030) to show those years immediately.
               </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-base font-medium">Theme</Label>
+              <RadioGroup
+                value={colorScheme}
+                onValueChange={(value) => onColorSchemeChange(value as ColorSchemePreference)}
+                className="space-y-3"
+              >
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="system" id="theme-system" className="mt-1" />
+                  <Label htmlFor="theme-system" className="cursor-pointer">
+                    <div className="font-medium">System</div>
+                    <div className="text-sm text-muted-foreground">Follow your device setting.</div>
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="light" id="theme-light" className="mt-1" />
+                  <Label htmlFor="theme-light" className="cursor-pointer">
+                    <div className="font-medium">Light</div>
+                    <div className="text-sm text-muted-foreground">Always use light mode.</div>
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="dark" id="theme-dark" className="mt-1" />
+                  <Label htmlFor="theme-dark" className="cursor-pointer">
+                    <div className="font-medium">Dark</div>
+                    <div className="text-sm text-muted-foreground">Always use dark mode.</div>
+                  </Label>
+                </div>
+              </RadioGroup>
             </div>
 
             <div className="space-y-3">
