@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { StickyNote, StickyColor, NoteConnection } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -43,6 +43,7 @@ export function useStickyNotes(
 ) {
   const [notes, setNotes] = useState<StickyNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const fetchSeqRef = useRef(0);
 
   type StickyNotesInsert = Database["public"]["Tables"]["sticky_notes"]["Insert"];
   type StickyNotesRow = Database["public"]["Tables"]["sticky_notes"]["Row"];
@@ -212,6 +213,9 @@ export function useStickyNotes(
 
   // Fetch notes from Supabase
   useEffect(() => {
+    const fetchSeq = (fetchSeqRef.current += 1);
+    let cancelled = false;
+
     if (!userId) {
       const guestNotes = loadGuestNotes();
       setNotes(normalizeSortOrders([...exampleNotes, ...guestNotes]));
@@ -282,9 +286,12 @@ export function useStickyNotes(
         ? await supabase.from("sticky_notes").select("*").in("calendar_id", calendarIds).order("created_at", { ascending: true })
         : await supabase.from("sticky_notes").select("*").eq("user_id", userId).order("created_at", { ascending: true });
 
+      if (cancelled || fetchSeq !== fetchSeqRef.current) return;
+
       if (primary.error && calendarIds && calendarIds.length > 0 && isMissingCalendarIdColumn(primary.error)) {
         // Back-compat: older schemas don't have calendars; fall back to user-owned notes.
         const legacy = await supabase.from("sticky_notes").select("*").eq("user_id", userId).order("created_at", { ascending: true });
+        if (cancelled || fetchSeq !== fetchSeqRef.current) return;
         if (legacy.error) {
           console.error("Error fetching notes (legacy):", legacy.error);
           setNotes([]);
@@ -343,6 +350,10 @@ export function useStickyNotes(
     };
 
     fetchNotes();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId, calendarIds, isMissingCalendarIdColumn, insertStickyNote, isMissingColumn, normalizeSortOrders, persistSortOrders, refreshToken]);
 
   const addNote = useCallback(
