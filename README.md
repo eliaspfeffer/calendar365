@@ -1,4 +1,4 @@
-# Big Year Calendar (365 Calendar)
+# CALENDAR365.APP
 
 A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 

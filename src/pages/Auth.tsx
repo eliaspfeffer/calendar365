@@ -138,7 +138,7 @@ export default function Auth() {
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
             <Calendar className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="font-display text-4xl tracking-wide">365 Calendar</CardTitle>
+          <CardTitle className="font-display text-4xl tracking-wide">CALENDAR365.APP</CardTitle>
           <CardDescription>
             {needsEmailConfirmation
               ? 'Confirm your email address to finish creating your account.'
