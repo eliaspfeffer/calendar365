@@ -10,7 +10,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS public.calendars (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL DEFAULT 'Mein Kalender',
+  name TEXT NOT NULL DEFAULT 'My calendar',
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -118,7 +118,7 @@ USING (
 
 -- Ensure each user has at least one calendar + membership (existing users)
 INSERT INTO public.calendars (owner_id, name)
-SELECT u.id, 'Mein Kalender'
+SELECT u.id, 'My calendar'
 FROM auth.users u
 WHERE NOT EXISTS (
   SELECT 1 FROM public.calendars c WHERE c.owner_id = u.id
@@ -314,7 +314,7 @@ BEGIN
 
   IF cal_id IS NULL THEN
     INSERT INTO public.calendars (owner_id, name)
-    VALUES (auth.uid(), 'Mein Kalender')
+    VALUES (auth.uid(), 'My calendar')
     RETURNING id INTO cal_id;
   END IF;
 
@@ -342,7 +342,7 @@ DECLARE
 BEGIN
   safe_name := NULLIF(BTRIM(p_name), '');
   IF safe_name IS NULL THEN
-    safe_name := 'Neuer Kalender';
+    safe_name := 'New calendar';
   END IF;
 
   INSERT INTO public.calendars (owner_id, name)
@@ -447,7 +447,7 @@ DECLARE
   cal_id UUID;
 BEGIN
   INSERT INTO public.calendars (owner_id, name)
-  VALUES (NEW.id, 'Mein Kalender')
+  VALUES (NEW.id, 'My calendar')
   RETURNING id INTO cal_id;
 
   INSERT INTO public.calendar_members (calendar_id, user_id, role)

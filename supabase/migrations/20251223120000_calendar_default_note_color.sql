@@ -30,7 +30,7 @@ DECLARE
 BEGIN
   safe_name := NULLIF(BTRIM(p_name), '');
   IF safe_name IS NULL THEN
-    safe_name := 'Neuer Kalender';
+    safe_name := 'New calendar';
   END IF;
 
   safe_color := LOWER(NULLIF(BTRIM(p_default_note_color), ''));
@@ -53,4 +53,3 @@ $$;
 REVOKE ALL ON FUNCTION public.create_calendar(TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.create_calendar(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_calendar(TEXT, TEXT) TO authenticated;
-
