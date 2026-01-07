@@ -34,13 +34,13 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
     setIsCreating(false);
     if (!id) {
       toast({
-        title: "Kalender konnte nicht erstellt werden",
+        title: "Couldn’t create calendar",
         description: error,
         variant: "destructive",
       });
       return;
     }
-    toast({ title: "Kalender erstellt" });
+    toast({ title: "Calendar created" });
     onOpenChange(false);
   };
 
@@ -48,7 +48,7 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" data-tour-id="create-calendar-dialog">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl tracking-wide text-primary">Neuer Kalender</DialogTitle>
+          <DialogTitle className="font-display text-2xl tracking-wide text-primary">New calendar</DialogTitle>
         </DialogHeader>
         <div className="space-y-2 py-2">
           <Label htmlFor="calendar-name">Name</Label>
@@ -56,13 +56,13 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
             id="calendar-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="z.B. Familie, WG, Urlaub…"
+            placeholder="e.g. Family, roommates, vacation…"
             autoFocus
           />
         </div>
 
         <div className="space-y-2" data-tour-id="create-calendar-default-color">
-          <Label>Standard-Notizfarbe</Label>
+          <Label>Default note color</Label>
           <div className="flex gap-2 justify-center">
             {STICKY_NOTE_COLORS.map((c) => (
               <button
@@ -82,10 +82,10 @@ export function CreateCalendarDialog({ open, onOpenChange, onCreate }: CreateCal
         </div>
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            Cancel
           </Button>
           <Button onClick={handleCreate} disabled={isCreating}>
-            {isCreating ? "Erstelle…" : "Erstellen"}
+            {isCreating ? "Creating…" : "Create"}
           </Button>
         </DialogFooter>
       </DialogContent>

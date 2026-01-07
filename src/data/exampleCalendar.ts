@@ -9,7 +9,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: "2025-07-14",
-    text: "Urlaub (1 Woche)\nFlug + Hotel checken",
+    text: "Vacation (1 week)\nCheck flight + hotel",
     color: "yellow",
   },
   {
@@ -17,7 +17,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: "2025-02-05",
-    text: "Projekt-Kickoff 10:00\nAgenda: Ziele, Rollen, nächste Schritte",
+    text: "Project kickoff 10:00\nAgenda: goals, roles, next steps",
     color: "blue",
   },
   {
@@ -25,7 +25,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: "2025-11-22",
-    text: "Geburtstag 🎂\nGeschenkidee: Buch + Karte",
+    text: "Birthday 🎂\nGift idea: book + card",
     color: "pink",
   },
   {
@@ -33,7 +33,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: "2026-03-12",
-    text: "Arzttermin 16:30\nÜberweisung mitnehmen",
+    text: "Doctor appointment 16:30\nBring referral",
     color: "green",
   },
   {
@@ -41,7 +41,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: "2026-09-01",
-    text: "Release v1.0\nFinaler Check: Tests, Changelog, Rollout",
+    text: "Release v1.0\nFinal check: tests, changelog, rollout",
     color: "orange",
   },
   {
@@ -49,7 +49,7 @@ export const exampleNotes: StickyNote[] = [
     calendar_id: EXAMPLE_CALENDAR_ID,
     user_id: EXAMPLE_USER_ID,
     date: null,
-    text: "Todo List-Idee:\n„Neues Ritual“ für Montag planen",
+    text: "To-do list idea:\nPlan a “new ritual” for Monday",
     color: "purple",
   },
 ];

@@ -294,10 +294,10 @@ const Index = () => {
     if (!hasWarnedAboutCalendars.current && calendars.length === 0 && calendarsSchemaStatus === "missing") {
       hasWarnedAboutCalendars.current = true;
       toast({
-        title: "Kalender-Funktion nicht verfügbar",
+        title: "Calendar feature unavailable",
         description:
           calendarsSchemaError ??
-          "Bitte die neuesten Supabase-Migrationen anwenden (shared calendars).",
+          "Please apply the latest Supabase migrations (shared calendars).",
         variant: "destructive",
       });
     }
@@ -574,7 +574,7 @@ const Index = () => {
                 appearingCalendarId && activeCalendarIdForUi === appearingCalendarId ? "animate-in fade-in-0 zoom-in-95" : "",
               ].join(" ")}
             >
-              <SelectValue placeholder={(user ? calendarsLoading : false) ? 'Lade Kalender…' : 'Kalender wählen'} />
+              <SelectValue placeholder={(user ? calendarsLoading : false) ? 'Loading calendars…' : 'Select calendar'} />
             </SelectTrigger>
             <SelectContent>
               {calendarsForUi.map((c) => (
@@ -592,7 +592,7 @@ const Index = () => {
                 variant="outline"
                 size="sm"
                 className="bg-background/80 backdrop-blur-sm"
-                title="Kalender anzeigen/ausblenden + Standardfarben"
+                title="Show/hide calendars + default colors"
                 disabled={(user ? calendarsLoading : false) || calendarsForUi.length === 0}
               >
                 <Layers className="h-4 w-4" />
@@ -774,10 +774,10 @@ const Index = () => {
             onClick={() => {
               if (user && calendarsSchemaStatus === "missing") {
                 toast({
-                  title: "Kalender-Funktion nicht verfügbar",
+                  title: "Calendar feature unavailable",
                   description:
                     calendarsSchemaError ??
-                    "Bitte die neuesten Supabase-Migrationen anwenden (shared calendars).",
+                    "Please apply the latest Supabase migrations (shared calendars).",
                   variant: "destructive",
                 });
                 return;
@@ -785,7 +785,7 @@ const Index = () => {
               setCreateCalendarDialogOpen(true);
             }}
             className="bg-background/80 backdrop-blur-sm"
-            title="Neuen Kalender erstellen"
+            title="Create new calendar"
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -796,7 +796,7 @@ const Index = () => {
             size="sm"
             onClick={() => setShareDialogOpen(true)}
             className="bg-background/80 backdrop-blur-sm"
-            title="Kalender teilen"
+            title="Share calendar"
             disabled={user ? (!activeCalendar || (activeCalendar.role !== 'owner' && activeCalendar.role !== 'editor')) : false}
           >
             <Share2 className="h-4 w-4" />
@@ -972,7 +972,7 @@ const Index = () => {
             if (!activeCalendar) return null;
             const token = await createInvite(activeCalendar.id, role, expiresInDays);
             if (!token) {
-              toast({ title: 'Fehler beim Teilen', variant: 'destructive' });
+              toast({ title: 'Sharing failed', variant: 'destructive' });
             }
             return token;
           }}

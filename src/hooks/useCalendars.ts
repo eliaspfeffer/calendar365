@@ -76,8 +76,8 @@ export function useCalendars(userId: string | null) {
         setSchemaStatus("missing");
         setSchemaError(
           errCode === "PGRST202"
-            ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Im Supabase Dashboard: Settings → API → Reload schema, dann Seite neu laden."
-            : "Supabase-Kalenderschema fehlt. Bitte die neuesten Migrationen anwenden (shared calendars)."
+            ? "Supabase API schema cache hasn't been updated yet. In the Supabase dashboard: Settings → API → Reload schema, then reload the page."
+            : "Supabase calendar schema is missing. Please apply the latest migrations (shared calendars)."
         );
         setIsLoading(false);
         return;
@@ -110,8 +110,8 @@ export function useCalendars(userId: string | null) {
         setSchemaStatus("missing");
         setSchemaError(
           errCode === "PGRST202"
-            ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Im Supabase Dashboard: Settings → API → Reload schema, dann Seite neu laden."
-            : "Supabase-Kalenderschema fehlt. Bitte die neuesten Migrationen anwenden (shared calendars)."
+            ? "Supabase API schema cache hasn't been updated yet. In the Supabase dashboard: Settings → API → Reload schema, then reload the page."
+            : "Supabase calendar schema is missing. Please apply the latest migrations (shared calendars)."
         );
       } else {
         setSchemaStatus("error");
@@ -151,7 +151,7 @@ export function useCalendars(userId: string | null) {
 
   const createCalendar = useCallback(
     async (name: string, defaultNoteColor?: string): Promise<CreateCalendarResult> => {
-      if (!userId) return { id: null, error: "Nicht angemeldet." };
+      if (!userId) return { id: null, error: "Not signed in." };
       const attemptWithColor = await supabase.rpc("create_calendar", {
         p_name: name,
         // Always provide a color to avoid PostgREST ambiguity when both
@@ -174,18 +174,18 @@ export function useCalendars(userId: string | null) {
           setSchemaStatus("missing");
           setSchemaError(
             errCode === "PGRST202"
-              ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Im Supabase Dashboard: Settings → API → Reload schema, dann Seite neu laden."
-              : "Supabase-Kalenderschema fehlt. Bitte die neuesten Migrationen anwenden (shared calendars)."
+              ? "Supabase API schema cache hasn't been updated yet. In the Supabase dashboard: Settings → API → Reload schema, then reload the page."
+              : "Supabase calendar schema is missing. Please apply the latest migrations (shared calendars)."
           );
           return {
             id: null,
             error:
               errCode === "PGRST202"
-                ? "Supabase API Schema-Cache ist noch nicht aktualisiert. Bitte Schema neu laden und erneut versuchen."
-                : "Kalender-Funktion nicht verfügbar. Bitte Supabase-Migrationen anwenden.",
+                ? "Supabase API schema cache hasn't been updated yet. Please reload the schema and try again."
+                : "Calendar feature unavailable. Please apply the Supabase migrations.",
           };
         }
-        return { id: null, error: error.message || "Unbekannter Fehler." };
+        return { id: null, error: error.message || "Unknown error." };
       }
       await refresh();
       return { id: data, error: undefined };
