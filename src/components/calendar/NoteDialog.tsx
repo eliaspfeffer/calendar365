@@ -87,8 +87,10 @@ export function NoteDialog({
   const handleSave = async () => {
     if (text.trim()) {
       const normalizedExistingDate = existingNote?.date ?? null;
-      const normalizedNewDate = newDate.trim() ? newDate : null;
-      const normalizedCalendarId = calendarId ?? existingNote?.calendar_id ?? null;
+      const normalizedNewDate = existingNote
+        ? (newDate.trim() ? newDate : null)
+        : (newDate.trim() ? newDate : (date?.trim() ? date : null));
+      const normalizedCalendarId = calendarId ?? existingNote?.calendar_id ?? calendarOptions?.[0]?.id ?? null;
 
       // Check if date changed for existing note
       if (existingNote && normalizedNewDate !== normalizedExistingDate && onMove) {
@@ -138,10 +140,10 @@ export function NoteDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {calendarOptions && calendarId && onCalendarChange && (
+          {calendarOptions && onCalendarChange && (
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Calendar</Label>
-              <Select value={calendarId} onValueChange={onCalendarChange}>
+              <Select value={calendarId ?? ''} onValueChange={onCalendarChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose calendar" />
                 </SelectTrigger>
@@ -156,12 +158,14 @@ export function NoteDialog({
             </div>
           )}
 
-          {/* Date picker for existing notes */}
-          {existingNote && (
+          {/* Date picker */}
+          {(
             <div className="space-y-2">
               <Label htmlFor="note-date" className="flex items-center gap-2 text-sm text-muted-foreground">
                 <CalendarIcon className="w-4 h-4" />
-                {existingNote.date ? 'Move to date' : 'Assign date'} (connected notes may move too)
+                {existingNote
+                  ? `${existingNote.date ? 'Move to date' : 'Assign date'} (connected notes may move too)`
+                  : 'Date (optional)'}
               </Label>
               <Input
                 id="note-date"

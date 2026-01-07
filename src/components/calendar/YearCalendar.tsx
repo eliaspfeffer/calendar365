@@ -494,10 +494,12 @@ export function YearCalendar({
       setSelectedDate(formatDateKey(date));
       setEditingNote(null);
       setEditingNoteCalendarId(null);
-      setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+      setNewNoteCalendarId(
+        userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+      );
       setDialogOpen(true);
     },
-    [userId, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds]
+    [userId, isDragging, isLinkMode, draggedNoteId, activeCalendarId, visibleCalendarIds, calendarOptions]
   );
 
   const handleNoteClick = useCallback(
@@ -797,7 +799,6 @@ export function YearCalendar({
 
       const target = e.target as HTMLElement;
       if (
-        target.closest(".year-calendar-grid") ||
         target.closest(".inbox-notes-panel") ||
         target.closest(".zoom-controls") ||
         target.closest(".year-range-controls") ||
@@ -808,6 +809,44 @@ export function YearCalendar({
         return;
       }
 
+      // If the click happened inside a calendar day cell, treat it as a date click
+      // (even if an overlay element was the event target) so new notes "stick" to that date.
+      const directCell = target.closest<HTMLElement>("[data-date-key]");
+      let dateKey = directCell?.dataset?.dateKey ?? null;
+      const hitStack =
+        !dateKey && typeof document !== "undefined"
+          ? document.elementsFromPoint(e.clientX, e.clientY)
+          : [];
+      if (!dateKey && hitStack.length > 0) {
+        for (const el of hitStack) {
+          const cell = (el as HTMLElement | null)?.closest?.("[data-date-key]") as HTMLElement | null;
+          const key = cell?.dataset?.dateKey ?? null;
+          if (key) {
+            dateKey = key;
+            break;
+          }
+        }
+      }
+      if (dateKey) {
+        setSelectedDate(dateKey);
+        setEditingNote(null);
+        setNewNotePosition(null);
+        setNewNoteCalendarId(
+          userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+        );
+        setDialogOpen(true);
+        return;
+      }
+
+      // Never create "canvas" notes when clicking anywhere over the calendar grid
+      // (month labels, borders, overlays, etc).
+      const isOverGrid =
+        target.closest(".year-calendar-grid") ||
+        hitStack.some((el) => (el as HTMLElement | null)?.closest?.(".year-calendar-grid"));
+      if (isOverGrid) {
+        return;
+      }
+
       const point = getContentPointFromClient(e.clientX, e.clientY);
       if (!point) return;
 
@@ -815,10 +854,12 @@ export function YearCalendar({
       setEditingNote(null);
       setEditingNoteCalendarId(null);
       setNewNotePosition(point);
-      setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+      setNewNoteCalendarId(
+        userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+      );
       setDialogOpen(true);
     },
-    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds]
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds, calendarOptions]
   );
 
   const handleSaveNote = useCallback(
@@ -1308,7 +1349,9 @@ export function YearCalendar({
             setEditingNote(null);
             setEditingNoteCalendarId(null);
             setNewNotePosition(null);
-            setNewNoteCalendarId(userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? null) : null);
+            setNewNoteCalendarId(
+              userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+            );
             setDialogOpen(true);
           }}
           onNoteClick={handleInboxNoteClick}
@@ -1336,7 +1379,7 @@ export function YearCalendar({
         onSave={handleSaveNote}
         onDelete={editingNote ? handleDeleteNote : undefined}
         onMove={editingNote ? handleMoveNote : undefined}
-        calendarOptions={calendarOptions && calendarOptions.length > 1 ? calendarOptions : undefined}
+        calendarOptions={calendarOptions ?? undefined}
         calendarId={editingNote ? (editingNoteCalendarId ?? editingNote.calendar_id ?? null) : newNoteCalendarId}
         onCalendarChange={editingNote ? setEditingNoteCalendarId : setNewNoteCalendarId}
         defaultColor={

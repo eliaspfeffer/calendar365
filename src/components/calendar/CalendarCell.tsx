@@ -118,7 +118,14 @@ export function CalendarCell({
         day.isToday && "ring-2 ring-inset ring-primary",
         draggedNoteId && "ring-2 ring-primary ring-offset-1 bg-primary/5"
       )}
-      onClick={readOnly ? undefined : onCellClick}
+      onClick={
+        readOnly
+          ? undefined
+          : (e) => {
+              e.stopPropagation();
+              onCellClick();
+            }
+      }
       onDragOver={readOnly ? undefined : handleDragOver}
       onDrop={readOnly ? undefined : handleDrop}
     >
