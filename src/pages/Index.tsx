@@ -969,6 +969,7 @@ const Index = () => {
           open={shareDialogOpen}
           onOpenChange={setShareDialogOpen}
           calendar={activeCalendar}
+          calendars={orderedCalendars}
           shareBaseUrl={settings.shareBaseUrl}
           onCreateInvite={async (role, expiresInDays) => {
             if (!activeCalendar) return null;

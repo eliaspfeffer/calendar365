@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useCalendarData, formatDateKey } from "@/hooks/useCalendarData";
 import { useStickyNotes } from "@/hooks/useStickyNotes";
 import { useNoteConnections } from "@/hooks/useNoteConnections";
 import { useZoomPan } from "@/hooks/useZoomPan";
+import { usePublicShareEdit } from "@/hooks/usePublicShareEdit";
 import { CalendarCell } from "./CalendarCell";
 import { NoteDialog } from "./NoteDialog";
 import { ZoomControls } from "./ZoomControls";
@@ -176,6 +177,12 @@ interface YearCalendarProps {
   calendarOptions?: Array<{ id: string; name: string }>;
   calendarDefaultNoteColorById?: Record<string, StickyColor>;
   googleEventsByDate?: Record<string, GoogleCalendarDayEvent[]> | null;
+  // Public share editing props
+  publicShareSlug?: string;
+  publicSharePassword?: string | null;
+  publicShareNotes?: StickyNote[];
+  publicShareConnections?: Array<{ id: string; calendar_id: string; user_id: string; source_note_id: string; target_note_id: string }>;
+  onPublicShareRefresh?: () => void;
 }
 
 export function YearCalendar({
@@ -202,8 +209,14 @@ export function YearCalendar({
   calendarOptions,
   calendarDefaultNoteColorById,
   googleEventsByDate,
+  publicShareSlug,
+  publicSharePassword,
+  publicShareNotes,
+  publicShareConnections,
+  onPublicShareRefresh,
 }: YearCalendarProps) {
-  const isGuestSession = !userId;
+  const isPublicShareMode = Boolean(publicShareSlug);
+  const isGuestSession = !userId && !isPublicShareMode;
   const isGuestNote = useCallback((note: StickyNote | null | undefined) => note?.user_id === "guest", []);
   const isNoteReadOnly = useCallback(
     (note: StickyNote) => isGuestSession && note.user_id !== "guest",
@@ -214,25 +227,228 @@ export function YearCalendar({
   const gridRef = useRef<HTMLDivElement>(null);
   const suppressNextCanvasClickRef = useRef(false);
   const [minScale, setMinScale] = useState(0.3);
-  const {
-    notes,
-    addNote,
-    updateNote,
-    setNoteStruck,
-    updateNoteCalendar,
-    moveNote,
-    moveNoteToCanvas,
-    deleteNote,
-    getNotesByDate,
-  } = useStickyNotes(userId, visibleCalendarIds, activeCalendarId, refreshToken);
-  const {
-    connections,
-    addConnection,
-    deleteConnection,
-    getConnectedNotes,
-    getConnectionsForNote,
-  } = useNoteConnections(userId, visibleCalendarIds, activeCalendarId, refreshToken);
+
+  // Public share edit API
+  const publicShareEditApi = usePublicShareEdit({
+    slug: publicShareSlug ?? "",
+    password: publicSharePassword ?? null,
+  });
+
+  // Regular hooks for authenticated users
+  const regularNotesHook = useStickyNotes(
+    isPublicShareMode ? null : userId,
+    isPublicShareMode ? null : visibleCalendarIds,
+    isPublicShareMode ? null : activeCalendarId,
+    refreshToken
+  );
+  const regularConnectionsHook = useNoteConnections(
+    isPublicShareMode ? null : userId,
+    isPublicShareMode ? null : visibleCalendarIds,
+    isPublicShareMode ? null : activeCalendarId,
+    refreshToken
+  );
+
+  // Use public share data or regular data
+  const notes = isPublicShareMode ? (publicShareNotes ?? []) : regularNotesHook.notes;
+  const connections = isPublicShareMode ? (publicShareConnections ?? []) : regularConnectionsHook.connections;
+
+  // Create unified getNotesByDate function
+  const getNotesByDate = useMemo(() => {
+    if (isPublicShareMode) {
+      const notesByDate = new Map<string, StickyNote[]>();
+      for (const note of publicShareNotes ?? []) {
+        if (!note.date) continue;
+        const existing = notesByDate.get(note.date) ?? [];
+        existing.push(note);
+        notesByDate.set(note.date, existing);
+      }
+      return (date: string) => notesByDate.get(date) ?? [];
+    }
+    return regularNotesHook.getNotesByDate;
+  }, [isPublicShareMode, publicShareNotes, regularNotesHook.getNotesByDate]);
+
+  // Unified handlers that work for both regular and public share modes
   const { toast } = useToast();
+
+  // Create getConnectedNotes and getConnectionsForNote that work in both modes
+  const getConnectionsForNote = useCallback(
+    (noteId: string) => {
+      if (isPublicShareMode) {
+        return connections.filter(
+          (c) => c.source_note_id === noteId || c.target_note_id === noteId
+        );
+      }
+      return regularConnectionsHook.getConnectionsForNote(noteId);
+    },
+    [isPublicShareMode, connections, regularConnectionsHook]
+  );
+
+  const getConnectedNotes = useCallback(
+    (noteId: string) => {
+      if (isPublicShareMode) {
+        const connectedIds: string[] = [];
+        for (const conn of connections) {
+          if (conn.source_note_id === noteId) {
+            connectedIds.push(conn.target_note_id);
+          } else if (conn.target_note_id === noteId) {
+            connectedIds.push(conn.source_note_id);
+          }
+        }
+        return connectedIds;
+      }
+      return regularConnectionsHook.getConnectedNotes(noteId);
+    },
+    [isPublicShareMode, connections, regularConnectionsHook]
+  );
+
+  // Wrapper functions that delegate to either regular hooks or public share API
+  const addNote = useCallback(
+    async (
+      date: string | null,
+      text: string,
+      color: StickyColor,
+      position?: { x: number; y: number } | null,
+      calendarId?: string | null
+    ) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.insertNote({
+          calendarId: calendarId ?? activeCalendarId ?? "",
+          date: date ?? undefined,
+          text,
+          color,
+          posX: position?.x,
+          posY: position?.y,
+        });
+        if (!result.ok) {
+          return { note: null, error: { message: result.error } };
+        }
+        onPublicShareRefresh?.();
+        return { note: result.data, error: null };
+      }
+      return regularNotesHook.addNote(date, text, color, position, calendarId);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, activeCalendarId, onPublicShareRefresh]
+  );
+
+  const updateNote = useCallback(
+    async (noteId: string, text: string, color: StickyColor) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.updateNote({ noteId, text, color });
+        if (!result.ok) {
+          return false;
+        }
+        onPublicShareRefresh?.();
+        return true;
+      }
+      return regularNotesHook.updateNote(noteId, text, color);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, onPublicShareRefresh]
+  );
+
+  const setNoteStruck = useCallback(
+    async (noteId: string, isStruck: boolean) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.setNoteStruck(noteId, isStruck);
+        if (!result.ok) {
+          return false;
+        }
+        onPublicShareRefresh?.();
+        return true;
+      }
+      return regularNotesHook.setNoteStruck(noteId, isStruck);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, onPublicShareRefresh]
+  );
+
+  const updateNoteCalendar = useCallback(
+    async (noteId: string, calendarId: string) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.updateNoteCalendar(noteId, calendarId);
+        if (!result.ok) {
+          return { ok: false, error: { message: result.error } };
+        }
+        onPublicShareRefresh?.();
+        return { ok: true };
+      }
+      return regularNotesHook.updateNoteCalendar(noteId, calendarId);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, onPublicShareRefresh]
+  );
+
+  const moveNote = useCallback(
+    async (noteId: string, newDate: string | null, conns?: Array<{ id: string; source_note_id: string; target_note_id: string }>, insertIndex?: number) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.moveNote({ noteId, date: newDate });
+        if (!result.ok) {
+          return { ok: false as const, error: { message: result.error } };
+        }
+        onPublicShareRefresh?.();
+        return { ok: true as const };
+      }
+      return regularNotesHook.moveNote(noteId, newDate, conns ?? [], insertIndex);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, onPublicShareRefresh]
+  );
+
+  const moveNoteToCanvas = useCallback(
+    async (noteId: string, position: { x: number; y: number }) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.moveNote({ noteId, date: null, posX: position.x, posY: position.y });
+        if (!result.ok) {
+          return false;
+        }
+        onPublicShareRefresh?.();
+        return true;
+      }
+      return regularNotesHook.moveNoteToCanvas(noteId, position);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, onPublicShareRefresh]
+  );
+
+  const deleteNote = useCallback(
+    async (noteId: string) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.deleteNote(noteId);
+        if (!result.ok) {
+          return false;
+        }
+        onPublicShareRefresh?.();
+        return true;
+      }
+      return regularNotesHook.deleteNote(noteId);
+    },
+    [isPublicShareMode, publicShareEditApi, regularNotesHook, onPublicShareRefresh]
+  );
+
+  const addConnection = useCallback(
+    async (sourceNoteId: string, targetNoteId: string, insertCalendarId?: string | null) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.insertConnection(sourceNoteId, targetNoteId);
+        if (!result.ok) {
+          return null;
+        }
+        onPublicShareRefresh?.();
+        return result.data;
+      }
+      return regularConnectionsHook.addConnection(sourceNoteId, targetNoteId, insertCalendarId ?? null);
+    },
+    [isPublicShareMode, publicShareEditApi, regularConnectionsHook, onPublicShareRefresh]
+  );
+
+  const deleteConnection = useCallback(
+    async (connectionId: string) => {
+      if (isPublicShareMode) {
+        const result = await publicShareEditApi.deleteConnection(connectionId);
+        if (!result.ok) {
+          return false;
+        }
+        onPublicShareRefresh?.();
+        return true;
+      }
+      return regularConnectionsHook.deleteConnection(connectionId);
+    },
+    [isPublicShareMode, publicShareEditApi, regularConnectionsHook, onPublicShareRefresh]
+  );
   const {
     scale,
     translateX,
@@ -264,13 +480,13 @@ export function YearCalendar({
 
   const inboxNotes = notes.filter((n) => {
     if (!n.date && (n.pos_x == null || n.pos_y == null)) {
-      return userId ? true : n.user_id === "guest";
+      return isPublicShareMode || userId ? true : n.user_id === "guest";
     }
     return false;
   });
   const canvasNotes = notes.filter((n) => {
     if (!n.date && n.pos_x != null && n.pos_y != null) {
-      return userId ? true : n.user_id === "guest";
+      return isPublicShareMode || userId ? true : n.user_id === "guest";
     }
     return false;
   });
@@ -507,26 +723,28 @@ export function YearCalendar({
       if (isDragging()) return;
       if (isLinkMode) return; // Handled by onLinkClick
       if (draggedNoteId) return; // Don't open dialog if we just dragged
-      if (!userId && !isGuestNote(note)) return;
+      // Allow editing in public share mode, or if user owns the note
+      if (!isPublicShareMode && !userId && !isGuestNote(note)) return;
       setSelectedDate(note.date ?? null);
       setEditingNote(note);
       setEditingNoteCalendarId(note.calendar_id ?? null);
       setDialogOpen(true);
     },
-    [isDragging, isLinkMode, draggedNoteId, userId, isGuestNote]
+    [isDragging, isLinkMode, draggedNoteId, userId, isGuestNote, isPublicShareMode]
   );
 
   const handleInboxNoteClick = useCallback(
     (note: StickyNote) => {
       if (isDragging()) return;
       if (draggedNoteId) return;
-      if (!userId && !isGuestNote(note)) return;
+      // Allow editing in public share mode, or if user owns the note
+      if (!isPublicShareMode && !userId && !isGuestNote(note)) return;
       setSelectedDate(note.date ?? null);
       setEditingNote(note);
       setEditingNoteCalendarId(note.calendar_id ?? null);
       setDialogOpen(true);
     },
-    [isDragging, draggedNoteId, userId, isGuestNote]
+    [isDragging, draggedNoteId, userId, isGuestNote, isPublicShareMode]
   );
 
   const handleToggleNoteStrikethrough = useCallback(
@@ -539,7 +757,8 @@ export function YearCalendar({
 
   const handleLinkClick = useCallback(
     (noteId: string) => {
-      if (!userId) {
+      // Allow linking in public share mode, or require auth for guest users
+      if (!isPublicShareMode && !userId) {
         onAuthRequired?.();
         return;
       }
@@ -592,7 +811,7 @@ export function YearCalendar({
         });
       }
     },
-    [linkSourceNoteId, addConnection, toast, notes, onAuthRequired, userId]
+    [linkSourceNoteId, addConnection, toast, notes, onAuthRequired, userId, isPublicShareMode]
   );
 
   const handleNoteHover = useCallback((noteId: string | null) => {
@@ -639,7 +858,8 @@ export function YearCalendar({
         return;
       }
       const note = notes.find((n) => n.id === noteId);
-      if (!userId && !isGuestNote(note)) {
+      // Allow in public share mode, or if user owns the note
+      if (!isPublicShareMode && !userId && !isGuestNote(note)) {
         setDraggedNoteId(null);
         return;
       }
@@ -651,14 +871,14 @@ export function YearCalendar({
             ? `${err.message}${err.code ? ` (${err.code})` : ""}`
             : null;
           toast({
-            title: "Couldn’t move note",
+            title: "Couldn't move note",
             description: details
-              ? `The change wasn’t saved: ${details}`
-              : "The change wasn’t saved. Check your Supabase schema/migrations.",
+              ? `The change wasn't saved: ${details}`
+              : "The change wasn't saved.",
             action: (
               <ToastAction
                 altText="Copy error"
-                onClick={() => copyToClipboard(details ?? "Couldn’t move note (no error details).")}
+                onClick={() => copyToClipboard(details ?? "Couldn't move note (no error details).")}
               >
                 Copy error
               </ToastAction>
@@ -679,14 +899,15 @@ export function YearCalendar({
       }
       setDraggedNoteId(null);
     },
-    [notes, moveNote, connections, toast, userId, copyToClipboard, isGuestNote]
+    [notes, moveNote, connections, toast, userId, copyToClipboard, isGuestNote, isPublicShareMode]
   );
 
   const handleInboxDrop = useCallback(
     async (noteId: string) => {
       const note = notes.find((n) => n.id === noteId);
       if (!note) return;
-      if (!userId && !isGuestNote(note)) return;
+      // Allow in public share mode, or if user owns the note
+      if (!isPublicShareMode && !userId && !isGuestNote(note)) return;
       if (!note.date) return;
       const moved = await moveNote(noteId, null, connections);
       if (!moved.ok) {
@@ -695,14 +916,14 @@ export function YearCalendar({
           ? `${err.message}${err.code ? ` (${err.code})` : ""}`
           : null;
         toast({
-          title: "Couldn’t move to Todo List",
+          title: "Couldn't move to Todo List",
           description: details
-            ? `The change wasn’t saved: ${details}`
-            : "The change wasn’t saved. Check your Supabase schema/migrations.",
+            ? `The change wasn't saved: ${details}`
+            : "The change wasn't saved.",
           action: (
             <ToastAction
               altText="Copy error"
-              onClick={() => copyToClipboard(details ?? "Couldn’t move to Todo List (no error details).")}
+              onClick={() => copyToClipboard(details ?? "Couldn't move to Todo List (no error details).")}
             >
               Copy error
             </ToastAction>
@@ -718,7 +939,7 @@ export function YearCalendar({
       });
       setDraggedNoteId(null);
     },
-    [notes, moveNote, connections, toast, userId, copyToClipboard, isGuestNote]
+    [notes, moveNote, connections, toast, userId, copyToClipboard, isGuestNote, isPublicShareMode]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -750,7 +971,8 @@ export function YearCalendar({
       }
       if (!noteId) return;
       const note = notes.find((n) => n.id === noteId) ?? null;
-      if (!userId && !isGuestNote(note)) return;
+      // Allow in public share mode, or if user owns the note
+      if (!isPublicShareMode && !userId && !isGuestNote(note)) return;
 
       const target = e.target as HTMLElement;
       if (
@@ -773,8 +995,8 @@ export function YearCalendar({
       const moved = await moveNoteToCanvas(noteId, point);
       if (!moved) {
         toast({
-          title: "Couldn’t place note",
-          description: "The change wasn’t saved. Check your Supabase schema/migrations.",
+          title: "Couldn't place note",
+          description: "The change wasn't saved.",
           variant: "destructive",
         });
         setDraggedNoteId(null);
@@ -786,7 +1008,7 @@ export function YearCalendar({
       });
       setDraggedNoteId(null);
     },
-    [draggedNoteId, getContentPointFromClient, moveNoteToCanvas, toast, userId, notes, isGuestNote]
+    [draggedNoteId, getContentPointFromClient, moveNoteToCanvas, toast, userId, notes, isGuestNote, isPublicShareMode]
   );
 
   const handleCanvasClick = useCallback(
@@ -832,7 +1054,7 @@ export function YearCalendar({
         setEditingNote(null);
         setNewNotePosition(null);
         setNewNoteCalendarId(
-          userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+          (isPublicShareMode || userId) ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
         );
         setDialogOpen(true);
         return;
@@ -855,19 +1077,20 @@ export function YearCalendar({
       setEditingNoteCalendarId(null);
       setNewNotePosition(point);
       setNewNoteCalendarId(
-        userId ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
+        (isPublicShareMode || userId) ? (activeCalendarId ?? visibleCalendarIds?.[0] ?? calendarOptions?.[0]?.id ?? null) : null
       );
       setDialogOpen(true);
     },
-    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds, calendarOptions]
+    [draggedNoteId, getContentPointFromClient, isDragging, isLinkMode, userId, dialogOpen, activeCalendarId, visibleCalendarIds, calendarOptions, isPublicShareMode]
   );
 
   const handleSaveNote = useCallback(
     async (text: string, color: StickyColor, date: string | null, calendarId: string | null) => {
       if (editingNote) {
-        if (!userId && !isGuestNote(editingNote)) return false;
+        // In public share mode, allow editing; otherwise check if user owns the note
+        if (!isPublicShareMode && !userId && !isGuestNote(editingNote)) return false;
         const targetCalendarId = calendarId ?? editingNote.calendar_id ?? null;
-        if (userId && targetCalendarId && targetCalendarId !== editingNote.calendar_id) {
+        if ((isPublicShareMode || userId) && targetCalendarId && targetCalendarId !== editingNote.calendar_id) {
           const conns = getConnectionsForNote(editingNote.id);
           if (conns.length > 0) {
             // Links are only allowed within the same calendar; changing calendars should drop existing links.
@@ -880,8 +1103,8 @@ export function YearCalendar({
               ? `${movedCalendar.error.message}${movedCalendar.error.code ? ` (${movedCalendar.error.code})` : ""}`
               : null;
             toast({
-              title: "Couldn’t change calendar",
-              description: details ? `The change wasn’t saved: ${details}` : "The change wasn’t saved to Supabase.",
+              title: "Couldn't change calendar",
+              description: details ? `The change wasn't saved: ${details}` : "The change wasn't saved.",
               variant: "destructive",
             });
             return false;
@@ -890,15 +1113,16 @@ export function YearCalendar({
         const updated = await updateNote(editingNote.id, text, color);
         if (!updated) {
           toast({
-            title: "Couldn’t save note",
-            description: userId ? "Your changes weren’t saved to Supabase." : "Your changes weren’t saved.",
+            title: "Couldn't save note",
+            description: (isPublicShareMode || userId) ? "Your changes weren't saved." : "Your changes weren't saved.",
             variant: "destructive",
           });
           return false;
         }
         return true;
       } else {
-        if (userId && !hasLifetimeAccess && typeof noteCount === "number" && noteCount >= noteLimit) {
+        // Skip note limit check for public share mode (they have their own limits via the link)
+        if (!isPublicShareMode && userId && !hasLifetimeAccess && typeof noteCount === "number" && noteCount >= noteLimit) {
           onUpgradeRequired?.();
           return false;
         }
@@ -912,19 +1136,21 @@ export function YearCalendar({
         );
         if (!result.note) {
           const msg = `${result.error?.message ?? ""} ${result.error?.details ?? ""}`.toLowerCase();
-          if (!hasLifetimeAccess && (msg.includes("row-level security") || msg.includes("policy") || msg.includes("rls"))) {
+          if (!isPublicShareMode && !hasLifetimeAccess && (msg.includes("row-level security") || msg.includes("policy") || msg.includes("rls"))) {
             onUpgradeRequired?.();
             return false;
           }
-          const hint = userId
-            ? (
-                newNoteCalendarId
-                  ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
-                  : "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations."
-              )
-            : "Nothing was saved.";
+          const hint = isPublicShareMode
+            ? "The note couldn't be created."
+            : userId
+              ? (
+                  newNoteCalendarId
+                    ? "Nothing was saved to Supabase. Check your Supabase schema/migrations (shared calendars + undated notes)."
+                    : "Nothing was saved to Supabase. If you use shared calendars, create/select a calendar; otherwise apply the latest sticky note migrations."
+                )
+              : "Nothing was saved.";
           toast({
-            title: "Couldn’t create note",
+            title: "Couldn't create note",
             description: hint,
             variant: "destructive",
           });
@@ -932,7 +1158,8 @@ export function YearCalendar({
         }
         onNoteCreated?.();
         setNewNotePosition(null);
-        if (!userId) {
+        // Don't show sign-in prompt for public share mode
+        if (!isPublicShareMode && !userId) {
           toast({
             title: "Sign in to save your notes",
             description: "Log in or register to save — your notes will be added to your account automatically.",
@@ -964,22 +1191,25 @@ export function YearCalendar({
       noteLimit,
       onUpgradeRequired,
       onNoteCreated,
+      isPublicShareMode,
     ]
   );
 
   const handleDeleteNote = useCallback(() => {
     if (editingNote) {
-      if (!userId && !isGuestNote(editingNote)) return;
+      // In public share mode, allow deleting; otherwise check if user owns the note
+      if (!isPublicShareMode && !userId && !isGuestNote(editingNote)) return;
       deleteNote(editingNote.id);
       onNoteDeleted?.();
       setDialogOpen(false);
     }
-  }, [editingNote, deleteNote, userId, isGuestNote, onNoteDeleted]);
+  }, [editingNote, deleteNote, userId, isGuestNote, onNoteDeleted, isPublicShareMode]);
 
   const handleMoveNote = useCallback(
     async (newDate: string | null) => {
       if (editingNote) {
-        if (!userId && !isGuestNote(editingNote)) return false;
+        // In public share mode, allow moving; otherwise check if user owns the note
+        if (!isPublicShareMode && !userId && !isGuestNote(editingNote)) return false;
         const moved = await moveNote(editingNote.id, newDate, connections);
         if (!moved.ok) {
           const err = moved.error;
@@ -987,14 +1217,14 @@ export function YearCalendar({
             ? `${err.message}${err.code ? ` (${err.code})` : ""}`
             : null;
           toast({
-            title: "Couldn’t move note",
+            title: "Couldn't move note",
             description: details
-              ? `The change wasn’t saved: ${details}`
-              : "The change wasn’t saved. Check your Supabase schema/migrations.",
+              ? `The change wasn't saved: ${details}`
+              : "The change wasn't saved.",
             action: (
               <ToastAction
                 altText="Copy error"
-                onClick={() => copyToClipboard(details ?? "Couldn’t move note (no error details).")}
+                onClick={() => copyToClipboard(details ?? "Couldn't move note (no error details).")}
               >
                 Copy error
               </ToastAction>
@@ -1007,7 +1237,7 @@ export function YearCalendar({
       }
       return false;
     },
-    [editingNote, moveNote, connections, toast, userId, copyToClipboard, isGuestNote]
+    [editingNote, moveNote, connections, toast, userId, copyToClipboard, isGuestNote, isPublicShareMode]
   );
 
   // Get all note IDs that have connections

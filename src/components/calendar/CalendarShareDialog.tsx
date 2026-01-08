@@ -8,11 +8,14 @@ import type { CalendarMemberRole, CalendarSummary } from "@/hooks/useCalendars";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCalendarPublicShare } from "@/hooks/useCalendarPublicShare";
+import { PublicShareLinksDialog } from "@/components/calendar/PublicShareLinksDialog";
+import { Link2 } from "lucide-react";
 
 interface CalendarShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   calendar: CalendarSummary | null;
+  calendars?: CalendarSummary[];
   shareBaseUrl: string | null;
   onCreateInvite: (role: CalendarMemberRole, expiresInDays: number) => Promise<string | null>;
 }
@@ -23,7 +26,7 @@ const roleLabels: Record<CalendarMemberRole, string> = {
   viewer: "View only",
 };
 
-export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl, onCreateInvite }: CalendarShareDialogProps) {
+export function CalendarShareDialog({ open, onOpenChange, calendar, calendars = [], shareBaseUrl, onCreateInvite }: CalendarShareDialogProps) {
   const { toast } = useToast();
   const { settings: publicShare, isLoading: publicShareLoading, setPublicShare, revokePublicShare } = useCalendarPublicShare(calendar?.id ?? null);
   const [role, setRole] = useState<CalendarMemberRole>("editor");
@@ -35,6 +38,7 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
   const [publicPassword, setPublicPassword] = useState("");
   const [isSavingPublic, setIsSavingPublic] = useState(false);
   const [activeTab, setActiveTab] = useState<"invite" | "public">("invite");
+  const [linksDialogOpen, setLinksDialogOpen] = useState(false);
 
   const inviteUrl = useMemo(() => {
     if (!inviteToken) return null;
@@ -234,6 +238,32 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
 
           <TabsContent value="public">
             <div className="space-y-4 py-2">
+              {/* Quick access to public share links management */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Manage all public links</p>
+                  <p className="text-xs text-muted-foreground">Create multiple links with different permissions</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLinksDialogOpen(true)}
+                  disabled={calendars.length === 0}
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Manage Links
+                </Button>
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or quick share this calendar</span>
+                </div>
+              </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="public-slug">Link name (readable)</Label>
                 <Input
@@ -331,6 +361,13 @@ export function CalendarShareDialog({ open, onOpenChange, calendar, shareBaseUrl
           )}
         </DialogFooter>
       </DialogContent>
+
+      <PublicShareLinksDialog
+        open={linksDialogOpen}
+        onOpenChange={setLinksDialogOpen}
+        calendars={calendars}
+        shareBaseUrl={shareBaseUrl}
+      />
     </Dialog>
   );
 }

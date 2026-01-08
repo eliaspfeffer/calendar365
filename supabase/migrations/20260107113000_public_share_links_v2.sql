@@ -614,11 +614,11 @@ GRANT EXECUTE ON FUNCTION public.get_public_share_link_snapshot(TEXT, TEXT, UUID
 -- Public edit (requires editor)
 CREATE OR REPLACE FUNCTION public.public_share_insert_sticky_note(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_calendar_id UUID,
-  p_date TEXT DEFAULT NULL,
   p_text TEXT,
   p_color TEXT,
+  p_password TEXT DEFAULT NULL,
+  p_date TEXT DEFAULT NULL,
   p_pos_x DOUBLE PRECISION DEFAULT NULL,
   p_pos_y DOUBLE PRECISION DEFAULT NULL,
   p_sort_order INT DEFAULT NULL
@@ -663,15 +663,15 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_insert_sticky_note(TEXT, TEXT, UUID, TEXT, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_insert_sticky_note(TEXT, TEXT, UUID, TEXT, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_insert_sticky_note(TEXT, UUID, TEXT, TEXT, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_insert_sticky_note(TEXT, UUID, TEXT, TEXT, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_update_sticky_note(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_note_id UUID,
   p_text TEXT,
-  p_color TEXT
+  p_color TEXT,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS public.sticky_notes
 LANGUAGE plpgsql
@@ -704,14 +704,14 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_update_sticky_note(TEXT, TEXT, UUID, TEXT, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_update_sticky_note(TEXT, TEXT, UUID, TEXT, TEXT) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_update_sticky_note(TEXT, UUID, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_update_sticky_note(TEXT, UUID, TEXT, TEXT, TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_set_sticky_note_struck(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_note_id UUID,
-  p_is_struck BOOLEAN
+  p_is_struck BOOLEAN,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS public.sticky_notes
 LANGUAGE plpgsql
@@ -743,13 +743,13 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_set_sticky_note_struck(TEXT, TEXT, UUID, BOOLEAN) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_set_sticky_note_struck(TEXT, TEXT, UUID, BOOLEAN) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_set_sticky_note_struck(TEXT, UUID, BOOLEAN, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_set_sticky_note_struck(TEXT, UUID, BOOLEAN, TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_move_sticky_note(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_note_id UUID,
+  p_password TEXT DEFAULT NULL,
   p_date TEXT DEFAULT NULL,
   p_pos_x DOUBLE PRECISION DEFAULT NULL,
   p_pos_y DOUBLE PRECISION DEFAULT NULL,
@@ -790,14 +790,14 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_move_sticky_note(TEXT, TEXT, UUID, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_move_sticky_note(TEXT, TEXT, UUID, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_move_sticky_note(TEXT, UUID, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_move_sticky_note(TEXT, UUID, TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, INT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_update_sticky_note_calendar(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_note_id UUID,
-  p_calendar_id UUID
+  p_calendar_id UUID,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS public.sticky_notes
 LANGUAGE plpgsql
@@ -830,14 +830,14 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_update_sticky_note_calendar(TEXT, TEXT, UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_update_sticky_note_calendar(TEXT, TEXT, UUID, UUID) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_update_sticky_note_calendar(TEXT, UUID, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_update_sticky_note_calendar(TEXT, UUID, UUID, TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_set_sticky_note_sort_order(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_note_id UUID,
-  p_sort_order INT
+  p_sort_order INT,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS public.sticky_notes
 LANGUAGE plpgsql
@@ -869,13 +869,13 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_set_sticky_note_sort_order(TEXT, TEXT, UUID, INT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_set_sticky_note_sort_order(TEXT, TEXT, UUID, INT) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_set_sticky_note_sort_order(TEXT, UUID, INT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_set_sticky_note_sort_order(TEXT, UUID, INT, TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_delete_sticky_note(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
-  p_note_id UUID
+  p_note_id UUID,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -906,14 +906,14 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_delete_sticky_note(TEXT, TEXT, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_delete_sticky_note(TEXT, TEXT, UUID) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_delete_sticky_note(TEXT, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_delete_sticky_note(TEXT, UUID, TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_insert_note_connection(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
   p_source_note_id UUID,
-  p_target_note_id UUID
+  p_target_note_id UUID,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS public.note_connections
 LANGUAGE plpgsql
@@ -951,13 +951,13 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_insert_note_connection(TEXT, TEXT, UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_insert_note_connection(TEXT, TEXT, UUID, UUID) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_insert_note_connection(TEXT, UUID, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_insert_note_connection(TEXT, UUID, UUID, TEXT) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.public_share_delete_note_connection(
   p_slug TEXT,
-  p_password TEXT DEFAULT NULL,
-  p_connection_id UUID
+  p_connection_id UUID,
+  p_password TEXT DEFAULT NULL
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -988,8 +988,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.public_share_delete_note_connection(TEXT, TEXT, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.public_share_delete_note_connection(TEXT, TEXT, UUID) TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.public_share_delete_note_connection(TEXT, UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.public_share_delete_note_connection(TEXT, UUID, TEXT) TO anon, authenticated;
 
 -- Backfill existing single-link shares as v2 view-only links.
 DO $$
