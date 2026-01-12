@@ -1,15 +1,48 @@
 {
-  "name": "vite_react_shadcn_ts",
-  "license": "UNLICENSED",
-  "private": true,
-  "version": "0.0.0",
+  "name": "calendar365",
+  "version": "1.0.0",
+  "description": "A year-at-a-glance planner with a zoomable 365-day view and sticky notes",
+  "license": "MIT",
+  "author": "Elias Pfeffer <contact@eliaspfeffer.de>",
+  "homepage": "https://github.com/eliaspfeffer/calendar365",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eliaspfeffer/calendar365.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eliaspfeffer/calendar365/issues"
+  },
+  "keywords": [
+    "calendar",
+    "planner",
+    "year-view",
+    "365",
+    "sticky-notes",
+    "productivity",
+    "planning",
+    "year-calendar",
+    "zoom",
+    "pan"
+  ],
   "type": "module",
+  "bin": {
+    "calendar365": "./bin/cli.js"
+  },
+  "main": "./dist/index.html",
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build",
+    "postinstall": "node bin/postinstall.js || true"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -83,5 +116,8 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

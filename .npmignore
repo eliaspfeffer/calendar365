@@ -1,0 +1,36 @@
+# Source files (not needed for distribution)
+src/
+public/
+supabase/
+homebrew-tap/
+scripts/
+Formula/
+
+# Config files
+.env*
+.gitignore
+*.config.js
+*.config.ts
+tsconfig*.json
+components.json
+eslint.config.js
+postcss.config.js
+vite.config.ts
+tailwind.config.ts
+
+# Dev files
+node_modules/
+bun.lockb
+package-lock.json
+demo.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
