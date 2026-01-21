@@ -2,13 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { SETTINGS_KEY } from '@/lib/settingsStorage';
-import { applyColorSchemePreference, type ColorSchemePreference } from '@/lib/systemColorScheme';
+import {
+  applyColorSchemePreference,
+  applyDarkThemePreference,
+  DEFAULT_DARK_THEME,
+  type ColorSchemePreference,
+  type DarkThemePreference,
+} from '@/lib/systemColorScheme';
 
 export type TextOverflowMode = 'scroll' | 'truncate' | 'expand';
 export type CalendarColor = 'blue' | 'green' | 'purple' | 'red' | 'orange' | 'teal' | 'pink' | 'indigo';
 
 interface Settings {
   colorScheme: ColorSchemePreference;
+  darkTheme: DarkThemePreference;
   yearStart: number;
   yearEnd: number;
   skipHideYearConfirm: boolean;
@@ -31,6 +38,7 @@ const defaultYearEnd = defaultYearStart + 1;
 
 const defaultSettings: Settings = {
   colorScheme: 'system',
+  darkTheme: DEFAULT_DARK_THEME,
   yearStart: defaultYearStart,
   yearEnd: defaultYearEnd,
   skipHideYearConfirm: false,
@@ -70,6 +78,9 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
 
   if (raw.colorScheme === "system" || raw.colorScheme === "light" || raw.colorScheme === "dark") {
     out.colorScheme = raw.colorScheme;
+  }
+  if (raw.darkTheme === "vscode-dark" || raw.darkTheme === "vscode-dimmed" || raw.darkTheme === "vscode-abyss") {
+    out.darkTheme = raw.darkTheme;
   }
 
   const yearStart = coerceYear(raw.yearStart);
@@ -149,6 +160,10 @@ export function useSettings(userId: string | null = null) {
   useEffect(() => {
     applyColorSchemePreference(settings.colorScheme);
   }, [settings.colorScheme]);
+
+  useEffect(() => {
+    applyDarkThemePreference(settings.darkTheme);
+  }, [settings.darkTheme]);
 
   useEffect(() => {
     if (!userId) return;

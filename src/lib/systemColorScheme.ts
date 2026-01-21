@@ -8,12 +8,23 @@ function applySystemColorScheme(isDark: boolean) {
 }
 
 export type ColorSchemePreference = "system" | "light" | "dark";
+export const DARK_THEMES = ["vscode-dark", "vscode-dimmed", "vscode-abyss"] as const;
+export type DarkThemePreference = (typeof DARK_THEMES)[number];
+export const DEFAULT_DARK_THEME: DarkThemePreference = "vscode-dark";
+
+const DARK_THEME_CLASS_PREFIX = "theme-";
+const DARK_THEME_CLASSES = DARK_THEMES.map((theme) => `${DARK_THEME_CLASS_PREFIX}${theme}`);
 
 let currentPreference: ColorSchemePreference = "system";
 let mediaQuery: MediaQueryList | null = null;
 
 function coercePreference(value: unknown): ColorSchemePreference | null {
   if (value === "system" || value === "light" || value === "dark") return value;
+  return null;
+}
+
+function coerceDarkTheme(value: unknown): DarkThemePreference | null {
+  if (DARK_THEMES.includes(value as DarkThemePreference)) return value as DarkThemePreference;
   return null;
 }
 
@@ -24,6 +35,18 @@ function getStoredPreference(): ColorSchemePreference | null {
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     return coercePreference((parsed as Record<string, unknown>).colorScheme);
+  } catch {
+    return null;
+  }
+}
+
+function getStoredDarkTheme(): DarkThemePreference | null {
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return coerceDarkTheme((parsed as Record<string, unknown>).darkTheme);
   } catch {
     return null;
   }
@@ -48,6 +71,13 @@ export function applyColorSchemePreference(preference: ColorSchemePreference) {
   applySystemColorScheme(media.matches);
 }
 
+export function applyDarkThemePreference(theme: DarkThemePreference) {
+  if (typeof window === "undefined") return;
+  const root = document.documentElement;
+  root.classList.remove(...DARK_THEME_CLASSES);
+  root.classList.add(`${DARK_THEME_CLASS_PREFIX}${theme}`);
+}
+
 export function initSystemColorScheme() {
   if (typeof window === "undefined") return;
 
@@ -63,6 +93,7 @@ export function initSystemColorScheme() {
   };
 
   applyColorSchemePreference(getStoredPreference() ?? "system");
+  applyDarkThemePreference(getStoredDarkTheme() ?? DEFAULT_DARK_THEME);
 
   if ("addEventListener" in media) {
     media.addEventListener("change", updateFromSystem);
@@ -74,6 +105,7 @@ export function initSystemColorScheme() {
   window.addEventListener("storage", (event) => {
     if (event.key !== SETTINGS_KEY) return;
     applyColorSchemePreference(getStoredPreference() ?? "system");
+    applyDarkThemePreference(getStoredDarkTheme() ?? DEFAULT_DARK_THEME);
   });
 }
 
