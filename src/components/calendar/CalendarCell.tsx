@@ -23,6 +23,7 @@ interface CalendarCellProps {
   onDragOver?: (e: React.DragEvent) => void;
   scale: number;
   textOverflowMode: TextOverflowMode;
+  autoScrollStruckNotes?: boolean;
   isLinkMode: boolean;
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
@@ -47,6 +48,7 @@ export function CalendarCell({
   onDragOver,
   scale,
   textOverflowMode,
+  autoScrollStruckNotes = true,
   isLinkMode,
   connectedNoteIds,
   highlightedNoteIds,
@@ -192,6 +194,7 @@ export function CalendarCell({
               onDragEnd={onNoteDragEnd}
               scale={scale}
               textOverflowMode={textOverflowMode}
+              autoScrollStruckNotes={autoScrollStruckNotes}
               isLinkMode={isLinkMode}
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}
@@ -228,6 +231,7 @@ export function CalendarCell({
               onDragEnd={onNoteDragEnd}
               scale={scale}
               textOverflowMode={textOverflowMode}
+              autoScrollStruckNotes={autoScrollStruckNotes}
               isLinkMode={isLinkMode}
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}
@@ -264,6 +268,7 @@ export function CalendarCell({
               onDragEnd={onNoteDragEnd}
               scale={scale}
               textOverflowMode={textOverflowMode}
+              autoScrollStruckNotes={autoScrollStruckNotes}
               isLinkMode={isLinkMode}
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}

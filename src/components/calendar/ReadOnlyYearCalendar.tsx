@@ -14,6 +14,7 @@ interface ReadOnlyYearCalendarProps {
   notes: StickyNote[];
   connections: NoteConnection[];
   textOverflowMode: TextOverflowMode;
+  autoScrollStruckNotes?: boolean;
   calendarColor?: CalendarColor;
   alwaysShowArrows?: boolean;
 }
@@ -26,6 +27,7 @@ function SingleYearGridReadOnly({
   connectedNoteIds,
   highlightedNoteIds,
   textOverflowMode,
+  autoScrollStruckNotes = true,
 }: {
   year: number;
   scale: number;
@@ -34,6 +36,7 @@ function SingleYearGridReadOnly({
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
   textOverflowMode: TextOverflowMode;
+  autoScrollStruckNotes?: boolean;
 }) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -68,6 +71,7 @@ function SingleYearGridReadOnly({
                   onNoteHover={onNoteHover}
                   scale={scale}
                   textOverflowMode={textOverflowMode}
+                  autoScrollStruckNotes={autoScrollStruckNotes}
                   isLinkMode={false}
                   connectedNoteIds={connectedNoteIds}
                   highlightedNoteIds={highlightedNoteIds}
@@ -95,6 +99,7 @@ export function ReadOnlyYearCalendar({
   notes,
   connections,
   textOverflowMode,
+  autoScrollStruckNotes = true,
   calendarColor,
   alwaysShowArrows = false,
 }: ReadOnlyYearCalendarProps) {
@@ -296,6 +301,7 @@ export function ReadOnlyYearCalendar({
               connectedNoteIds={connectedNoteIds}
               highlightedNoteIds={connectedByHovered}
               textOverflowMode={textOverflowMode}
+              autoScrollStruckNotes={autoScrollStruckNotes}
             />
           ))}
         </div>
@@ -316,6 +322,7 @@ export function ReadOnlyYearCalendar({
                     onHover={setHoveredNoteId}
                     scale={scale}
                     textOverflowMode={textOverflowMode}
+                    autoScrollStruckNotes={autoScrollStruckNotes}
                     isLinkMode={false}
                     isConnected={connectedNoteIds.includes(note.id)}
                     isHighlighted={connectedByHovered.includes(note.id)}
