@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { TextOverflowMode, CalendarColor } from '@/hooks/useSettings';
-import type { ColorSchemePreference } from '@/lib/systemColorScheme';
+import type { ColorSchemePreference, DarkThemePreference } from '@/lib/systemColorScheme';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -32,6 +33,8 @@ interface SettingsDialogProps {
   onOpenChange: (open: boolean) => void;
   colorScheme: ColorSchemePreference;
   onColorSchemeChange: (scheme: ColorSchemePreference) => void;
+  darkTheme: DarkThemePreference;
+  onDarkThemeChange: (theme: DarkThemePreference) => void;
   yearStart: number;
   yearEnd: number;
   onYearStartChange: (year: number) => void;
@@ -78,11 +81,19 @@ const calendarColors: { value: CalendarColor; label: string; hsl: string }[] = [
   { value: 'indigo', label: 'Indigo', hsl: '231 48% 48%' },
 ];
 
+const darkThemes: { value: DarkThemePreference; label: string; description: string }[] = [
+  { value: 'vscode-dark', label: 'VS Code Dark+', description: 'Classic Dark+ contrast.' },
+  { value: 'vscode-dimmed', label: 'VS Code Dark (Dimmed)', description: 'Softer contrast for long sessions.' },
+  { value: 'vscode-abyss', label: 'VS Code Abyss', description: 'Deep blue with bright accents.' },
+];
+
 export function SettingsDialog({
   open,
   onOpenChange,
   colorScheme,
   onColorSchemeChange,
+  darkTheme,
+  onDarkThemeChange,
   yearStart,
   yearEnd,
   onYearStartChange,
@@ -294,6 +305,25 @@ export function SettingsDialog({
                   </Label>
                 </div>
               </RadioGroup>
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Dark theme</Label>
+                <Select value={darkTheme} onValueChange={(value) => onDarkThemeChange(value as DarkThemePreference)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {darkThemes.map((theme) => (
+                      <SelectItem key={theme.value} value={theme.value}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{theme.label}</span>
+                          <span className="text-xs text-muted-foreground">{theme.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Used whenever dark mode is active.</p>
+              </div>
             </div>
 
             <div className="space-y-3">

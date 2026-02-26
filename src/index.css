@@ -62,46 +62,166 @@
 
   .dark {
     color-scheme: dark;
-    --background: 210 50% 10%;
-    --foreground: 210 20% 95%;
+    --background: 215 20% 12%;
+    --foreground: 210 18% 92%;
 
-    --card: 210 50% 12%;
-    --card-foreground: 210 20% 95%;
+    --card: 215 20% 15%;
+    --card-foreground: 210 18% 92%;
 
-    --popover: 210 50% 12%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 215 20% 15%;
+    --popover-foreground: 210 18% 92%;
 
-    --primary: 207 90% 54%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 210 90% 60%;
+    --primary-foreground: 215 20% 10%;
 
-    --secondary: 207 40% 20%;
-    --secondary-foreground: 207 60% 85%;
+    --secondary: 215 18% 22%;
+    --secondary-foreground: 210 30% 90%;
 
-    --muted: 210 30% 18%;
-    --muted-foreground: 210 20% 60%;
+    --muted: 215 18% 18%;
+    --muted-foreground: 215 15% 70%;
 
-    --accent: 207 40% 25%;
-    --accent-foreground: 207 60% 85%;
+    --accent: 215 22% 26%;
+    --accent-foreground: 210 30% 90%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 70% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 40% 20%;
-    --input: 210 40% 20%;
-    --ring: 207 90% 54%;
+    --border: 215 16% 24%;
+    --input: 215 16% 24%;
+    --ring: 210 90% 60%;
 
-    --calendar-header: 207 80% 35%;
-    --calendar-grid: 207 30% 25%;
-    --calendar-weekend: 207 25% 15%;
+    --calendar-header: 210 80% 45%;
+    --calendar-grid: 215 14% 26%;
+    --calendar-weekend: 215 18% 16%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 220 16% 12%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 210 90% 60%;
+    --sidebar-primary-foreground: 215 20% 10%;
+    --sidebar-accent: 220 16% 18%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 220 14% 20%;
+    --sidebar-ring: 210 90% 60%;
+  }
+
+  .dark.theme-vscode-dark {
+    --background: 0 0% 12%;
+    --foreground: 0 0% 88%;
+
+    --card: 0 0% 16%;
+    --card-foreground: 0 0% 88%;
+
+    --popover: 0 0% 16%;
+    --popover-foreground: 0 0% 88%;
+
+    --primary: 204 80% 56%;
+    --primary-foreground: 210 25% 12%;
+
+    --secondary: 0 0% 22%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 70%;
+
+    --accent: 0 0% 24%;
+    --accent-foreground: 0 0% 90%;
+
+    --border: 0 0% 26%;
+    --input: 0 0% 26%;
+    --ring: 204 80% 56%;
+
+    --calendar-header: 204 70% 45%;
+    --calendar-grid: 0 0% 24%;
+    --calendar-weekend: 0 0% 18%;
+
+    --sidebar-background: 0 0% 14%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 204 80% 56%;
+    --sidebar-primary-foreground: 210 25% 12%;
+    --sidebar-accent: 0 0% 20%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 22%;
+    --sidebar-ring: 204 80% 56%;
+  }
+
+  .dark.theme-vscode-dimmed {
+    --background: 210 12% 12%;
+    --foreground: 210 20% 88%;
+
+    --card: 210 14% 16%;
+    --card-foreground: 210 20% 88%;
+
+    --popover: 210 14% 16%;
+    --popover-foreground: 210 20% 88%;
+
+    --primary: 197 90% 52%;
+    --primary-foreground: 210 20% 12%;
+
+    --secondary: 210 13% 22%;
+    --secondary-foreground: 210 25% 90%;
+
+    --muted: 210 13% 19%;
+    --muted-foreground: 210 12% 70%;
+
+    --accent: 210 12% 25%;
+    --accent-foreground: 210 25% 90%;
+
+    --border: 210 10% 28%;
+    --input: 210 10% 28%;
+    --ring: 197 90% 52%;
+
+    --calendar-header: 199 80% 40%;
+    --calendar-grid: 210 10% 24%;
+    --calendar-weekend: 210 12% 17%;
+
+    --sidebar-background: 210 14% 13%;
+    --sidebar-foreground: 210 20% 88%;
+    --sidebar-primary: 197 90% 52%;
+    --sidebar-primary-foreground: 210 20% 12%;
+    --sidebar-accent: 210 12% 20%;
+    --sidebar-accent-foreground: 210 25% 90%;
+    --sidebar-border: 210 10% 22%;
+    --sidebar-ring: 197 90% 52%;
+  }
+
+  .dark.theme-vscode-abyss {
+    --background: 214 44% 10%;
+    --foreground: 210 20% 90%;
+
+    --card: 214 42% 14%;
+    --card-foreground: 210 20% 90%;
+
+    --popover: 214 42% 14%;
+    --popover-foreground: 210 20% 90%;
+
+    --primary: 190 95% 45%;
+    --primary-foreground: 214 44% 10%;
+
+    --secondary: 214 30% 20%;
+    --secondary-foreground: 210 25% 90%;
+
+    --muted: 214 30% 16%;
+    --muted-foreground: 210 18% 72%;
+
+    --accent: 214 32% 22%;
+    --accent-foreground: 210 25% 90%;
+
+    --border: 214 28% 24%;
+    --input: 214 28% 24%;
+    --ring: 190 95% 45%;
+
+    --calendar-header: 190 80% 40%;
+    --calendar-grid: 214 25% 24%;
+    --calendar-weekend: 214 32% 14%;
+
+    --sidebar-background: 214 44% 11%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 190 95% 45%;
+    --sidebar-primary-foreground: 214 44% 10%;
+    --sidebar-accent: 214 30% 18%;
+    --sidebar-accent-foreground: 210 25% 90%;
+    --sidebar-border: 214 28% 20%;
+    --sidebar-ring: 190 95% 45%;
   }
 }
 
