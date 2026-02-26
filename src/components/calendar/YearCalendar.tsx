@@ -44,6 +44,7 @@ type BurnScenario = {
   id: string;
   name: string;
   startMonth: number;
+  endMonth: number | null;
   deltaBurn: number;
   deltaOffset: number;
 };
@@ -59,7 +60,12 @@ function buildBaseSeries(startCapital: number, burnRate: number, monthsCount: nu
 
 function buildScenarioSeries(base: number[], scenario: BurnScenario) {
   return base.map((value, i) => {
-    if (i < scenario.startMonth) return null;
+    if (i < scenario.startMonth) return value;
+    const endMonth = scenario.endMonth;
+    if (endMonth != null && i > endMonth) {
+      const cappedDelta = scenario.deltaOffset + scenario.deltaBurn * (endMonth - scenario.startMonth);
+      return value + cappedDelta;
+    }
     const delta = scenario.deltaOffset + scenario.deltaBurn * (i - scenario.startMonth);
     return value + delta;
   });
@@ -128,7 +134,7 @@ function BurnRateRow({
 }: {
   monthIndex: number;
   baseSeries: number[];
-  scenarioSeries: Array<{ id: string; values: Array<number | null> }>;
+  scenarioSeries: Array<{ id: string; values: Array<number> }>;
   maxAbs: number;
 }) {
   return (
@@ -136,7 +142,7 @@ function BurnRateRow({
       {scenarioSeries.map((scenario, idx) => (
         <BurnRateCell
           key={scenario.id}
-          value={scenario.values[monthIndex] ?? null}
+          value={scenario.values[monthIndex]}
           maxAbs={maxAbs}
           muted={idx % 2 === 1}
         />
@@ -409,6 +415,7 @@ export function YearCalendar({
   const [scenarioDraft, setScenarioDraft] = useState({
     name: "Scenario",
     startMonth: 0,
+    endMonth: null as number | null,
     deltaBurn: 0,
     deltaOffset: 0,
   });
@@ -1902,6 +1909,33 @@ export function YearCalendar({
                           </Select>
                         </div>
                         <div>
+                          <Label className="text-[11px] text-muted-foreground">Until</Label>
+                          <Select
+                            value={scenario.endMonth === null ? "forever" : String(scenario.endMonth)}
+                            onValueChange={(value) =>
+                              setBurnScenarios((prev) =>
+                                prev.map((s) =>
+                                  s.id === scenario.id
+                                    ? { ...s, endMonth: value === "forever" ? null : Number(value) }
+                                    : s
+                                )
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs" onPointerDown={(e) => e.stopPropagation()}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="forever">Forever</SelectItem>
+                              {uiMonths.map((month, idx) => (
+                                <SelectItem key={`${scenario.id}-end-${idx}`} value={String(idx)}>
+                                  {month}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
                           <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
                           <Input
                             type="number"
@@ -1978,6 +2012,30 @@ export function YearCalendar({
                       </Select>
                     </div>
                     <div>
+                      <Label className="text-[11px] text-muted-foreground">Until</Label>
+                      <Select
+                        value={scenarioDraft.endMonth === null ? "forever" : String(scenarioDraft.endMonth)}
+                        onValueChange={(value) =>
+                          setScenarioDraft((prev) => ({
+                            ...prev,
+                            endMonth: value === "forever" ? null : Number(value),
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs" onPointerDown={(e) => e.stopPropagation()}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="forever">Forever</SelectItem>
+                          {uiMonths.map((month, idx) => (
+                            <SelectItem key={`draft-end-${idx}`} value={String(idx)}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
                       <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
                       <Input
                         type="number"
@@ -2009,19 +2067,20 @@ export function YearCalendar({
                     className="mt-2 w-full"
                     onClick={() => {
                       const nextName = scenarioDraft.name.trim() || `Scenario ${burnScenarios.length + 1}`;
-                      setBurnScenarios((prev) => [
-                        ...prev,
-                        {
-                          id: `scenario-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                          name: nextName,
-                          startMonth: scenarioDraft.startMonth,
-                          deltaBurn: scenarioDraft.deltaBurn,
-                          deltaOffset: scenarioDraft.deltaOffset,
-                        },
-                      ]);
-                      setScenarioDraft((prev) => ({ ...prev, name: "Scenario" }));
-                    }}
-                  >
+                    setBurnScenarios((prev) => [
+                      ...prev,
+                      {
+                        id: `scenario-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        name: nextName,
+                        startMonth: scenarioDraft.startMonth,
+                        endMonth: scenarioDraft.endMonth,
+                        deltaBurn: scenarioDraft.deltaBurn,
+                        deltaOffset: scenarioDraft.deltaOffset,
+                      },
+                    ]);
+                    setScenarioDraft((prev) => ({ ...prev, name: "Scenario" }));
+                  }}
+                >
                     Add scenario
                   </Button>
                 </div>
