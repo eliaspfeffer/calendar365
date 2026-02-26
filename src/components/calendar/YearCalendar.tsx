@@ -83,10 +83,12 @@ function BurnRateCell({
   value,
   maxAbs,
   muted = false,
+  onClick,
 }: {
   value: number | null;
   maxAbs: number;
   muted?: boolean;
+  onClick?: () => void;
 }) {
   const safeMax = Math.max(1, maxAbs);
   const magnitude = value === null ? 0 : Math.min(1, Math.abs(value) / safeMax);
@@ -106,6 +108,10 @@ function BurnRateCell({
       )}
       style={{ width: BURN_COLUMN_WIDTH, height: BURN_ROW_HEIGHT }}
       title={tooltip}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
     >
       <div className="absolute inset-y-2 left-1/2 w-px bg-border" />
       {value !== null && width > 0 && (
@@ -131,11 +137,13 @@ function BurnRateRow({
   baseSeries,
   scenarioSeries,
   maxAbs,
+  onClickMonth,
 }: {
   monthIndex: number;
   baseSeries: number[];
   scenarioSeries: Array<{ id: string; values: Array<number> }>;
   maxAbs: number;
+  onClickMonth?: (monthIndex: number) => void;
 }) {
   return (
     <div className="flex">
@@ -145,9 +153,14 @@ function BurnRateRow({
           value={scenario.values[monthIndex]}
           maxAbs={maxAbs}
           muted={idx % 2 === 1}
+          onClick={onClickMonth ? () => onClickMonth(monthIndex) : undefined}
         />
       ))}
-      <BurnRateCell value={baseSeries[monthIndex]} maxAbs={maxAbs} />
+      <BurnRateCell
+        value={baseSeries[monthIndex]}
+        maxAbs={maxAbs}
+        onClick={onClickMonth ? () => onClickMonth(monthIndex) : undefined}
+      />
     </div>
   );
 }
@@ -178,6 +191,7 @@ interface SingleYearGridProps {
   readOnly?: boolean;
   burnConfig?: BurnConfig;
   burnScenarios?: BurnScenario[];
+  onRunwayMonthClick?: (monthIndex: number) => void;
 }
 
 function SingleYearGrid({
@@ -206,6 +220,7 @@ function SingleYearGrid({
   readOnly = false,
   burnConfig,
   burnScenarios,
+  onRunwayMonthClick,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -271,6 +286,7 @@ function SingleYearGrid({
                   baseSeries={baseSeries}
                   scenarioSeries={scenarioSeries}
                   maxAbs={maxAbs}
+                  onClickMonth={onRunwayMonthClick}
                 />
               </div>
             )}
@@ -1567,6 +1583,11 @@ export function YearCalendar({
                       isNoteReadOnly={isNoteReadOnly}
                       burnConfig={burnConfig}
                       burnScenarios={burnScenarios}
+                      onRunwayMonthClick={(monthIndex) => {
+                        setBurnPanelVisible(true);
+                        setBurnPanelOpen(true);
+                        setScenarioDraft((prev) => ({ ...prev, startMonth: monthIndex }));
+                      }}
                     />
 
                   {isLast && (onAddYear || onRemoveLastYear) && (
