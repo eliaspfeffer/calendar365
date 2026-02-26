@@ -448,6 +448,7 @@ export function YearCalendar({
   const [isBurnPanelDragging, setIsBurnPanelDragging] = useState(false);
   const burnPanelDragOffset = useRef({ x: 0, y: 0 });
   const [scenarioDraftBaseNav, setScenarioDraftBaseNav] = useState<number | null>(null);
+  const [scenarioDraftEditStartNav, setScenarioDraftEditStartNav] = useState(false);
   const [scenarioDraft, setScenarioDraft] = useState({
     name: "Scenario",
     startMonth: 0,
@@ -1608,6 +1609,7 @@ export function YearCalendar({
                         setBurnPanelVisible(true);
                         setBurnPanelOpen(true);
                         setScenarioDraftBaseNav(baseValue);
+                        setScenarioDraftEditStartNav(false);
                         setScenarioDraft((prev) => ({
                           ...prev,
                           name: `Scenario ${uiMonths[monthIndex]}`,
@@ -2100,31 +2102,39 @@ export function YearCalendar({
                     </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground">Start NAV</Label>
-                      {scenarioDraftBaseNav != null && (
-                        <div className="text-[10px] text-muted-foreground">
-                          Base: {formatNav(scenarioDraftBaseNav)}
+                      {scenarioDraftBaseNav != null && !scenarioDraftEditStartNav ? (
+                        <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                          <span>Base: {formatNav(scenarioDraftBaseNav)}</span>
+                          <button
+                            type="button"
+                            className="text-[10px] font-semibold text-foreground/70 hover:text-foreground"
+                            onClick={() => setScenarioDraftEditStartNav(true)}
+                          >
+                            Edit
+                          </button>
                         </div>
+                      ) : (
+                        <Input
+                          type="number"
+                          className="h-8 text-xs"
+                          value={
+                            scenarioDraftBaseNav == null
+                              ? scenarioDraft.deltaOffset
+                              : Math.round(scenarioDraftBaseNav + scenarioDraft.deltaOffset)
+                          }
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setScenarioDraft((prev) => ({
+                              ...prev,
+                              deltaOffset:
+                                scenarioDraftBaseNav == null
+                                  ? Number(e.target.value) || 0
+                                  : (Number(e.target.value) || 0) - scenarioDraftBaseNav,
+                            }))
+                          }
+                        />
                       )}
-                      <Input
-                        type="number"
-                        className="h-8 text-xs"
-                        value={
-                          scenarioDraftBaseNav == null
-                            ? scenarioDraft.deltaOffset
-                            : Math.round(scenarioDraftBaseNav + scenarioDraft.deltaOffset)
-                        }
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) =>
-                          setScenarioDraft((prev) => ({
-                            ...prev,
-                            deltaOffset:
-                              scenarioDraftBaseNav == null
-                                ? Number(e.target.value) || 0
-                                : (Number(e.target.value) || 0) - scenarioDraftBaseNav,
-                          }))
-                        }
-                      />
                     </div>
                   </div>
                   <Button
