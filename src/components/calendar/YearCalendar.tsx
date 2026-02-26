@@ -257,7 +257,7 @@ function SingleYearGrid({
                     className="absolute -top-4 left-0 w-full text-center text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
                     style={{ width: leftOffset - BURN_COLUMN_GAP }}
                   >
-                    BURN RATE
+                    RUNWAY
                   </div>
                 )}
                 <BurnRateRow
@@ -1789,7 +1789,7 @@ export function YearCalendar({
                 setIsBurnPanelDragging(true);
               }}
             >
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Burn Rate</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Runway</div>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
