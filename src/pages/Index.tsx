@@ -883,6 +883,7 @@ const Index = () => {
         onNoteDeleted={() => entitlement.bumpNoteCount(-1)}
         textOverflowMode={settings.textOverflowMode}
         autoScrollStruckNotes={settings.autoScrollStruckNotes}
+        autoHideStruckNotes={settings.autoHideStruckNotes}
         calendarColor={settings.calendarColor}
         alwaysShowArrows={settings.alwaysShowArrows}
         showInbox={settings.showInbox}
@@ -955,6 +956,8 @@ const Index = () => {
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
         autoScrollStruckNotes={settings.autoScrollStruckNotes}
         onAutoScrollStruckNotesChange={(enabled) => updateSettings({ autoScrollStruckNotes: enabled })}
+        autoHideStruckNotes={settings.autoHideStruckNotes}
+        onAutoHideStruckNotesChange={(enabled) => updateSettings({ autoHideStruckNotes: enabled })}
         calendarColor={settings.calendarColor}
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
         alwaysShowArrows={settings.alwaysShowArrows}

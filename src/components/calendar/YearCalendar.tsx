@@ -209,6 +209,7 @@ interface SingleYearGridProps {
   onDragOver?: (e: React.DragEvent) => void;
   textOverflowMode: TextOverflowMode;
   autoScrollStruckNotes?: boolean;
+  autoHideStruckNotes?: boolean;
   isLinkMode: boolean;
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
@@ -243,6 +244,7 @@ function SingleYearGrid({
   onDragOver,
   textOverflowMode,
   autoScrollStruckNotes = true,
+  autoHideStruckNotes = false,
   isLinkMode,
   connectedNoteIds,
   highlightedNoteIds,
@@ -402,6 +404,7 @@ function SingleYearGrid({
                   scale={scale}
                   textOverflowMode={textOverflowMode}
                   autoScrollStruckNotes={autoScrollStruckNotes}
+                  autoHideStruckNotes={autoHideStruckNotes}
                   isLinkMode={isLinkMode}
                   connectedNoteIds={connectedNoteIds}
                   highlightedNoteIds={highlightedNoteIds}
@@ -447,6 +450,7 @@ interface YearCalendarProps {
   onNoteDeleted?: () => void;
   textOverflowMode: TextOverflowMode;
   autoScrollStruckNotes?: boolean;
+  autoHideStruckNotes?: boolean;
   calendarColor?: CalendarColor;
   alwaysShowArrows?: boolean;
   showInbox?: boolean;
@@ -486,6 +490,7 @@ export function YearCalendar({
   onNoteDeleted,
   textOverflowMode,
   autoScrollStruckNotes = true,
+  autoHideStruckNotes = false,
   calendarColor,
   alwaysShowArrows = false,
   showInbox = true,
@@ -1715,6 +1720,7 @@ export function YearCalendar({
                       onDragOver={handleDragOver}
                       textOverflowMode={textOverflowMode}
                       autoScrollStruckNotes={autoScrollStruckNotes}
+                      autoHideStruckNotes={autoHideStruckNotes}
                       isLinkMode={isLinkMode}
                       connectedNoteIds={uniqueConnectedNoteIds}
                       highlightedNoteIds={highlightedNoteIds}
@@ -1938,6 +1944,7 @@ export function YearCalendar({
                     scale={scale}
                     textOverflowMode={textOverflowMode}
                     autoScrollStruckNotes={autoScrollStruckNotes}
+                    autoHideStruckNotes={autoHideStruckNotes}
                     isLinkMode={isLinkMode}
                     isConnected={uniqueConnectedNoteIds.includes(note.id)}
                     isHighlighted={highlightedNoteIds.includes(note.id)}
@@ -2374,6 +2381,7 @@ export function YearCalendar({
           draggedNoteId={draggedNoteId}
           textOverflowMode={textOverflowMode}
           autoScrollStruckNotes={autoScrollStruckNotes}
+          autoHideStruckNotes={autoHideStruckNotes}
         />
       )}
 
