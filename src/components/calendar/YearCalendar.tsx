@@ -84,11 +84,13 @@ function BurnRateCell({
   maxAbs,
   muted = false,
   onClick,
+  showAdd,
 }: {
   value: number | null;
   maxAbs: number;
   muted?: boolean;
   onClick?: () => void;
+  showAdd?: boolean;
 }) {
   const safeMax = Math.max(1, maxAbs);
   const magnitude = value === null ? 0 : Math.min(1, Math.abs(value) / safeMax);
@@ -123,6 +125,20 @@ function BurnRateCell({
       {value !== null && width === 0 && (
         <div className="absolute top-1/2 left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-border" />
       )}
+      {showAdd && (
+        <button
+          type="button"
+          className="absolute top-1 right-1 h-4 w-4 rounded-full bg-background/80 text-[10px] font-semibold text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick?.();
+          }}
+          aria-label="Add scenario from this month"
+          title="Add scenario from this month"
+        >
+          +
+        </button>
+      )}
       {value !== null && (
         <div className="absolute bottom-1 right-2 text-[10px] font-semibold text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
           {formatNav(value)}
@@ -143,7 +159,7 @@ function BurnRateRow({
   baseSeries: number[];
   scenarioSeries: Array<{ id: string; values: Array<number> }>;
   maxAbs: number;
-  onClickMonth?: (monthIndex: number) => void;
+  onClickMonth?: (monthIndex: number, baseValue: number) => void;
 }) {
   return (
     <div className="flex">
@@ -153,13 +169,13 @@ function BurnRateRow({
           value={scenario.values[monthIndex]}
           maxAbs={maxAbs}
           muted={idx % 2 === 1}
-          onClick={onClickMonth ? () => onClickMonth(monthIndex) : undefined}
         />
       ))}
       <BurnRateCell
         value={baseSeries[monthIndex]}
         maxAbs={maxAbs}
-        onClick={onClickMonth ? () => onClickMonth(monthIndex) : undefined}
+        onClick={onClickMonth ? () => onClickMonth(monthIndex, baseSeries[monthIndex]) : undefined}
+        showAdd={Boolean(onClickMonth)}
       />
     </div>
   );
@@ -191,7 +207,7 @@ interface SingleYearGridProps {
   readOnly?: boolean;
   burnConfig?: BurnConfig;
   burnScenarios?: BurnScenario[];
-  onRunwayMonthClick?: (monthIndex: number) => void;
+  onRunwayMonthClick?: (monthIndex: number, baseValue: number) => void;
 }
 
 function SingleYearGrid({
@@ -428,6 +444,7 @@ export function YearCalendar({
   const [burnPanelPosition, setBurnPanelPosition] = useState({ x: 16, y: 96 });
   const [isBurnPanelDragging, setIsBurnPanelDragging] = useState(false);
   const burnPanelDragOffset = useRef({ x: 0, y: 0 });
+  const [scenarioDraftBaseNav, setScenarioDraftBaseNav] = useState<number | null>(null);
   const [scenarioDraft, setScenarioDraft] = useState({
     name: "Scenario",
     startMonth: 0,
@@ -1583,10 +1600,18 @@ export function YearCalendar({
                       isNoteReadOnly={isNoteReadOnly}
                       burnConfig={burnConfig}
                       burnScenarios={burnScenarios}
-                      onRunwayMonthClick={(monthIndex) => {
+                      onRunwayMonthClick={(monthIndex, baseValue) => {
                         setBurnPanelVisible(true);
                         setBurnPanelOpen(true);
-                        setScenarioDraft((prev) => ({ ...prev, startMonth: monthIndex }));
+                        setScenarioDraftBaseNav(baseValue);
+                        setScenarioDraft((prev) => ({
+                          ...prev,
+                          name: `Scenario ${uiMonths[monthIndex]}`,
+                          startMonth: monthIndex,
+                          endMonth: null,
+                          deltaBurn: 0,
+                          deltaOffset: 0,
+                        }));
                       }}
                     />
 
@@ -2070,15 +2095,30 @@ export function YearCalendar({
                       />
                     </div>
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Delta offset</Label>
+                      <Label className="text-[11px] text-muted-foreground">Start NAV</Label>
+                      {scenarioDraftBaseNav != null && (
+                        <div className="text-[10px] text-muted-foreground">
+                          Base: {formatNav(scenarioDraftBaseNav)}
+                        </div>
+                      )}
                       <Input
                         type="number"
                         className="h-8 text-xs"
-                        value={scenarioDraft.deltaOffset}
+                        value={
+                          scenarioDraftBaseNav == null
+                            ? scenarioDraft.deltaOffset
+                            : Math.round(scenarioDraftBaseNav + scenarioDraft.deltaOffset)
+                        }
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) =>
-                          setScenarioDraft((prev) => ({ ...prev, deltaOffset: Number(e.target.value) || 0 }))
+                          setScenarioDraft((prev) => ({
+                            ...prev,
+                            deltaOffset:
+                              scenarioDraftBaseNav == null
+                                ? Number(e.target.value) || 0
+                                : (Number(e.target.value) || 0) - scenarioDraftBaseNav,
+                          }))
                         }
                       />
                     </div>
