@@ -369,6 +369,7 @@ export function YearCalendar({
   const [minScale, setMinScale] = useState(0.3);
   const [burnConfig, setBurnConfig] = useState<BurnConfig>({ startCapital: 1200000, burnRate: 85000 });
   const [burnScenarios, setBurnScenarios] = useState<BurnScenario[]>([]);
+  const [burnPanelVisible, setBurnPanelVisible] = useState(true);
   const [scenarioDraft, setScenarioDraft] = useState({
     name: "Scenario",
     startMonth: 0,
@@ -1717,15 +1718,40 @@ export function YearCalendar({
         </div>
       )}
 
-      <div
-        className="fixed top-4 right-4 w-[300px] rounded-xl border border-border bg-card/90 backdrop-blur-sm p-4 shadow-lg z-50 touch-auto"
-        onMouseDown={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Burn Rate</div>
-          <div className="text-xs text-muted-foreground">Monthly</div>
+      {!burnPanelVisible && (
+        <div
+          className="fixed top-4 right-4 z-50"
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button type="button" variant="secondary" size="sm" onClick={() => setBurnPanelVisible(true)}>
+            Show burn rate
+          </Button>
         </div>
+      )}
+
+      {burnPanelVisible && (
+        <div
+          className="fixed top-4 right-4 w-[320px] rounded-xl border border-border bg-card/90 backdrop-blur-sm p-4 shadow-lg z-50 touch-auto"
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Burn Rate</div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setBurnPanelVisible(false);
+              }}
+            >
+              Hide
+            </Button>
+          </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Label className="text-xs text-muted-foreground">Start capital</Label>
@@ -1918,7 +1944,8 @@ export function YearCalendar({
             Add scenario
           </Button>
         </div>
-      </div>
+        </div>
+      )}
 
       <ZoomControls
         onZoomIn={zoomIn}
