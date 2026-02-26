@@ -157,64 +157,23 @@ function BurnRateRow({
   scenarioSeries,
   maxAbs,
   onClickMonth,
-  scenarioNames,
-  onScenarioEdit,
-  editingScenarioId,
-  scenarioNameDraft,
-  onScenarioNameDraftChange,
-  onScenarioNameCommit,
 }: {
   monthIndex: number;
   baseSeries: number[];
   scenarioSeries: Array<{ id: string; values: Array<number> }>;
   maxAbs: number;
   onClickMonth?: (monthIndex: number, baseValue: number) => void;
-  scenarioNames?: Array<{ id: string; name: string }>;
-  onScenarioEdit?: (id: string) => void;
-  editingScenarioId?: string | null;
-  scenarioNameDraft?: string;
-  onScenarioNameDraftChange?: (value: string) => void;
-  onScenarioNameCommit?: () => void;
 }) {
   return (
     <div className="flex">
-      {scenarioSeries.map((scenario, idx) => {
-        const name = scenarioNames?.find((s) => s.id === scenario.id)?.name ?? "Scenario";
-        const isEditing = editingScenarioId === scenario.id;
-        return (
-          <div key={scenario.id} className="relative">
-            {monthIndex === 0 && (
-              <div
-                className="absolute -top-4 left-0 w-full text-center text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  onScenarioEdit?.(scenario.id);
-                }}
-              >
-                {isEditing ? (
-                  <input
-                    className="w-[120px] rounded-sm border border-border bg-background px-1 py-0.5 text-[10px] text-foreground"
-                    value={scenarioNameDraft ?? name}
-                    onChange={(e) => onScenarioNameDraftChange?.(e.target.value)}
-                    onBlur={() => onScenarioNameCommit?.()}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") onScenarioNameCommit?.();
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  name.toUpperCase()
-                )}
-              </div>
-            )}
-            <BurnRateCell
-              value={scenario.values[monthIndex]}
-              maxAbs={maxAbs}
-              muted={idx % 2 === 1}
-            />
-          </div>
-        );
-      })}
+      {scenarioSeries.map((scenario, idx) => (
+        <BurnRateCell
+          key={scenario.id}
+          value={scenario.values[monthIndex]}
+          maxAbs={maxAbs}
+          muted={idx % 2 === 1}
+        />
+      ))}
       <BurnRateCell
         value={baseSeries[monthIndex]}
         maxAbs={maxAbs}
@@ -320,6 +279,7 @@ function SingleYearGrid({
   const leftOffset = burnConfig
     ? (scenarioSeries.length + 1) * BURN_COLUMN_WIDTH + BURN_COLUMN_GAP
     : 0;
+  const scenarioNames = burnScenarios?.map((s) => ({ id: s.id, name: s.name })) ?? [];
 
   return (
     <div
@@ -345,10 +305,38 @@ function SingleYearGrid({
               >
                 {monthIndex === 0 && (
                   <div
-                    className="absolute -top-4 left-0 w-full text-center text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
+                    className="absolute -top-7 left-0 w-full text-center text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
                     style={{ width: leftOffset - BURN_COLUMN_GAP }}
                   >
                     RUNWAY
+                    {scenarioNames.map((scenario) => {
+                      const isEditing = editingScenarioId === scenario.id;
+                      return (
+                        <div
+                          key={scenario.id}
+                          className="mt-1 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            onScenarioEdit?.(scenario.id);
+                          }}
+                        >
+                          {isEditing ? (
+                            <input
+                              className="mx-auto block w-[140px] rounded-sm border border-border bg-background px-1 py-0.5 text-[10px] text-foreground uppercase tracking-wider"
+                              value={scenarioNameDraft ?? scenario.name}
+                              onChange={(e) => onScenarioNameDraftChange?.(e.target.value)}
+                              onBlur={() => onScenarioNameCommit?.()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") onScenarioNameCommit?.();
+                              }}
+                              autoFocus
+                            />
+                          ) : (
+                            scenario.name.toUpperCase()
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <BurnRateRow
@@ -357,12 +345,6 @@ function SingleYearGrid({
                   scenarioSeries={scenarioSeries}
                   maxAbs={maxAbs}
                   onClickMonth={onRunwayMonthClick}
-                  scenarioNames={burnScenarios?.map((s) => ({ id: s.id, name: s.name })) ?? []}
-                  onScenarioEdit={onScenarioEdit}
-                  editingScenarioId={editingScenarioId}
-                  scenarioNameDraft={scenarioNameDraft}
-                  onScenarioNameDraftChange={onScenarioNameDraftChange}
-                  onScenarioNameCommit={onScenarioNameCommit}
                 />
               </div>
             )}
