@@ -245,14 +245,6 @@ function SingleYearGrid({
       {/* Calendar Grid */}
       <div className="p-4 relative">
         {/* Month rows */}
-        {burnConfig && (
-          <div
-            className="absolute text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
-            style={{ left: -(leftOffset - BURN_COLUMN_GAP), top: 2 }}
-          >
-            BURN RATE
-          </div>
-        )}
         {calendarData.map((monthDays, monthIndex) => (
           <div key={monthIndex} className="relative flex" style={{ marginLeft: leftOffset }}>
             {burnConfig && (
@@ -260,6 +252,14 @@ function SingleYearGrid({
                 className="absolute top-0"
                 style={{ left: -(leftOffset - BURN_COLUMN_GAP) }}
               >
+                {monthIndex === 0 && (
+                  <div
+                    className="absolute -top-4 left-0 w-full text-center text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
+                    style={{ width: leftOffset - BURN_COLUMN_GAP }}
+                  >
+                    BURN RATE
+                  </div>
+                )}
                 <BurnRateRow
                   monthIndex={monthIndex}
                   baseSeries={baseSeries}
