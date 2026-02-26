@@ -1960,7 +1960,12 @@ export function YearCalendar({
             </div>
 
             {burnPanelOpen && (
-                <div className="max-h-[70vh] overflow-y-auto p-4">
+                <div
+                  className="max-h-[70vh] overflow-y-auto p-4"
+                  onWheel={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <Label className="text-xs text-muted-foreground">Initial capital (Jan)</Label>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
