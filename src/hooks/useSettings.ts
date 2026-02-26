@@ -34,6 +34,7 @@ interface Settings {
   runwayInitialCapital: number;
   runwayMonthlyBurn: number;
   runwayBaseScenarioName: string;
+  runwayBaseScenarioCalendarId: string | null;
   runwayScenarios: Array<{
     id: string;
     name: string;
@@ -41,6 +42,7 @@ interface Settings {
     endMonth: number | null;
     deltaBurn: number;
     deltaOffset: number;
+    calendarId: string | null;
   }>;
   runwayPanelVisible: boolean;
   runwayPanelOpen: boolean;
@@ -74,6 +76,7 @@ const defaultSettings: Settings = {
   runwayInitialCapital: 1200000,
   runwayMonthlyBurn: 85000,
   runwayBaseScenarioName: "BASE",
+  runwayBaseScenarioCalendarId: null,
   runwayScenarios: [],
   runwayPanelVisible: true,
   runwayPanelOpen: false,
@@ -106,6 +109,8 @@ function coerceRunwayScenarios(value: unknown): Settings["runwayScenarios"] | nu
     if (entry.endMonth !== null && endMonth === null) return null;
     if (!isNumber(entry.deltaBurn)) return null;
     if (!isNumber(entry.deltaOffset)) return null;
+    const calendarId =
+      entry.calendarId === null ? null : typeof entry.calendarId === "string" ? entry.calendarId : null;
     out.push({
       id: entry.id,
       name: entry.name,
@@ -113,6 +118,7 @@ function coerceRunwayScenarios(value: unknown): Settings["runwayScenarios"] | nu
       endMonth,
       deltaBurn: entry.deltaBurn,
       deltaOffset: entry.deltaOffset,
+      calendarId,
     });
   }
   return out;
@@ -175,6 +181,9 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (isNumber(raw.runwayInitialCapital)) out.runwayInitialCapital = raw.runwayInitialCapital;
   if (isNumber(raw.runwayMonthlyBurn)) out.runwayMonthlyBurn = raw.runwayMonthlyBurn;
   if (typeof raw.runwayBaseScenarioName === "string") out.runwayBaseScenarioName = raw.runwayBaseScenarioName;
+  if (typeof raw.runwayBaseScenarioCalendarId === "string" || raw.runwayBaseScenarioCalendarId === null) {
+    out.runwayBaseScenarioCalendarId = raw.runwayBaseScenarioCalendarId;
+  }
   const runwayScenarios = coerceRunwayScenarios(raw.runwayScenarios);
   if (runwayScenarios) out.runwayScenarios = runwayScenarios;
   if (typeof raw.runwayPanelVisible === "boolean") out.runwayPanelVisible = raw.runwayPanelVisible;
