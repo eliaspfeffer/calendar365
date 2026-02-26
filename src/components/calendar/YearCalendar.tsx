@@ -95,7 +95,7 @@ function BurnRateCell({
   return (
     <div
       className={cn(
-        "relative flex-shrink-0 border-b border-calendar-grid bg-muted/20",
+        "relative flex-shrink-0 border-b border-calendar-grid bg-muted/20 group",
         muted && "opacity-80"
       )}
       style={{ width: BURN_COLUMN_WIDTH, height: BURN_ROW_HEIGHT }}
@@ -110,6 +110,11 @@ function BurnRateCell({
       )}
       {value !== null && width === 0 && (
         <div className="absolute top-1/2 left-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-border" />
+      )}
+      {value !== null && (
+        <div className="absolute bottom-1 right-2 text-[10px] font-semibold text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          {formatNav(value)}
+        </div>
       )}
     </div>
   );
