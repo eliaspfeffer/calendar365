@@ -38,6 +38,7 @@ import type { GoogleCalendarDayEvent } from "@/types/googleCalendar";
 type BurnConfig = {
   startCapital: number;
   burnRate: number;
+  baseScenarioName?: string;
 };
 
 type BurnScenario = {
@@ -280,6 +281,7 @@ function SingleYearGrid({
     ? (scenarioSeries.length + 1) * BURN_COLUMN_WIDTH + BURN_COLUMN_GAP
     : 0;
   const scenarioNames = burnScenarios?.map((s) => ({ id: s.id, name: s.name })) ?? [];
+  const baseScenarioLabel = (burnConfig?.baseScenarioName ?? "BASE").trim() || "BASE";
   const runwayWidth = Math.max(0, leftOffset - BURN_COLUMN_GAP);
 
   return (
@@ -309,6 +311,12 @@ function SingleYearGrid({
               style={{ width: runwayWidth, transform: `translateX(${-runwayWidth}px)` }}
             >
               <div className="relative h-4">
+                <div
+                  className="absolute -translate-x-1/2 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
+                  style={{ left: (scenarioNames.length + 0.5) * BURN_COLUMN_WIDTH }}
+                >
+                  {baseScenarioLabel.toUpperCase()}
+                </div>
                 {scenarioNames.map((scenario, idx) => {
                   const isEditing = editingScenarioId === scenario.id;
                   const left = (idx + 0.5) * BURN_COLUMN_WIDTH;
@@ -491,7 +499,11 @@ export function YearCalendar({
   const gridRef = useRef<HTMLDivElement>(null);
   const suppressNextCanvasClickRef = useRef(false);
   const [minScale, setMinScale] = useState(0.3);
-  const [burnConfig, setBurnConfig] = useState<BurnConfig>({ startCapital: 1200000, burnRate: 85000 });
+  const [burnConfig, setBurnConfig] = useState<BurnConfig>({
+    startCapital: 1200000,
+    burnRate: 85000,
+    baseScenarioName: "BASE",
+  });
   const [burnScenarios, setBurnScenarios] = useState<BurnScenario[]>([]);
   const [burnPanelVisible, setBurnPanelVisible] = useState(true);
   const [burnPanelOpen, setBurnPanelOpen] = useState(false);
@@ -1948,20 +1960,20 @@ export function YearCalendar({
             </div>
 
             {burnPanelOpen && (
-              <div className="p-4">
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Label className="text-xs text-muted-foreground">Initial capital (Jan)</Label>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Monthly burn</span>
+                <div className="max-h-[70vh] overflow-y-auto p-4">
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Label className="text-xs text-muted-foreground">Initial capital (Jan)</Label>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Monthly burn</span>
                     {scenarioDraftBaseNav != null && (
                       <span className="text-[10px] text-muted-foreground">
                         Selected month NAV: {formatNav(scenarioDraftBaseNav)}
                       </span>
                     )}
                   </div>
-                  <Input
-                    type="number"
-                    value={burnConfig.startCapital}
+                    <Input
+                      type="number"
+                      value={burnConfig.startCapital}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) =>
@@ -1971,9 +1983,9 @@ export function YearCalendar({
                       }))
                     }
                   />
-                  <Input
-                    type="number"
-                    value={burnConfig.burnRate}
+                    <Input
+                      type="number"
+                      value={burnConfig.burnRate}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) =>
@@ -1982,8 +1994,20 @@ export function YearCalendar({
                         burnRate: Number(e.target.value) || 0,
                       }))
                     }
-                  />
-                </div>
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <Label className="text-xs text-muted-foreground">Base scenario name</Label>
+                    <Input
+                      type="text"
+                      value={burnConfig.baseScenarioName ?? "BASE"}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) =>
+                        setBurnConfig((prev) => ({ ...prev, baseScenarioName: e.target.value }))
+                      }
+                    />
+                  </div>
 
                 <div className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">Scenarios</div>
 
