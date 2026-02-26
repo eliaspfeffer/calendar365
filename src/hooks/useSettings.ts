@@ -30,6 +30,21 @@ interface Settings {
   calendarOrderIds: string[] | null;
   googleSyncEnabled: boolean;
   googleSelectedCalendarIds: string[] | null;
+  runwayInitialCapital: number;
+  runwayMonthlyBurn: number;
+  runwayBaseScenarioName: string;
+  runwayScenarios: Array<{
+    id: string;
+    name: string;
+    startMonth: number;
+    endMonth: number | null;
+    deltaBurn: number;
+    deltaOffset: number;
+  }>;
+  runwayPanelVisible: boolean;
+  runwayPanelOpen: boolean;
+  runwayPanelPosX: number;
+  runwayPanelPosY: number;
 }
 
 type SettingsUpdater = Partial<Settings> | ((prev: Settings) => Partial<Settings>);
@@ -54,6 +69,14 @@ const defaultSettings: Settings = {
   calendarOrderIds: null,
   googleSyncEnabled: false,
   googleSelectedCalendarIds: null,
+  runwayInitialCapital: 1200000,
+  runwayMonthlyBurn: 85000,
+  runwayBaseScenarioName: "BASE",
+  runwayScenarios: [],
+  runwayPanelVisible: true,
+  runwayPanelOpen: false,
+  runwayPanelPosX: 16,
+  runwayPanelPosY: 96,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -62,6 +85,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function coerceRunwayScenarios(value: unknown): Settings["runwayScenarios"] | null {
+  if (!Array.isArray(value)) return null;
+  const out: Settings["runwayScenarios"] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) return null;
+    if (typeof entry.id !== "string") return null;
+    if (typeof entry.name !== "string") return null;
+    if (!isNumber(entry.startMonth)) return null;
+    const endMonth =
+      entry.endMonth === null ? null : isNumber(entry.endMonth) ? entry.endMonth : null;
+    if (entry.endMonth !== null && endMonth === null) return null;
+    if (!isNumber(entry.deltaBurn)) return null;
+    if (!isNumber(entry.deltaOffset)) return null;
+    out.push({
+      id: entry.id,
+      name: entry.name,
+      startMonth: entry.startMonth,
+      endMonth,
+      deltaBurn: entry.deltaBurn,
+      deltaOffset: entry.deltaOffset,
+    });
+  }
+  return out;
 }
 
 function coerceYear(value: unknown): number | null {
@@ -117,6 +169,15 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (isStringArray(raw.googleSelectedCalendarIds) || raw.googleSelectedCalendarIds === null) {
     out.googleSelectedCalendarIds = raw.googleSelectedCalendarIds;
   }
+  if (isNumber(raw.runwayInitialCapital)) out.runwayInitialCapital = raw.runwayInitialCapital;
+  if (isNumber(raw.runwayMonthlyBurn)) out.runwayMonthlyBurn = raw.runwayMonthlyBurn;
+  if (typeof raw.runwayBaseScenarioName === "string") out.runwayBaseScenarioName = raw.runwayBaseScenarioName;
+  const runwayScenarios = coerceRunwayScenarios(raw.runwayScenarios);
+  if (runwayScenarios) out.runwayScenarios = runwayScenarios;
+  if (typeof raw.runwayPanelVisible === "boolean") out.runwayPanelVisible = raw.runwayPanelVisible;
+  if (typeof raw.runwayPanelOpen === "boolean") out.runwayPanelOpen = raw.runwayPanelOpen;
+  if (isNumber(raw.runwayPanelPosX)) out.runwayPanelPosX = raw.runwayPanelPosX;
+  if (isNumber(raw.runwayPanelPosY)) out.runwayPanelPosY = raw.runwayPanelPosY;
 
   return out;
 }

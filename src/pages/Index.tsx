@@ -889,6 +889,33 @@ const Index = () => {
         calendarOptions={editableVisibleCalendars}
         calendarDefaultNoteColorById={calendarDefaultNoteColorById}
         googleEventsByDate={settings.googleSyncEnabled ? googleSync.eventsByDate : null}
+        runwayConfig={{
+          startCapital: settings.runwayInitialCapital,
+          burnRate: settings.runwayMonthlyBurn,
+          baseScenarioName: settings.runwayBaseScenarioName,
+        }}
+        runwayScenarios={settings.runwayScenarios}
+        runwayPanelState={{
+          visible: settings.runwayPanelVisible,
+          open: settings.runwayPanelOpen,
+          position: { x: settings.runwayPanelPosX, y: settings.runwayPanelPosY },
+        }}
+        onRunwayConfigChange={(next) =>
+          updateSettings({
+            runwayInitialCapital: next.startCapital,
+            runwayMonthlyBurn: next.burnRate,
+            runwayBaseScenarioName: next.baseScenarioName ?? "BASE",
+          })
+        }
+        onRunwayScenariosChange={(next) => updateSettings({ runwayScenarios: next })}
+        onRunwayPanelStateChange={(next) =>
+          updateSettings({
+            runwayPanelVisible: next.visible,
+            runwayPanelOpen: next.open,
+            runwayPanelPosX: next.position.x,
+            runwayPanelPosY: next.position.y,
+          })
+        }
       />
 
       <LoginDialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen} />

@@ -50,6 +50,12 @@ type BurnScenario = {
   deltaOffset: number;
 };
 
+type RunwayPanelState = {
+  visible: boolean;
+  open: boolean;
+  position: { x: number; y: number };
+};
+
 const BURN_COLUMN_WIDTH = 140;
 const BURN_COLUMN_GAP = 12;
 const BURN_ROW_HEIGHT = 60;
@@ -453,6 +459,12 @@ interface YearCalendarProps {
   publicShareNotes?: StickyNote[];
   publicShareConnections?: Array<{ id: string; calendar_id: string; user_id: string; source_note_id: string; target_note_id: string }>;
   onPublicShareRefresh?: () => void;
+  runwayConfig?: BurnConfig;
+  runwayScenarios?: BurnScenario[];
+  runwayPanelState?: RunwayPanelState;
+  onRunwayConfigChange?: (next: BurnConfig) => void;
+  onRunwayScenariosChange?: (next: BurnScenario[]) => void;
+  onRunwayPanelStateChange?: (next: RunwayPanelState) => void;
 }
 
 export function YearCalendar({
@@ -485,6 +497,12 @@ export function YearCalendar({
   publicShareNotes,
   publicShareConnections,
   onPublicShareRefresh,
+  runwayConfig: runwayConfigProp,
+  runwayScenarios: runwayScenariosProp,
+  runwayPanelState: runwayPanelStateProp,
+  onRunwayConfigChange,
+  onRunwayScenariosChange,
+  onRunwayPanelStateChange,
 }: YearCalendarProps) {
   const isPublicShareMode = Boolean(publicShareSlug);
   const isGuestSession = !userId && !isPublicShareMode;
@@ -499,15 +517,47 @@ export function YearCalendar({
   const gridRef = useRef<HTMLDivElement>(null);
   const suppressNextCanvasClickRef = useRef(false);
   const [minScale, setMinScale] = useState(0.3);
-  const [burnConfig, setBurnConfig] = useState<BurnConfig>({
+  const [localRunwayConfig, setLocalRunwayConfig] = useState<BurnConfig>({
     startCapital: 1200000,
     burnRate: 85000,
     baseScenarioName: "BASE",
   });
-  const [burnScenarios, setBurnScenarios] = useState<BurnScenario[]>([]);
-  const [burnPanelVisible, setBurnPanelVisible] = useState(true);
-  const [burnPanelOpen, setBurnPanelOpen] = useState(false);
-  const [burnPanelPosition, setBurnPanelPosition] = useState({ x: 16, y: 96 });
+  const [localRunwayScenarios, setLocalRunwayScenarios] = useState<BurnScenario[]>([]);
+  const [localRunwayPanelState, setLocalRunwayPanelState] = useState<RunwayPanelState>({
+    visible: true,
+    open: false,
+    position: { x: 16, y: 96 },
+  });
+  const burnConfig = runwayConfigProp ?? localRunwayConfig;
+  const burnScenarios = runwayScenariosProp ?? localRunwayScenarios;
+  const runwayPanelState = runwayPanelStateProp ?? localRunwayPanelState;
+  const setBurnConfig = useCallback(
+    (next: BurnConfig | ((prev: BurnConfig) => BurnConfig)) => {
+      const resolved = typeof next === "function" ? next(burnConfig) : next;
+      if (onRunwayConfigChange) onRunwayConfigChange(resolved);
+      else setLocalRunwayConfig(resolved);
+    },
+    [onRunwayConfigChange, burnConfig],
+  );
+  const setBurnScenarios = useCallback(
+    (next: BurnScenario[] | ((prev: BurnScenario[]) => BurnScenario[])) => {
+      const resolved = typeof next === "function" ? next(burnScenarios) : next;
+      if (onRunwayScenariosChange) onRunwayScenariosChange(resolved);
+      else setLocalRunwayScenarios(resolved);
+    },
+    [onRunwayScenariosChange, burnScenarios],
+  );
+  const setRunwayPanelState = useCallback(
+    (next: RunwayPanelState | ((prev: RunwayPanelState) => RunwayPanelState)) => {
+      if (onRunwayPanelStateChange) {
+        const resolved = typeof next === "function" ? next(runwayPanelState) : next;
+        onRunwayPanelStateChange(resolved);
+      } else {
+        setLocalRunwayPanelState(next);
+      }
+    },
+    [onRunwayPanelStateChange, runwayPanelState],
+  );
   const [isBurnPanelDragging, setIsBurnPanelDragging] = useState(false);
   const burnPanelDragOffset = useRef({ x: 0, y: 0 });
   const [scenarioDraftBaseNav, setScenarioDraftBaseNav] = useState<number | null>(null);
@@ -793,10 +843,13 @@ export function YearCalendar({
   useEffect(() => {
     if (!isBurnPanelDragging) return;
     const handleMove = (e: PointerEvent) => {
-      setBurnPanelPosition({
-        x: Math.max(8, e.clientX - burnPanelDragOffset.current.x),
-        y: Math.max(8, e.clientY - burnPanelDragOffset.current.y),
-      });
+      setRunwayPanelState((prev) => ({
+        ...prev,
+        position: {
+          x: Math.max(8, e.clientX - burnPanelDragOffset.current.x),
+          y: Math.max(8, e.clientY - burnPanelDragOffset.current.y),
+        },
+      }));
     };
     const handleUp = () => setIsBurnPanelDragging(false);
     window.addEventListener("pointermove", handleMove);
@@ -1689,9 +1742,12 @@ export function YearCalendar({
                         setScenarioNameDraft("");
                       }}
                       onRunwayMonthClick={(monthIndex, baseValue) => {
-                        setBurnPanelPosition({ x: 16, y: 96 });
-                        setBurnPanelVisible(true);
-                        setBurnPanelOpen(true);
+                        setRunwayPanelState({
+                          ...runwayPanelState,
+                          visible: true,
+                          open: true,
+                          position: { x: 16, y: 96 },
+                        });
                         setScenarioDraftBaseNav(baseValue);
                         setScenarioDraftEditStartNav(false);
                         setScenarioDraft((prev) => ({
@@ -1914,10 +1970,10 @@ export function YearCalendar({
         </div>
       )}
 
-      {burnPanelVisible && (
+      {runwayPanelState.visible && (
         <div
-          className={cn("fixed z-50 touch-auto", burnPanelOpen ? "w-[320px]" : "w-auto")}
-          style={{ top: burnPanelPosition.y, left: burnPanelPosition.x }}
+          className={cn("fixed z-50 touch-auto", runwayPanelState.open ? "w-[320px]" : "w-auto")}
+          style={{ top: runwayPanelState.position.y, left: runwayPanelState.position.x }}
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
@@ -1944,10 +2000,10 @@ export function YearCalendar({
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setBurnPanelOpen((prev) => !prev);
+                    setRunwayPanelState({ ...runwayPanelState, open: !runwayPanelState.open });
                   }}
                 >
-                  {burnPanelOpen ? "Minimize" : "Expand"}
+                  {runwayPanelState.open ? "Minimize" : "Expand"}
                 </Button>
                 <Button
                   type="button"
@@ -1955,7 +2011,7 @@ export function YearCalendar({
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setBurnPanelVisible(false);
+                    setRunwayPanelState({ ...runwayPanelState, visible: false });
                   }}
                 >
                   Hide
@@ -1963,7 +2019,7 @@ export function YearCalendar({
               </div>
             </div>
 
-            {burnPanelOpen && (
+            {runwayPanelState.open && (
               <div
                 className="max-h-[70vh] overflow-y-auto p-4"
                 onWheel={(e) => {
