@@ -177,7 +177,7 @@ export function StickyNoteComponent({
       data-note-id={note.id}
       draggable={!readOnly && !isLinkMode}
       className={cn(
-        "sticky-note rounded-sm cursor-pointer animate-pop-in group",
+        "sticky-note rounded-sm cursor-pointer animate-pop-in group z-10",
         variant === "full"
           ? isHorizontalExpand
             ? "absolute top-1 left-1 bottom-1 p-1 w-max max-w-none"

@@ -131,7 +131,7 @@ export function CalendarCell({
       onDragOver={readOnly ? undefined : handleDragOver}
       onDrop={readOnly ? undefined : handleDrop}
     >
-      <div className="absolute top-0.5 left-1 right-1 flex items-center justify-between z-10">
+      <div className="absolute top-0.5 left-1 right-1 flex items-center justify-between z-0">
         <span
           className={cn(
             "text-[10px] font-semibold uppercase",
