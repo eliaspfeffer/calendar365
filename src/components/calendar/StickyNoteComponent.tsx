@@ -146,6 +146,8 @@ export function StickyNoteComponent({
       ? "scroll"
       : textOverflowMode;
 
+  const isHorizontalExpand = variant === "full" && effectiveTextOverflowMode === "expand";
+
   const getOverflowStyles = () => {
     switch (effectiveTextOverflowMode) {
       case "scroll":
@@ -154,7 +156,7 @@ export function StickyNoteComponent({
         return "overflow-hidden";
       case "expand":
       default:
-        return "overflow-visible";
+        return isHorizontalExpand ? "overflow-x-visible overflow-y-hidden" : "overflow-visible";
     }
   };
 
@@ -163,9 +165,10 @@ export function StickyNoteComponent({
       case "truncate":
         return "line-clamp-2";
       case "scroll":
+        return "";
       case "expand":
       default:
-        return "";
+        return isHorizontalExpand ? "whitespace-nowrap" : "";
     }
   };
 
@@ -175,7 +178,11 @@ export function StickyNoteComponent({
       draggable={!readOnly && !isLinkMode}
       className={cn(
         "sticky-note rounded-sm cursor-pointer animate-pop-in group",
-        variant === "full" ? "absolute inset-1 p-1" : "relative w-full p-1",
+        variant === "full"
+          ? isHorizontalExpand
+            ? "absolute top-1 left-1 bottom-1 p-1 w-max max-w-none"
+            : "absolute inset-1 p-1"
+          : "relative w-full p-1",
         colorClasses[note.color],
         getOverflowStyles(),
         isLinkMode && "ring-2 ring-primary ring-offset-1 cursor-crosshair",
