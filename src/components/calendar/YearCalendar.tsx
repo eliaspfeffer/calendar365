@@ -1995,18 +1995,18 @@ export function YearCalendar({
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
+                          <Label className="text-[11px] text-muted-foreground">Burn / mo</Label>
                           <Input
                             type="number"
                             className="h-8 text-xs"
-                            value={scenario.deltaBurn}
+                            value={burnConfig.burnRate + scenario.deltaBurn}
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) =>
                               setBurnScenarios((prev) =>
                                 prev.map((s) =>
                                   s.id === scenario.id
-                                    ? { ...s, deltaBurn: Number(e.target.value) || 0 }
+                                    ? { ...s, deltaBurn: (Number(e.target.value) || 0) - burnConfig.burnRate }
                                     : s
                                 )
                               )
@@ -2095,15 +2095,18 @@ export function YearCalendar({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
+                      <Label className="text-[11px] text-muted-foreground">Burn / mo</Label>
                       <Input
                         type="number"
                         className="h-8 text-xs"
-                        value={scenarioDraft.deltaBurn}
+                        value={burnConfig.burnRate + scenarioDraft.deltaBurn}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) =>
-                          setScenarioDraft((prev) => ({ ...prev, deltaBurn: Number(e.target.value) || 0 }))
+                          setScenarioDraft((prev) => ({
+                            ...prev,
+                            deltaBurn: (Number(e.target.value) || 0) - burnConfig.burnRate,
+                          }))
                         }
                       />
                     </div>
