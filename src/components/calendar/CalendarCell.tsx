@@ -113,7 +113,7 @@ export function CalendarCell({
     <div
       data-date-key={dateKey}
       className={cn(
-        "calendar-cell min-w-[50px] relative group",
+        "calendar-cell min-w-[50px] w-[50px] max-w-[50px] flex-shrink-0 relative group",
         !readOnly && "cursor-pointer",
         isExpandMode ? "min-h-[60px]" : "h-[60px]",
         day.isWeekend && "bg-calendar-weekend/50",
