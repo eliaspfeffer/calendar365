@@ -1921,6 +1921,10 @@ export function YearCalendar({
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
+          onWheelCapture={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
         >
           <div className="rounded-xl border border-border bg-card/90 backdrop-blur-sm shadow-lg">
             <div
