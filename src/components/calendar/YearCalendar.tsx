@@ -110,6 +110,9 @@ function BurnRateCell({
       )}
       style={{ width: BURN_COLUMN_WIDTH, height: BURN_ROW_HEIGHT }}
       title={tooltip}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+      }}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
