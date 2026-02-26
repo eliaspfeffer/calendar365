@@ -126,7 +126,6 @@ function BurnRateRow({
         />
       ))}
       <BurnRateCell value={baseSeries[monthIndex]} maxAbs={maxAbs} />
-      <div className="w-3 border-b border-calendar-grid bg-muted/30" />
     </div>
   );
 }
@@ -224,14 +223,16 @@ function SingleYearGrid({
       <div className="p-4">
         {/* Month rows */}
         {calendarData.map((monthDays, monthIndex) => (
-          <div key={monthIndex} className="flex">
+          <div key={monthIndex} className="relative flex">
             {burnConfig && (
-              <BurnRateRow
-                monthIndex={monthIndex}
-                baseSeries={baseSeries}
-                scenarioSeries={scenarioSeries}
-                maxAbs={maxAbs}
-              />
+              <div className="absolute right-full mr-3 top-0">
+                <BurnRateRow
+                  monthIndex={monthIndex}
+                  baseSeries={baseSeries}
+                  scenarioSeries={scenarioSeries}
+                  maxAbs={maxAbs}
+                />
+              </div>
             )}
             {/* Month label */}
             <div className="w-16 flex-shrink-0 flex items-center justify-center bg-secondary/50 border-b border-r border-calendar-grid">
@@ -372,6 +373,10 @@ export function YearCalendar({
     deltaBurn: 0,
     deltaOffset: 0,
   });
+  const [burnPanelOpen, setBurnPanelOpen] = useState(true);
+  const [burnPanelPosition, setBurnPanelPosition] = useState({ x: 16, y: 16 });
+  const [isBurnPanelDragging, setIsBurnPanelDragging] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
 
   // Public share edit API
   const publicShareEditApi = usePublicShareEdit({
@@ -640,6 +645,28 @@ export function YearCalendar({
     (dateKey: string) => googleEventsByDate?.[dateKey] ?? [],
     [googleEventsByDate]
   );
+
+  useEffect(() => {
+    if (!isBurnPanelDragging) return;
+
+    const handleMove = (e: PointerEvent) => {
+      setBurnPanelPosition({
+        x: Math.max(8, e.clientX - dragOffsetRef.current.x),
+        y: Math.max(8, e.clientY - dragOffsetRef.current.y),
+      });
+    };
+
+    const handleUp = () => {
+      setIsBurnPanelDragging(false);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+  }, [isBurnPanelDragging]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1714,205 +1741,233 @@ export function YearCalendar({
       )}
 
       <div
-        className="fixed top-4 right-4 w-[300px] rounded-xl border border-border bg-card/90 backdrop-blur-sm p-4 shadow-lg z-50 touch-auto"
+        className={cn("fixed z-50 touch-auto", burnPanelOpen ? "w-[300px]" : "w-auto")}
+        style={{ top: burnPanelPosition.y, left: burnPanelPosition.x }}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Burn Rate</div>
-          <div className="text-xs text-muted-foreground">Monthly</div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Label className="text-xs text-muted-foreground">Start capital</Label>
-          <Label className="text-xs text-muted-foreground">Burn / mo</Label>
-          <Input
-            type="number"
-            value={burnConfig.startCapital}
-            onChange={(e) =>
-              setBurnConfig((prev) => ({
-                ...prev,
-                startCapital: Number(e.target.value) || 0,
-              }))
-            }
-          />
-          <Input
-            type="number"
-            value={burnConfig.burnRate}
-            onChange={(e) =>
-              setBurnConfig((prev) => ({
-                ...prev,
-                burnRate: Number(e.target.value) || 0,
-              }))
-            }
-          />
-        </div>
-
-        <div className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">Scenarios</div>
-
-        <div className="mt-2 space-y-2">
-          {burnScenarios.length === 0 && (
-            <div className="text-xs text-muted-foreground">No scenarios yet.</div>
-          )}
-          {burnScenarios.map((scenario) => (
-            <div key={scenario.id} className="rounded-lg border border-border/70 p-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  type="text"
-                  value={scenario.name}
-                  onChange={(e) =>
-                    setBurnScenarios((prev) =>
-                      prev.map((s) => (s.id === scenario.id ? { ...s, name: e.target.value } : s))
-                    )
-                  }
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setBurnScenarios((prev) => prev.filter((s) => s.id !== scenario.id))}
-                >
-                  Remove
-                </Button>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <Label className="text-[11px] text-muted-foreground">Start month</Label>
-                  <Select
-                    value={String(scenario.startMonth)}
-                    onValueChange={(value) =>
-                      setBurnScenarios((prev) =>
-                        prev.map((s) =>
-                          s.id === scenario.id ? { ...s, startMonth: Number(value) } : s
-                        )
-                      )
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {uiMonths.map((month, idx) => (
-                        <SelectItem key={`${scenario.id}-month-${idx}`} value={String(idx)}>
-                          {month}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
-                  <Input
-                    type="number"
-                    className="h-8 text-xs"
-                    value={scenario.deltaBurn}
-                    onChange={(e) =>
-                      setBurnScenarios((prev) =>
-                        prev.map((s) =>
-                          s.id === scenario.id
-                            ? { ...s, deltaBurn: Number(e.target.value) || 0 }
-                            : s
-                        )
-                      )
-                    }
-                  />
-                </div>
-                <div>
-                  <Label className="text-[11px] text-muted-foreground">Delta offset</Label>
-                  <Input
-                    type="number"
-                    className="h-8 text-xs"
-                    value={scenario.deltaOffset}
-                    onChange={(e) =>
-                      setBurnScenarios((prev) =>
-                        prev.map((s) =>
-                          s.id === scenario.id
-                            ? { ...s, deltaOffset: Number(e.target.value) || 0 }
-                            : s
-                        )
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-3 rounded-lg border border-dashed border-border/70 p-2">
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="col-span-2">
-              <Label className="text-[11px] text-muted-foreground">Scenario name</Label>
-              <Input
-                type="text"
-                className="h-8 text-xs"
-                value={scenarioDraft.name}
-                onChange={(e) => setScenarioDraft((prev) => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label className="text-[11px] text-muted-foreground">Start month</Label>
-              <Select
-                value={String(scenarioDraft.startMonth)}
-                onValueChange={(value) =>
-                  setScenarioDraft((prev) => ({ ...prev, startMonth: Number(value) }))
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {uiMonths.map((month, idx) => (
-                    <SelectItem key={`draft-month-${idx}`} value={String(idx)}>
-                      {month}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
-              <Input
-                type="number"
-                className="h-8 text-xs"
-                value={scenarioDraft.deltaBurn}
-                onChange={(e) =>
-                  setScenarioDraft((prev) => ({ ...prev, deltaBurn: Number(e.target.value) || 0 }))
-                }
-              />
-            </div>
-            <div>
-              <Label className="text-[11px] text-muted-foreground">Delta offset</Label>
-              <Input
-                type="number"
-                className="h-8 text-xs"
-                value={scenarioDraft.deltaOffset}
-                onChange={(e) =>
-                  setScenarioDraft((prev) => ({ ...prev, deltaOffset: Number(e.target.value) || 0 }))
-                }
-              />
-            </div>
-          </div>
-          <Button
-            type="button"
-            className="mt-2 w-full"
-            onClick={() => {
-              const nextName = scenarioDraft.name.trim() || `Scenario ${burnScenarios.length + 1}`;
-              setBurnScenarios((prev) => [
-                ...prev,
-                {
-                  id: `scenario-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                  name: nextName,
-                  startMonth: scenarioDraft.startMonth,
-                  deltaBurn: scenarioDraft.deltaBurn,
-                  deltaOffset: scenarioDraft.deltaOffset,
-                },
-              ]);
-              setScenarioDraft((prev) => ({ ...prev, name: "Scenario" }));
+        <div className="rounded-xl border border-border bg-card/90 backdrop-blur-sm shadow-lg">
+          <div
+            className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border cursor-grab active:cursor-grabbing"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              const target = e.currentTarget.getBoundingClientRect();
+              dragOffsetRef.current = { x: e.clientX - target.left, y: e.clientY - target.top };
+              setIsBurnPanelDragging(true);
             }}
           >
-            Add scenario
-          </Button>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Burn Rate</div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setBurnPanelOpen((prev) => !prev);
+              }}
+            >
+              {burnPanelOpen ? "Minimize" : "Expand"}
+            </Button>
+          </div>
+
+          {burnPanelOpen && (
+            <div className="p-4">
+              <div className="text-xs text-muted-foreground">Monthly</div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Label className="text-xs text-muted-foreground">Start capital</Label>
+                <Label className="text-xs text-muted-foreground">Burn / mo</Label>
+                <Input
+                  type="number"
+                  value={burnConfig.startCapital}
+                  onChange={(e) =>
+                    setBurnConfig((prev) => ({
+                      ...prev,
+                      startCapital: Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+                <Input
+                  type="number"
+                  value={burnConfig.burnRate}
+                  onChange={(e) =>
+                    setBurnConfig((prev) => ({
+                      ...prev,
+                      burnRate: Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">Scenarios</div>
+
+              <div className="mt-2 space-y-2">
+                {burnScenarios.length === 0 && (
+                  <div className="text-xs text-muted-foreground">No scenarios yet.</div>
+                )}
+                {burnScenarios.map((scenario) => (
+                  <div key={scenario.id} className="rounded-lg border border-border/70 p-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        value={scenario.name}
+                        onChange={(e) =>
+                          setBurnScenarios((prev) =>
+                            prev.map((s) => (s.id === scenario.id ? { ...s, name: e.target.value } : s))
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setBurnScenarios((prev) => prev.filter((s) => s.id !== scenario.id))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">Start month</Label>
+                        <Select
+                          value={String(scenario.startMonth)}
+                          onValueChange={(value) =>
+                            setBurnScenarios((prev) =>
+                              prev.map((s) =>
+                                s.id === scenario.id ? { ...s, startMonth: Number(value) } : s
+                              )
+                            )
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {uiMonths.map((month, idx) => (
+                              <SelectItem key={`${scenario.id}-month-${idx}`} value={String(idx)}>
+                                {month}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
+                        <Input
+                          type="number"
+                          className="h-8 text-xs"
+                          value={scenario.deltaBurn}
+                          onChange={(e) =>
+                            setBurnScenarios((prev) =>
+                              prev.map((s) =>
+                                s.id === scenario.id
+                                  ? { ...s, deltaBurn: Number(e.target.value) || 0 }
+                                  : s
+                              )
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px] text-muted-foreground">Delta offset</Label>
+                        <Input
+                          type="number"
+                          className="h-8 text-xs"
+                          value={scenario.deltaOffset}
+                          onChange={(e) =>
+                            setBurnScenarios((prev) =>
+                              prev.map((s) =>
+                                s.id === scenario.id
+                                  ? { ...s, deltaOffset: Number(e.target.value) || 0 }
+                                  : s
+                              )
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 rounded-lg border border-dashed border-border/70 p-2">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="col-span-2">
+                    <Label className="text-[11px] text-muted-foreground">Scenario name</Label>
+                    <Input
+                      type="text"
+                      className="h-8 text-xs"
+                      value={scenarioDraft.name}
+                      onChange={(e) => setScenarioDraft((prev) => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground">Start month</Label>
+                    <Select
+                      value={String(scenarioDraft.startMonth)}
+                      onValueChange={(value) =>
+                        setScenarioDraft((prev) => ({ ...prev, startMonth: Number(value) }))
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uiMonths.map((month, idx) => (
+                          <SelectItem key={`draft-month-${idx}`} value={String(idx)}>
+                            {month}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground">Delta burn</Label>
+                    <Input
+                      type="number"
+                      className="h-8 text-xs"
+                      value={scenarioDraft.deltaBurn}
+                      onChange={(e) =>
+                        setScenarioDraft((prev) => ({ ...prev, deltaBurn: Number(e.target.value) || 0 }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground">Delta offset</Label>
+                    <Input
+                      type="number"
+                      className="h-8 text-xs"
+                      value={scenarioDraft.deltaOffset}
+                      onChange={(e) =>
+                        setScenarioDraft((prev) => ({ ...prev, deltaOffset: Number(e.target.value) || 0 }))
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="mt-2 w-full"
+                  onClick={() => {
+                    const nextName = scenarioDraft.name.trim() || `Scenario ${burnScenarios.length + 1}`;
+                    setBurnScenarios((prev) => [
+                      ...prev,
+                      {
+                        id: `scenario-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        name: nextName,
+                        startMonth: scenarioDraft.startMonth,
+                        deltaBurn: scenarioDraft.deltaBurn,
+                        deltaOffset: scenarioDraft.deltaOffset,
+                      },
+                    ]);
+                    setScenarioDraft((prev) => ({ ...prev, name: "Scenario" }));
+                  }}
+                >
+                  Add scenario
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
