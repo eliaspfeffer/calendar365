@@ -1879,7 +1879,14 @@ export function YearCalendar({
               <div className="p-4">
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <Label className="text-xs text-muted-foreground">Initial capital (Jan)</Label>
-                  <Label className="text-xs text-muted-foreground">Burn / mo</Label>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Burn / mo</span>
+                    {scenarioDraftBaseNav != null && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Selected month NAV: {formatNav(scenarioDraftBaseNav)}
+                      </span>
+                    )}
+                  </div>
                   <Input
                     type="number"
                     value={burnConfig.startCapital}
@@ -1892,11 +1899,6 @@ export function YearCalendar({
                       }))
                     }
                   />
-                  {scenarioDraftBaseNav != null && (
-                    <div className="-mt-1 text-[10px] text-muted-foreground">
-                      Selected month NAV: {formatNav(scenarioDraftBaseNav)}
-                    </div>
-                  )}
                   <Input
                     type="number"
                     value={burnConfig.burnRate}
