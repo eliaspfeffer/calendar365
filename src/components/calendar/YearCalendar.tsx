@@ -49,6 +49,7 @@ type BurnScenario = {
 };
 
 const BURN_COLUMN_WIDTH = 140;
+const BURN_COLUMN_GAP = 12;
 const BURN_ROW_HEIGHT = 60;
 const BURN_BAR_MAX = BURN_COLUMN_WIDTH / 2 - 10;
 
@@ -207,6 +208,10 @@ function SingleYearGrid({
     return Math.max(1, ...values.map((v) => Math.abs(v)));
   }, [burnConfig, baseSeries, scenarioSeries]);
 
+  const leftOffset = burnConfig
+    ? (scenarioSeries.length + 1) * BURN_COLUMN_WIDTH + BURN_COLUMN_GAP
+    : 0;
+
   return (
     <div
       className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max"
@@ -223,9 +228,12 @@ function SingleYearGrid({
       <div className="p-4">
         {/* Month rows */}
         {calendarData.map((monthDays, monthIndex) => (
-          <div key={monthIndex} className="relative flex">
+          <div key={monthIndex} className="relative flex" style={{ marginLeft: leftOffset }}>
             {burnConfig && (
-              <div className="absolute right-full mr-3 top-0">
+              <div
+                className="absolute top-0"
+                style={{ left: -(leftOffset - BURN_COLUMN_GAP) }}
+              >
                 <BurnRateRow
                   monthIndex={monthIndex}
                   baseSeries={baseSeries}
