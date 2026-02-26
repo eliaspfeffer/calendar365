@@ -1964,6 +1964,9 @@ export function YearCalendar({
                   className="max-h-[70vh] overflow-y-auto p-4"
                   onWheel={(e) => {
                     e.stopPropagation();
+                    if (e.currentTarget instanceof HTMLElement) {
+                      e.currentTarget.scrollTop += e.deltaY;
+                    }
                   }}
                 >
                   <div className="mt-3 grid grid-cols-2 gap-2">
