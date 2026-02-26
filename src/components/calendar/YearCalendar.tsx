@@ -1601,6 +1601,7 @@ export function YearCalendar({
                       burnConfig={burnConfig}
                       burnScenarios={burnScenarios}
                       onRunwayMonthClick={(monthIndex, baseValue) => {
+                        setBurnPanelPosition({ x: 16, y: 96 });
                         setBurnPanelVisible(true);
                         setBurnPanelOpen(true);
                         setScenarioDraftBaseNav(baseValue);
