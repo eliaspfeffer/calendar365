@@ -1908,7 +1908,7 @@ export function YearCalendar({
                   deltaOffset: scenarioDraft.deltaOffset,
                 },
               ]);
-              setScenarioDraft((prev) => ({ ...prev, name: \"Scenario\" }));
+              setScenarioDraft((prev) => ({ ...prev, name: "Scenario" }));
             }}
           >
             Add scenario
