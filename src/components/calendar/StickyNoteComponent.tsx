@@ -146,7 +146,7 @@ export function StickyNoteComponent({
       ? "scroll"
       : textOverflowMode;
 
-  const isHorizontalExpand = variant === "full" && effectiveTextOverflowMode === "expand";
+  const isHorizontalExpand = effectiveTextOverflowMode === "expand";
 
   const getOverflowStyles = () => {
     switch (effectiveTextOverflowMode) {
@@ -182,7 +182,9 @@ export function StickyNoteComponent({
           ? isHorizontalExpand
             ? "absolute top-1 left-1 bottom-1 p-1 w-max max-w-none"
             : "absolute inset-1 p-1"
-          : "relative w-full p-1",
+          : isHorizontalExpand
+            ? "relative w-max max-w-none p-1"
+            : "relative w-full p-1",
         colorClasses[note.color],
         getOverflowStyles(),
         isLinkMode && "ring-2 ring-primary ring-offset-1 cursor-crosshair",
