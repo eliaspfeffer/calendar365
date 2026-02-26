@@ -242,10 +242,10 @@ function SingleYearGrid({
         {/* Month rows */}
         {burnConfig && (
           <div
-            className="absolute text-[11px] uppercase tracking-wide text-muted-foreground"
+            className="absolute text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
             style={{ left: -(leftOffset - BURN_COLUMN_GAP), top: 2 }}
           >
-            Burn rate
+            BURN RATE
           </div>
         )}
         {calendarData.map((monthDays, monthIndex) => (
