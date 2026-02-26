@@ -15,6 +15,7 @@ interface StickyNoteComponentProps {
   onDragEnd?: () => void;
   scale: number;
   textOverflowMode: TextOverflowMode;
+  autoScrollStruckNotes?: boolean;
   isLinkMode: boolean;
   isConnected: boolean;
   isHighlighted: boolean;
@@ -43,6 +44,7 @@ export function StickyNoteComponent({
   onDragEnd,
   scale,
   textOverflowMode,
+  autoScrollStruckNotes = true,
   isLinkMode,
   isConnected,
   isHighlighted,
@@ -139,8 +141,13 @@ export function StickyNoteComponent({
     onDragEnd?.();
   };
 
+  const effectiveTextOverflowMode =
+    autoScrollStruckNotes && textOverflowMode === "expand" && note.is_struck
+      ? "scroll"
+      : textOverflowMode;
+
   const getOverflowStyles = () => {
-    switch (textOverflowMode) {
+    switch (effectiveTextOverflowMode) {
       case "scroll":
         return "overflow-y-auto max-h-[80px]";
       case "truncate":
@@ -152,7 +159,7 @@ export function StickyNoteComponent({
   };
 
   const getTextStyles = () => {
-    switch (textOverflowMode) {
+    switch (effectiveTextOverflowMode) {
       case "truncate":
         return "line-clamp-2";
       case "scroll":

@@ -20,6 +20,7 @@ interface InboxNotesPanelProps {
   onNoteDragEnd?: () => void;
   draggedNoteId?: string | null;
   textOverflowMode: TextOverflowMode;
+  autoScrollStruckNotes?: boolean;
 }
 
 export function InboxNotesPanel({
@@ -34,6 +35,7 @@ export function InboxNotesPanel({
   onNoteDragEnd,
   draggedNoteId,
   textOverflowMode,
+  autoScrollStruckNotes = true,
 }: InboxNotesPanelProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -162,6 +164,7 @@ export function InboxNotesPanel({
                     onHover={onNoteHover}
                     scale={1}
                     textOverflowMode={textOverflowMode}
+                    autoScrollStruckNotes={autoScrollStruckNotes}
                     isLinkMode={false}
                     isConnected={false}
                     isHighlighted={false}

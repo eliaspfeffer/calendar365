@@ -13,6 +13,7 @@ interface Settings {
   yearEnd: number;
   skipHideYearConfirm: boolean;
   textOverflowMode: TextOverflowMode;
+  autoScrollStruckNotes: boolean;
   calendarColor: CalendarColor;
   alwaysShowArrows: boolean;
   showInbox: boolean;
@@ -35,6 +36,7 @@ const defaultSettings: Settings = {
   yearEnd: defaultYearEnd,
   skipHideYearConfirm: false,
   textOverflowMode: 'expand',
+  autoScrollStruckNotes: true,
   calendarColor: 'blue',
   alwaysShowArrows: false,
   showInbox: true,
@@ -81,6 +83,7 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (raw.textOverflowMode === "scroll" || raw.textOverflowMode === "truncate" || raw.textOverflowMode === "expand") {
     out.textOverflowMode = raw.textOverflowMode;
   }
+  if (typeof raw.autoScrollStruckNotes === "boolean") out.autoScrollStruckNotes = raw.autoScrollStruckNotes;
   if (
     raw.calendarColor === "blue" ||
     raw.calendarColor === "green" ||

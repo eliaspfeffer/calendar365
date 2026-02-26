@@ -4,6 +4,54 @@ A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 
 ![Demo](demo.png)
 
+## Installation
+
+### npm (Recommended)
+
+Install globally to run from anywhere:
+
+```bash
+npm install -g calendar365
+```
+
+Then start the calendar:
+
+```bash
+calendar365
+```
+
+Options:
+```bash
+calendar365                    # Start on default port 3650
+calendar365 -p 8080            # Use custom port
+calendar365 --open             # Start and open in browser
+calendar365 --help             # Show all options
+```
+
+### Homebrew (macOS/Linux)
+
+```bash
+# Add the tap
+brew tap eliaspfeffer/tap
+
+# Install
+brew install calendar365
+```
+
+Or install directly:
+
+```bash
+brew install eliaspfeffer/tap/calendar365
+```
+
+### npx (No Installation)
+
+Run without installing:
+
+```bash
+npx calendar365
+```
+
 ## Features
 
 - 365‑day year grid with zoom/pan
@@ -17,11 +65,39 @@ A year-at-a-glance planner with a zoomable 365‑day view and sticky notes.
 - Touch: pinch to zoom, drag to pan
 - Trackpad: pinch (or Ctrl/⌘ + scroll) to zoom, scroll to pan
 
+## CLI Commands
+
+```bash
+calendar365 [command] [options]
+
+Commands:
+  start, serve    Start the calendar server (default)
+  dev             Start development server with hot reload
+  build           Build for production
+  help            Show help message
+
+Options:
+  -p, --port      Port to run on (default: 3650)
+  -h, --host      Host to bind to (default: localhost)
+  --open          Open browser automatically
+  -v, --version   Show version
+```
+
+## Environment Variables
+
+Configure the calendar using environment variables:
+
+```bash
+# Server configuration
+CALENDAR365_PORT=3650           # Default port
+CALENDAR365_HOST=localhost      # Default host
+```
+
 ## YAML import/export
 
 - Open the `YAML import/export` dialog via the code icon in the top-right controls.
 - Select a sub-calendar and use **Export** to copy a YAML 1.2 document you can paste into any chat/LLM.
-- Edit the YAML and use **Import** to merge changes (or choose “Replace existing notes in this calendar”).
+- Edit the YAML and use **Import** to merge changes (or choose "Replace existing notes in this calendar").
 
 Schema: `calendar365.notes.v1` with one entry per note. Fields include `calendar`, `date` (or `float` for undated notes), `text`, `color`, and `connection`.
 
@@ -30,6 +106,8 @@ Schema: `calendar365.notes.v1` with one entry per note. Fields include `calendar
 Prereqs: Node.js 18+ and npm (or Bun).
 
 ```sh
+git clone https://github.com/eliaspfeffer/calendar365.git
+cd calendar365
 npm install
 npm run dev
 ```
@@ -63,7 +141,7 @@ VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
 ## Payments / paywall (PayPal, lifetime 4 USD)
 
 - Free to use up to N notes per account (default 25).
-- Adding note N+1 opens a “support the app” dialog to unlock unlimited notes.
+- Adding note N+1 opens a "support the app" dialog to unlock unlimited notes.
 - The user can choose the amount (including 0 USD). 4 USD is the suggested amount.
 
 ### Changing the free-note limit
@@ -132,6 +210,18 @@ If password reset emails fail (e.g. 500 "Error sending recovery email"), configu
 - Tailwind CSS + shadcn/ui
 - Supabase (auth + data)
 
+## Publishing
+
+For maintainers - publish a new version:
+
+```bash
+# Update version in package.json
+npm version patch  # or minor/major
+
+# Publish to npm and update Homebrew formula
+./scripts/publish.sh
+```
+
 ## License
 
-Proprietary — see `LICENSE`.
+MIT License — see `LICENSE`.

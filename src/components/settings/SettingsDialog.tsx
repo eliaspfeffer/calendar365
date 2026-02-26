@@ -38,6 +38,8 @@ interface SettingsDialogProps {
   onYearEndChange: (year: number) => void;
   textOverflowMode: TextOverflowMode;
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
+  autoScrollStruckNotes: boolean;
+  onAutoScrollStruckNotesChange: (enabled: boolean) => void;
   calendarColor: CalendarColor;
   onCalendarColorChange: (color: CalendarColor) => void;
   alwaysShowArrows: boolean;
@@ -87,6 +89,8 @@ export function SettingsDialog({
   onYearEndChange,
   textOverflowMode,
   onTextOverflowModeChange,
+  autoScrollStruckNotes,
+  onAutoScrollStruckNotesChange,
   calendarColor,
   onCalendarColorChange,
   alwaysShowArrows,
@@ -398,6 +402,24 @@ export function SettingsDialog({
                   </Label>
                 </div>
               </RadioGroup>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium" htmlFor="auto-scroll-struck-notes">
+                    Crossed-out notes use scroll
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    When Expand cell is active, crossed-out notes switch to overflow with scroll to stay compact.
+                  </p>
+                </div>
+                <Switch
+                  id="auto-scroll-struck-notes"
+                  checked={autoScrollStruckNotes}
+                  onCheckedChange={onAutoScrollStruckNotesChange}
+                />
+              </div>
             </div>
 
             <Separator />
