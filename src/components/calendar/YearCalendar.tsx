@@ -1998,7 +1998,6 @@ export function YearCalendar({
           </div>
         </div>
       )}
-      )}
 
       <ZoomControls
         onZoomIn={zoomIn}
