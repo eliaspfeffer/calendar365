@@ -214,8 +214,8 @@ export function StickyNoteComponent({
       )}
       <p
         className={cn(
-          "font-medium text-foreground/90 leading-tight pr-3",
-          note.is_struck && "line-through text-foreground/60",
+          "font-medium text-slate-900 leading-tight pr-3",
+          note.is_struck && "line-through text-slate-700",
           getTextStyles()
         )}
         style={{ wordBreak: "break-word" }}
