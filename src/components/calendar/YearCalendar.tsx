@@ -52,8 +52,8 @@ const BURN_COLUMN_WIDTH = 140;
 const BURN_ROW_HEIGHT = 60;
 const BURN_BAR_MAX = BURN_COLUMN_WIDTH / 2 - 10;
 
-function buildBaseSeries(startCapital: number, burnRate: number, monthsCount: number) {
-  return Array.from({ length: monthsCount }, (_, i) => startCapital - burnRate * i);
+function buildBaseSeries(startCapital: number, burnRate: number, monthsCount: number, monthOffset: number) {
+  return Array.from({ length: monthsCount }, (_, i) => startCapital - burnRate * (monthOffset + i));
 }
 
 function buildScenarioSeries(base: number[], scenario: BurnScenario) {
@@ -133,6 +133,7 @@ function BurnRateRow({
 
 interface SingleYearGridProps {
   year: number;
+  baseYear: number;
   scale: number;
   getNotesByDate: (date: string) => StickyNote[];
   getEventsByDate?: (date: string) => GoogleCalendarDayEvent[];
@@ -160,6 +161,7 @@ interface SingleYearGridProps {
 
 function SingleYearGrid({
   year,
+  baseYear,
   scale,
   getNotesByDate,
   getEventsByDate,
@@ -186,10 +188,11 @@ function SingleYearGrid({
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
+  const monthOffset = Math.max(0, (year - baseYear) * 12);
   const baseSeries = useMemo(() => {
     if (!burnConfig) return [];
-    return buildBaseSeries(burnConfig.startCapital, burnConfig.burnRate, months.length);
-  }, [burnConfig, months.length]);
+    return buildBaseSeries(burnConfig.startCapital, burnConfig.burnRate, months.length, monthOffset);
+  }, [burnConfig, months.length, monthOffset]);
   const scenarioSeries = useMemo(() => {
     if (!burnConfig || !burnScenarios) return [];
     return burnScenarios.map((scenario) => ({
@@ -1478,6 +1481,7 @@ export function YearCalendar({
                 >
                     <SingleYearGrid
                       year={year}
+                      baseYear={years[0] ?? year}
                       scale={scale}
                       getNotesByDate={getNotesByDate}
                       getEventsByDate={getGoogleEventsByDate}
