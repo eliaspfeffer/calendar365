@@ -157,23 +157,64 @@ function BurnRateRow({
   scenarioSeries,
   maxAbs,
   onClickMonth,
+  scenarioNames,
+  onScenarioEdit,
+  editingScenarioId,
+  scenarioNameDraft,
+  onScenarioNameDraftChange,
+  onScenarioNameCommit,
 }: {
   monthIndex: number;
   baseSeries: number[];
   scenarioSeries: Array<{ id: string; values: Array<number> }>;
   maxAbs: number;
   onClickMonth?: (monthIndex: number, baseValue: number) => void;
+  scenarioNames?: Array<{ id: string; name: string }>;
+  onScenarioEdit?: (id: string) => void;
+  editingScenarioId?: string | null;
+  scenarioNameDraft?: string;
+  onScenarioNameDraftChange?: (value: string) => void;
+  onScenarioNameCommit?: () => void;
 }) {
   return (
     <div className="flex">
-      {scenarioSeries.map((scenario, idx) => (
-        <BurnRateCell
-          key={scenario.id}
-          value={scenario.values[monthIndex]}
-          maxAbs={maxAbs}
-          muted={idx % 2 === 1}
-        />
-      ))}
+      {scenarioSeries.map((scenario, idx) => {
+        const name = scenarioNames?.find((s) => s.id === scenario.id)?.name ?? "Scenario";
+        const isEditing = editingScenarioId === scenario.id;
+        return (
+          <div key={scenario.id} className="relative">
+            {monthIndex === 0 && (
+              <div
+                className="absolute -top-4 left-0 w-full text-center text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onScenarioEdit?.(scenario.id);
+                }}
+              >
+                {isEditing ? (
+                  <input
+                    className="w-[120px] rounded-sm border border-border bg-background px-1 py-0.5 text-[10px] text-foreground"
+                    value={scenarioNameDraft ?? name}
+                    onChange={(e) => onScenarioNameDraftChange?.(e.target.value)}
+                    onBlur={() => onScenarioNameCommit?.()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") onScenarioNameCommit?.();
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  name.toUpperCase()
+                )}
+              </div>
+            )}
+            <BurnRateCell
+              value={scenario.values[monthIndex]}
+              maxAbs={maxAbs}
+              muted={idx % 2 === 1}
+            />
+          </div>
+        );
+      })}
       <BurnRateCell
         value={baseSeries[monthIndex]}
         maxAbs={maxAbs}
@@ -211,6 +252,11 @@ interface SingleYearGridProps {
   burnConfig?: BurnConfig;
   burnScenarios?: BurnScenario[];
   onRunwayMonthClick?: (monthIndex: number, baseValue: number) => void;
+  editingScenarioId?: string | null;
+  scenarioNameDraft?: string;
+  onScenarioEdit?: (id: string) => void;
+  onScenarioNameDraftChange?: (value: string) => void;
+  onScenarioNameCommit?: () => void;
 }
 
 function SingleYearGrid({
@@ -240,6 +286,11 @@ function SingleYearGrid({
   burnConfig,
   burnScenarios,
   onRunwayMonthClick,
+  editingScenarioId,
+  scenarioNameDraft,
+  onScenarioEdit,
+  onScenarioNameDraftChange,
+  onScenarioNameCommit,
 }: SingleYearGridProps) {
   const { calendarData, months } = useCalendarData(year);
   const maxDays = Math.max(...calendarData.map((month) => month.length));
@@ -306,6 +357,12 @@ function SingleYearGrid({
                   scenarioSeries={scenarioSeries}
                   maxAbs={maxAbs}
                   onClickMonth={onRunwayMonthClick}
+                  scenarioNames={burnScenarios?.map((s) => ({ id: s.id, name: s.name })) ?? []}
+                  onScenarioEdit={onScenarioEdit}
+                  editingScenarioId={editingScenarioId}
+                  scenarioNameDraft={scenarioNameDraft}
+                  onScenarioNameDraftChange={onScenarioNameDraftChange}
+                  onScenarioNameCommit={onScenarioNameCommit}
                 />
               </div>
             )}
@@ -449,6 +506,8 @@ export function YearCalendar({
   const burnPanelDragOffset = useRef({ x: 0, y: 0 });
   const [scenarioDraftBaseNav, setScenarioDraftBaseNav] = useState<number | null>(null);
   const [scenarioDraftEditStartNav, setScenarioDraftEditStartNav] = useState(false);
+  const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
+  const [scenarioNameDraft, setScenarioNameDraft] = useState("");
   const [scenarioDraft, setScenarioDraft] = useState({
     name: "Scenario",
     startMonth: 0,
@@ -1604,6 +1663,25 @@ export function YearCalendar({
                       isNoteReadOnly={isNoteReadOnly}
                       burnConfig={burnConfig}
                       burnScenarios={burnScenarios}
+                      editingScenarioId={editingScenarioId}
+                      scenarioNameDraft={scenarioNameDraft}
+                      onScenarioEdit={(id) => {
+                        const current = burnScenarios.find((s) => s.id === id)?.name ?? "";
+                        setEditingScenarioId(id);
+                        setScenarioNameDraft(current);
+                      }}
+                      onScenarioNameDraftChange={setScenarioNameDraft}
+                      onScenarioNameCommit={() => {
+                        if (!editingScenarioId) return;
+                        const next = scenarioNameDraft.trim();
+                        if (next.length > 0) {
+                          setBurnScenarios((prev) =>
+                            prev.map((s) => (s.id === editingScenarioId ? { ...s, name: next } : s))
+                          );
+                        }
+                        setEditingScenarioId(null);
+                        setScenarioNameDraft("");
+                      }}
                       onRunwayMonthClick={(monthIndex, baseValue) => {
                         setBurnPanelPosition({ x: 16, y: 96 });
                         setBurnPanelVisible(true);
@@ -1880,7 +1958,7 @@ export function YearCalendar({
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <Label className="text-xs text-muted-foreground">Initial capital (Jan)</Label>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Burn / mo</span>
+                    <span>Monthly burn</span>
                     {scenarioDraftBaseNav != null && (
                       <span className="text-[10px] text-muted-foreground">
                         Selected month NAV: {formatNav(scenarioDraftBaseNav)}
@@ -1995,7 +2073,7 @@ export function YearCalendar({
                           </Select>
                         </div>
                         <div>
-                          <Label className="text-[11px] text-muted-foreground">Burn / mo</Label>
+                          <Label className="text-[11px] text-muted-foreground">Monthly burn</Label>
                           <Input
                             type="number"
                             className="h-8 text-xs"
@@ -2095,7 +2173,7 @@ export function YearCalendar({
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-[11px] text-muted-foreground">Burn / mo</Label>
+                      <Label className="text-[11px] text-muted-foreground">Monthly burn</Label>
                       <Input
                         type="number"
                         className="h-8 text-xs"
