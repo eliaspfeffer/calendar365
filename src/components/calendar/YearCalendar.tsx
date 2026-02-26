@@ -49,6 +49,7 @@ type BurnScenario = {
 };
 
 const BURN_COLUMN_WIDTH = 140;
+const BURN_COLUMN_GAP = 12;
 const BURN_ROW_HEIGHT = 60;
 const BURN_BAR_MAX = BURN_COLUMN_WIDTH / 2 - 10;
 
@@ -62,6 +63,14 @@ function buildScenarioSeries(base: number[], scenario: BurnScenario) {
     const delta = scenario.deltaOffset + scenario.deltaBurn * (i - scenario.startMonth);
     return value + delta;
   });
+}
+
+function formatNav(value: number) {
+  const abs = Math.abs(value);
+  const sign = value >= 0 ? "+" : "-";
+  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}${Math.round(abs / 1000)}k`;
+  return `${sign}${Math.round(abs)}`;
 }
 
 function BurnRateCell({
@@ -81,6 +90,7 @@ function BurnRateCell({
   const barStyle = isPositive
     ? ({ right: "50%", width } as React.CSSProperties)
     : ({ left: "50%", width } as React.CSSProperties);
+  const tooltip = value === null ? "" : `NAV ${formatNav(value)}`;
 
   return (
     <div
@@ -89,6 +99,7 @@ function BurnRateCell({
         muted && "opacity-80"
       )}
       style={{ width: BURN_COLUMN_WIDTH, height: BURN_ROW_HEIGHT }}
+      title={tooltip}
     >
       <div className="absolute inset-y-2 left-1/2 w-px bg-border" />
       {value !== null && width > 0 && (
@@ -126,7 +137,6 @@ function BurnRateRow({
         />
       ))}
       <BurnRateCell value={baseSeries[monthIndex]} maxAbs={maxAbs} />
-      <div className="w-3 border-b border-calendar-grid bg-muted/30" />
     </div>
   );
 }
@@ -211,6 +221,10 @@ function SingleYearGrid({
     return Math.max(1, ...values.map((v) => Math.abs(v)));
   }, [burnConfig, baseSeries, scenarioSeries]);
 
+  const leftOffset = burnConfig
+    ? (scenarioSeries.length + 1) * BURN_COLUMN_WIDTH + BURN_COLUMN_GAP
+    : 0;
+
   return (
     <div
       className="year-calendar-grid inline-block bg-card shadow-2xl min-w-max"
@@ -224,17 +238,30 @@ function SingleYearGrid({
       </div>
 
       {/* Calendar Grid */}
-      <div className="p-4">
+      <div className="p-4 relative">
         {/* Month rows */}
+        {burnConfig && (
+          <div
+            className="absolute text-[11px] uppercase tracking-wide text-muted-foreground"
+            style={{ left: -(leftOffset - BURN_COLUMN_GAP), top: 2 }}
+          >
+            Burn rate
+          </div>
+        )}
         {calendarData.map((monthDays, monthIndex) => (
-          <div key={monthIndex} className="flex">
+          <div key={monthIndex} className="relative flex" style={{ marginLeft: leftOffset }}>
             {burnConfig && (
-              <BurnRateRow
-                monthIndex={monthIndex}
-                baseSeries={baseSeries}
-                scenarioSeries={scenarioSeries}
-                maxAbs={maxAbs}
-              />
+              <div
+                className="absolute top-0"
+                style={{ left: -(leftOffset - BURN_COLUMN_GAP) }}
+              >
+                <BurnRateRow
+                  monthIndex={monthIndex}
+                  baseSeries={baseSeries}
+                  scenarioSeries={scenarioSeries}
+                  maxAbs={maxAbs}
+                />
+              </div>
             )}
             {/* Month label */}
             <div className="w-16 flex-shrink-0 flex items-center justify-center bg-secondary/50 border-b border-r border-calendar-grid">
@@ -371,7 +398,7 @@ export function YearCalendar({
   const [burnScenarios, setBurnScenarios] = useState<BurnScenario[]>([]);
   const [burnPanelVisible, setBurnPanelVisible] = useState(true);
   const [burnPanelOpen, setBurnPanelOpen] = useState(false);
-  const [burnPanelPosition, setBurnPanelPosition] = useState({ x: 16, y: 16 });
+  const [burnPanelPosition, setBurnPanelPosition] = useState({ x: 16, y: 96 });
   const [isBurnPanelDragging, setIsBurnPanelDragging] = useState(false);
   const burnPanelDragOffset = useRef({ x: 0, y: 0 });
   const [scenarioDraft, setScenarioDraft] = useState({
