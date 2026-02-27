@@ -650,6 +650,13 @@ export function YearCalendar({
     }
     return [];
   }, [runwayCalendarOptions, calendarOptions, calendarDefaultNoteColorById]);
+  const runwayCalendarNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    runwayCalendarSelectOptions.forEach((calendar) => {
+      map[calendar.id] = calendar.name;
+    });
+    return map;
+  }, [runwayCalendarSelectOptions]);
   const visibleCalendarSet = useMemo(() => new Set(visibleCalendarIds ?? []), [visibleCalendarIds]);
   const isCalendarVisible = useCallback(
     (calendarId?: string | null) => {
@@ -677,6 +684,27 @@ export function YearCalendar({
     });
     return map;
   }, [visibleBurnScenarios, calendarColorClassById]);
+
+  useEffect(() => {
+    if (!runwayCalendarSelectOptions.length) return;
+    if (burnConfig.baseScenarioCalendarId) {
+      const name = runwayCalendarNameById[burnConfig.baseScenarioCalendarId];
+      if (name && burnConfig.baseScenarioName !== name) {
+        setBurnConfig((prev) => ({ ...prev, baseScenarioName: name }));
+      }
+    }
+    setBurnScenarios((prev) => {
+      let changed = false;
+      const next = prev.map((scenario) => {
+        if (!scenario.calendarId) return scenario;
+        const name = runwayCalendarNameById[scenario.calendarId];
+        if (!name || scenario.name === name) return scenario;
+        changed = true;
+        return { ...scenario, name };
+      });
+      return changed ? next : prev;
+    });
+  }, [runwayCalendarSelectOptions, runwayCalendarNameById, burnConfig.baseScenarioCalendarId, burnConfig.baseScenarioName, setBurnConfig, setBurnScenarios]);
 
   // Public share edit API
   const publicShareEditApi = usePublicShareEdit({
@@ -1858,6 +1886,9 @@ export function YearCalendar({
                           runwayCalendarOptions?.[0]?.id ??
                           calendarOptions?.[0]?.id ??
                           null;
+                        const defaultCalendarName = defaultCalendarId
+                          ? runwayCalendarNameById[defaultCalendarId]
+                          : null;
                         setRunwayPanelState({
                           ...runwayPanelState,
                           visible: true,
@@ -1868,7 +1899,7 @@ export function YearCalendar({
                         setScenarioDraftEditStartNav(false);
                         setScenarioDraft((prev) => ({
                           ...prev,
-                          name: `Scenario ${uiMonths[monthIndex]}`,
+                          name: defaultCalendarName ?? `Scenario ${uiMonths[monthIndex]}`,
                           startMonth: monthIndex,
                           endMonth: null,
                           deltaBurn: 0,
@@ -2205,6 +2236,8 @@ export function YearCalendar({
                         setBurnConfig((prev) => ({
                           ...prev,
                           baseScenarioCalendarId: value === "none" ? null : value,
+                          baseScenarioName:
+                            value === "none" ? prev.baseScenarioName : runwayCalendarNameById[value] ?? prev.baseScenarioName,
                         }))
                       }
                     >
@@ -2267,7 +2300,14 @@ export function YearCalendar({
                             setBurnScenarios((prev) =>
                               prev.map((s) =>
                                 s.id === scenario.id
-                                  ? { ...s, calendarId: value === "none" ? null : value }
+                                  ? {
+                                      ...s,
+                                      calendarId: value === "none" ? null : value,
+                                      name:
+                                        value === "none"
+                                          ? s.name
+                                          : runwayCalendarNameById[value] ?? s.name,
+                                    }
                                   : s
                               )
                             )
@@ -2410,6 +2450,10 @@ export function YearCalendar({
                           setScenarioDraft((prev) => ({
                             ...prev,
                             calendarId: value === "none" ? null : value,
+                            name:
+                              value === "none"
+                                ? prev.name
+                                : runwayCalendarNameById[value] ?? prev.name,
                           }))
                         }
                       >
