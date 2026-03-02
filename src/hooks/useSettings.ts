@@ -48,6 +48,22 @@ interface Settings {
   runwayPanelOpen: boolean;
   runwayPanelPosX: number;
   runwayPanelPosY: number;
+  longYourAge: string;
+  longPartnerAge: string;
+  longFirstChildInMonths: string;
+  longFirstChildAfterWedding: boolean;
+  longSpacingMinMonths: string;
+  longSpacingMaxMonths: string;
+  longProposalInMonths: string;
+  longEngagementMonths: string;
+  longWeddingSearchWindowMonths: string;
+  longMinWeddingTempC: string;
+  longPreferredWeddingMonths: number[];
+  longChildren: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
 }
 
 type SettingsUpdater = Partial<Settings> | ((prev: Settings) => Partial<Settings>);
@@ -82,6 +98,22 @@ const defaultSettings: Settings = {
   runwayPanelOpen: false,
   runwayPanelPosX: 16,
   runwayPanelPosY: 96,
+  longYourAge: "30",
+  longPartnerAge: "29",
+  longFirstChildInMonths: "12",
+  longFirstChildAfterWedding: false,
+  longSpacingMinMonths: "12",
+  longSpacingMaxMonths: "18",
+  longProposalInMonths: "6",
+  longEngagementMonths: "12",
+  longWeddingSearchWindowMonths: "18",
+  longMinWeddingTempC: "16",
+  longPreferredWeddingMonths: [5, 6, 7, 8],
+  longChildren: [
+    { id: "child-1", name: "Kind 1", color: "#ef4444" },
+    { id: "child-2", name: "Kind 2", color: "#f97316" },
+    { id: "child-3", name: "Kind 3", color: "#eab308" },
+  ],
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -94,6 +126,10 @@ function isStringArray(value: unknown): value is string[] {
 
 function isNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function isNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((entry) => isNumber(entry));
 }
 
 function coerceRunwayScenarios(value: unknown): Settings["runwayScenarios"] | null {
@@ -131,6 +167,25 @@ function coerceYear(value: unknown): number | null {
     if (Number.isFinite(parsed)) return parsed;
   }
   return null;
+}
+
+function coerceLongChildren(
+  value: unknown,
+): Settings["longChildren"] | null {
+  if (!Array.isArray(value)) return null;
+  const out: Settings["longChildren"] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) return null;
+    if (typeof entry.id !== "string") return null;
+    if (typeof entry.name !== "string") return null;
+    if (typeof entry.color !== "string") return null;
+    out.push({
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+    });
+  }
+  return out;
 }
 
 function coercePartialSettings(raw: unknown): Partial<Settings> {
@@ -190,6 +245,21 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
   if (typeof raw.runwayPanelOpen === "boolean") out.runwayPanelOpen = raw.runwayPanelOpen;
   if (isNumber(raw.runwayPanelPosX)) out.runwayPanelPosX = raw.runwayPanelPosX;
   if (isNumber(raw.runwayPanelPosY)) out.runwayPanelPosY = raw.runwayPanelPosY;
+  if (typeof raw.longYourAge === "string") out.longYourAge = raw.longYourAge;
+  if (typeof raw.longPartnerAge === "string") out.longPartnerAge = raw.longPartnerAge;
+  if (typeof raw.longFirstChildInMonths === "string") out.longFirstChildInMonths = raw.longFirstChildInMonths;
+  if (typeof raw.longFirstChildAfterWedding === "boolean") out.longFirstChildAfterWedding = raw.longFirstChildAfterWedding;
+  if (typeof raw.longSpacingMinMonths === "string") out.longSpacingMinMonths = raw.longSpacingMinMonths;
+  if (typeof raw.longSpacingMaxMonths === "string") out.longSpacingMaxMonths = raw.longSpacingMaxMonths;
+  if (typeof raw.longProposalInMonths === "string") out.longProposalInMonths = raw.longProposalInMonths;
+  if (typeof raw.longEngagementMonths === "string") out.longEngagementMonths = raw.longEngagementMonths;
+  if (typeof raw.longWeddingSearchWindowMonths === "string") {
+    out.longWeddingSearchWindowMonths = raw.longWeddingSearchWindowMonths;
+  }
+  if (typeof raw.longMinWeddingTempC === "string") out.longMinWeddingTempC = raw.longMinWeddingTempC;
+  if (isNumberArray(raw.longPreferredWeddingMonths)) out.longPreferredWeddingMonths = raw.longPreferredWeddingMonths;
+  const longChildren = coerceLongChildren(raw.longChildren);
+  if (longChildren) out.longChildren = longChildren;
 
   return out;
 }

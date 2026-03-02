@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { addMonths, format } from "date-fns";
 import { Link } from "react-router-dom";
 import { Baby, Plus, Trash2 } from "lucide-react";
@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/hooks/useSettings";
 
 type PlannedChild = {
   id: string;
@@ -57,6 +59,7 @@ const CHILD_COLORS = [
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const GERMANY_MONTHLY_AVG_TEMP_C = [1, 2, 6, 10, 14, 17, 19, 19, 15, 10, 5, 2];
+const STATISTICALLY_STRONG_BIRTH_MONTHS = [6, 7, 8]; // Jul-Sep
 
 const YEARS_TO_MONTHS = 12;
 const CHILD_AGE_TARGET = 25;
@@ -72,22 +75,21 @@ const formatAgeRange = (min: number, max: number) => {
 };
 
 const Long = () => {
-  const [yourAge, setYourAge] = useState("30");
-  const [partnerAge, setPartnerAge] = useState("29");
-  const [firstChildInMonths, setFirstChildInMonths] = useState("12");
-  const [firstChildAfterWedding, setFirstChildAfterWedding] = useState(false);
-  const [spacingMinMonths, setSpacingMinMonths] = useState("12");
-  const [spacingMaxMonths, setSpacingMaxMonths] = useState("18");
-  const [proposalInMonths, setProposalInMonths] = useState("6");
-  const [engagementMonths, setEngagementMonths] = useState("12");
-  const [weddingSearchWindowMonths, setWeddingSearchWindowMonths] = useState("18");
-  const [minWeddingTempC, setMinWeddingTempC] = useState("16");
-  const [preferredWeddingMonths, setPreferredWeddingMonths] = useState<number[]>([5, 6, 7, 8]);
-  const [children, setChildren] = useState<PlannedChild[]>([
-    { id: "child-1", name: "Kind 1", color: CHILD_COLORS[0] },
-    { id: "child-2", name: "Kind 2", color: CHILD_COLORS[1] },
-    { id: "child-3", name: "Kind 3", color: CHILD_COLORS[2] },
-  ]);
+  const { user } = useAuth();
+  const { settings, updateSettings } = useSettings(user?.id ?? null);
+
+  const yourAge = settings.longYourAge;
+  const partnerAge = settings.longPartnerAge;
+  const firstChildInMonths = settings.longFirstChildInMonths;
+  const firstChildAfterWedding = settings.longFirstChildAfterWedding;
+  const spacingMinMonths = settings.longSpacingMinMonths;
+  const spacingMaxMonths = settings.longSpacingMaxMonths;
+  const proposalInMonths = settings.longProposalInMonths;
+  const engagementMonths = settings.longEngagementMonths;
+  const weddingSearchWindowMonths = settings.longWeddingSearchWindowMonths;
+  const minWeddingTempC = settings.longMinWeddingTempC;
+  const preferredWeddingMonths = settings.longPreferredWeddingMonths;
+  const children = settings.longChildren as PlannedChild[];
 
   const now = useMemo(() => new Date(), []);
   const yourAgeNumber = Number(yourAge);
@@ -155,9 +157,12 @@ const Long = () => {
   ]);
 
   const togglePreferredWeddingMonth = (monthIndex: number) => {
-    setPreferredWeddingMonths((prev) => {
-      if (prev.includes(monthIndex)) return prev.filter((m) => m !== monthIndex);
-      return [...prev, monthIndex].sort((a, b) => a - b);
+    updateSettings((prev) => {
+      const current = prev.longPreferredWeddingMonths;
+      const next = current.includes(monthIndex)
+        ? current.filter((m) => m !== monthIndex)
+        : [...current, monthIndex].sort((a, b) => a - b);
+      return { longPreferredWeddingMonths: next };
     });
   };
 
@@ -228,25 +233,36 @@ const Long = () => {
   };
 
   const addChild = () => {
-    setChildren((prev) => {
-      const nextNumber = prev.length + 1;
-      return [
-        ...prev,
+    updateSettings((prev) => ({
+      longChildren: [
+        ...prev.longChildren,
         {
-          id: `child-${Date.now()}-${nextNumber}`,
-          name: `Kind ${nextNumber}`,
-          color: CHILD_COLORS[prev.length % CHILD_COLORS.length],
+          id: `child-${Date.now()}-${prev.longChildren.length + 1}`,
+          name: `Kind ${prev.longChildren.length + 1}`,
+          color: CHILD_COLORS[prev.longChildren.length % CHILD_COLORS.length],
         },
-      ];
-    });
+      ],
+    }));
   };
 
   const removeChild = (id: string) => {
-    setChildren((prev) => prev.filter((child) => child.id !== id));
+    updateSettings((prev) => ({
+      longChildren: prev.longChildren.filter((child) => child.id !== id),
+    }));
   };
 
   const renameChild = (id: string, name: string) => {
-    setChildren((prev) => prev.map((child) => (child.id === id ? { ...child, name } : child)));
+    updateSettings((prev) => ({
+      longChildren: prev.longChildren.map((child) => (child.id === id ? { ...child, name } : child)),
+    }));
+  };
+
+  const hasStrongBirthMonth = (minOffsetMonths: number, maxOffsetMonthsValue: number) => {
+    for (let offset = minOffsetMonths; offset <= maxOffsetMonthsValue; offset += 1) {
+      const month = addMonths(now, offset).getMonth();
+      if (STATISTICALLY_STRONG_BIRTH_MONTHS.includes(month)) return true;
+    }
+    return false;
   };
 
   return (
@@ -272,7 +288,14 @@ const Long = () => {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label htmlFor="your-age">Dein Alter jetzt</Label>
-                <Input id="your-age" type="number" min="0" step="0.1" value={yourAge} onChange={(e) => setYourAge(e.target.value)} />
+                <Input
+                  id="your-age"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={yourAge}
+                  onChange={(e) => updateSettings({ longYourAge: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="partner-age">Alter Partner:in jetzt</Label>
@@ -282,7 +305,7 @@ const Long = () => {
                   min="0"
                   step="0.1"
                   value={partnerAge}
-                  onChange={(e) => setPartnerAge(e.target.value)}
+                  onChange={(e) => updateSettings({ longPartnerAge: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -297,13 +320,13 @@ const Long = () => {
                   min="0"
                   step="1"
                   value={firstChildInMonths}
-                  onChange={(e) => setFirstChildInMonths(e.target.value)}
+                  onChange={(e) => updateSettings({ longFirstChildInMonths: e.target.value })}
                 />
                 <div className="flex items-center gap-2 pt-1">
                   <Switch
                     id="first-child-mode"
                     checked={firstChildAfterWedding}
-                    onCheckedChange={setFirstChildAfterWedding}
+                    onCheckedChange={(checked) => updateSettings({ longFirstChildAfterWedding: checked })}
                   />
                   <Label htmlFor="first-child-mode" className="text-xs text-muted-foreground">
                     Nach Hochzeit rechnen
@@ -318,7 +341,7 @@ const Long = () => {
                   min="0"
                   step="1"
                   value={spacingMinMonths}
-                  onChange={(e) => setSpacingMinMonths(e.target.value)}
+                  onChange={(e) => updateSettings({ longSpacingMinMonths: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -329,7 +352,7 @@ const Long = () => {
                   min="0"
                   step="1"
                   value={spacingMaxMonths}
-                  onChange={(e) => setSpacingMaxMonths(e.target.value)}
+                  onChange={(e) => updateSettings({ longSpacingMaxMonths: e.target.value })}
                 />
               </div>
             </div>
@@ -350,7 +373,7 @@ const Long = () => {
                   min="0"
                   step="1"
                   value={proposalInMonths}
-                  onChange={(e) => setProposalInMonths(e.target.value)}
+                  onChange={(e) => updateSettings({ longProposalInMonths: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -361,7 +384,7 @@ const Long = () => {
                   min="0"
                   step="1"
                   value={engagementMonths}
-                  onChange={(e) => setEngagementMonths(e.target.value)}
+                  onChange={(e) => updateSettings({ longEngagementMonths: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -372,7 +395,7 @@ const Long = () => {
                   min="1"
                   step="1"
                   value={weddingSearchWindowMonths}
-                  onChange={(e) => setWeddingSearchWindowMonths(e.target.value)}
+                  onChange={(e) => updateSettings({ longWeddingSearchWindowMonths: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -382,7 +405,7 @@ const Long = () => {
                   type="number"
                   step="0.5"
                   value={minWeddingTempC}
-                  onChange={(e) => setMinWeddingTempC(e.target.value)}
+                  onChange={(e) => updateSettings({ longMinWeddingTempC: e.target.value })}
                 />
               </div>
             </div>
@@ -567,6 +590,7 @@ const Long = () => {
                     const birthWidth = toWidth(item.birthMinOffsetMonths, item.birthMaxOffsetMonths);
                     const age25Left = toLeft(item.age25MinOffsetMonths);
                     const age25Width = toWidth(item.age25MinOffsetMonths, item.age25MaxOffsetMonths);
+                    const birthMonthHighlight = hasStrongBirthMonth(item.birthMinOffsetMonths, item.birthMaxOffsetMonths);
 
                     return (
                       <div
@@ -579,6 +603,11 @@ const Long = () => {
                           <div className="text-xs text-muted-foreground">
                             Geburt: {format(item.birthMinDate, "MMM yyyy")} - {format(item.birthMaxDate, "MMM yyyy")}
                           </div>
+                          {birthMonthHighlight && (
+                            <div className="text-xs font-medium text-amber-600">
+                              Highlight: Fenster enthält statistisch starke Geburtsmonate (Jul-Sep)
+                            </div>
+                          )}
                           <div className="text-xs text-muted-foreground">
                             Mit 25: {format(item.age25MinDate, "MMM yyyy")} - {format(item.age25MaxDate, "MMM yyyy")}
                           </div>
@@ -597,10 +626,19 @@ const Long = () => {
 
                           <div
                             className="absolute top-5 h-7 rounded-md border px-2 text-xs font-medium leading-7 text-white shadow-sm"
-                            style={{ left: birthLeft, width: birthWidth, minWidth: 12, backgroundColor: item.color, borderColor: `${item.color}cc` }}
+                            style={{
+                              left: birthLeft,
+                              width: birthWidth,
+                              minWidth: 12,
+                              backgroundColor: item.color,
+                              borderColor: birthMonthHighlight ? "#f59e0b" : `${item.color}cc`,
+                              boxShadow: birthMonthHighlight
+                                ? "0 0 0 2px rgba(245, 158, 11, 0.35)"
+                                : undefined,
+                            }}
                             title={`${item.name}: Geburt ${format(item.birthMinDate, "MMM yyyy")} - ${format(item.birthMaxDate, "MMM yyyy")}`}
                           >
-                            Geburt
+                            {birthMonthHighlight ? "Geburt ★" : "Geburt"}
                           </div>
 
                           <div
