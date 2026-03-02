@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import ResetPassword from "./pages/ResetPassword";
 import { LegalLinks } from "./components/legal/LegalLinks";
 import { LegalModal } from "./components/legal/LegalModal";
+import Long from "./pages/Long";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const AppRoutes = () => {
       <LegalLinks />
       <Routes location={routesLocation}>
         <Route path="/" element={<Index />} />
+        <Route path="/long" element={<Long />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/invite/:token" element={<Invite />} />
