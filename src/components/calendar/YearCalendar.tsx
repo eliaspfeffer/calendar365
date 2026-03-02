@@ -67,15 +67,16 @@ function buildBaseSeries(startCapital: number, burnRate: number, monthsCount: nu
   return Array.from({ length: monthsCount }, (_, i) => startCapital - burnRate * (monthOffset + i));
 }
 
-function buildScenarioSeries(base: number[], scenario: BurnScenario) {
+function buildScenarioSeries(base: number[], scenario: BurnScenario, monthOffset: number) {
   return base.map((value, i) => {
-    if (i < scenario.startMonth) return value;
+    const timelineMonth = monthOffset + i;
+    if (timelineMonth < scenario.startMonth) return value;
     const endMonth = scenario.endMonth;
-    if (endMonth != null && i > endMonth) {
+    if (endMonth != null && timelineMonth > endMonth) {
       const cappedDelta = scenario.deltaOffset + scenario.deltaBurn * (endMonth - scenario.startMonth);
       return value + cappedDelta;
     }
-    const delta = scenario.deltaOffset + scenario.deltaBurn * (i - scenario.startMonth);
+    const delta = scenario.deltaOffset + scenario.deltaBurn * (timelineMonth - scenario.startMonth);
     return value + delta;
   });
 }
@@ -292,10 +293,10 @@ function SingleYearGrid({
     if (!burnConfig || !burnScenarios) return [];
     return burnScenarios.map((scenario) => ({
       id: scenario.id,
-      values: buildScenarioSeries(baseSeries, scenario),
+      values: buildScenarioSeries(baseSeries, scenario, monthOffset),
       barClass: scenarioBarClasses?.[scenario.id],
     }));
-  }, [burnConfig, burnScenarios, baseSeries, scenarioBarClasses]);
+  }, [burnConfig, burnScenarios, baseSeries, scenarioBarClasses, monthOffset]);
   const maxAbs = useMemo(() => {
     if (!burnConfig) return 1;
     const values: number[] = [...baseSeries];
