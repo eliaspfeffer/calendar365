@@ -35,6 +35,14 @@ type ChildTimeline = {
   partnerAgeAt25Max: number;
 };
 
+type WeddingCandidate = {
+  offsetMonths: number;
+  date: Date;
+  monthIndex: number;
+  avgTempC: number;
+  score: number;
+};
+
 const CHILD_COLORS = [
   "#ef4444",
   "#f97316",
@@ -45,6 +53,9 @@ const CHILD_COLORS = [
   "#8b5cf6",
   "#ec4899",
 ];
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const GERMANY_MONTHLY_AVG_TEMP_C = [1, 2, 6, 10, 14, 17, 19, 19, 15, 10, 5, 2];
 
 const YEARS_TO_MONTHS = 12;
 const CHILD_AGE_TARGET = 25;
@@ -65,6 +76,11 @@ const Long = () => {
   const [firstChildInMonths, setFirstChildInMonths] = useState("12");
   const [spacingMinMonths, setSpacingMinMonths] = useState("12");
   const [spacingMaxMonths, setSpacingMaxMonths] = useState("18");
+  const [proposalInMonths, setProposalInMonths] = useState("6");
+  const [engagementMonths, setEngagementMonths] = useState("12");
+  const [weddingSearchWindowMonths, setWeddingSearchWindowMonths] = useState("18");
+  const [minWeddingTempC, setMinWeddingTempC] = useState("16");
+  const [preferredWeddingMonths, setPreferredWeddingMonths] = useState<number[]>([5, 6, 7, 8]);
   const [children, setChildren] = useState<PlannedChild[]>([
     { id: "child-1", name: "Kind 1", color: CHILD_COLORS[0] },
     { id: "child-2", name: "Kind 2", color: CHILD_COLORS[1] },
@@ -77,6 +93,10 @@ const Long = () => {
   const firstChildInMonthsNumber = Math.max(0, Math.trunc(Number(firstChildInMonths) || 0));
   const spacingMinMonthsNumber = Math.max(0, Math.trunc(Number(spacingMinMonths) || 0));
   const spacingMaxMonthsNumber = Math.max(spacingMinMonthsNumber, Math.trunc(Number(spacingMaxMonths) || 0));
+  const proposalInMonthsNumber = Math.max(0, Math.trunc(Number(proposalInMonths) || 0));
+  const engagementMonthsNumber = Math.max(0, Math.trunc(Number(engagementMonths) || 0));
+  const weddingSearchWindowMonthsNumber = Math.max(1, Math.trunc(Number(weddingSearchWindowMonths) || 1));
+  const minWeddingTempCNumber = Number(minWeddingTempC);
 
   const timeline = useMemo<ChildTimeline[]>(() => {
     if (!Number.isFinite(yourAgeNumber) || !Number.isFinite(partnerAgeNumber)) return [];
@@ -147,6 +167,57 @@ const Long = () => {
     const raw = ((maxOffsetMonthsValue - minOffsetMonths) / maxOffsetMonths) * timelineWidth;
     return Math.max(10, raw);
   };
+
+  const togglePreferredWeddingMonth = (monthIndex: number) => {
+    setPreferredWeddingMonths((prev) => {
+      if (prev.includes(monthIndex)) return prev.filter((m) => m !== monthIndex);
+      return [...prev, monthIndex].sort((a, b) => a - b);
+    });
+  };
+
+  const proposalDate = useMemo(() => addMonths(now, proposalInMonthsNumber), [now, proposalInMonthsNumber]);
+  const targetWeddingDate = useMemo(
+    () => addMonths(now, proposalInMonthsNumber + engagementMonthsNumber),
+    [now, proposalInMonthsNumber, engagementMonthsNumber]
+  );
+
+  const weddingCandidates = useMemo<WeddingCandidate[]>(() => {
+    const selectedMonths = preferredWeddingMonths.length > 0 ? new Set(preferredWeddingMonths) : null;
+    const searchStartOffset = proposalInMonthsNumber + engagementMonthsNumber;
+    const searchEndOffset = searchStartOffset + weddingSearchWindowMonthsNumber - 1;
+    const safeMinTemp = Number.isFinite(minWeddingTempCNumber) ? minWeddingTempCNumber : 16;
+    const range = Math.max(1, searchEndOffset - searchStartOffset + 1);
+    const results: WeddingCandidate[] = [];
+
+    for (let offset = searchStartOffset; offset <= searchEndOffset; offset += 1) {
+      const date = addMonths(now, offset);
+      const monthIndex = date.getMonth();
+      const avgTempC = GERMANY_MONTHLY_AVG_TEMP_C[monthIndex];
+      const preferredMatch = !selectedMonths || selectedMonths.has(monthIndex);
+      const tempMatch = avgTempC >= safeMinTemp;
+      if (!preferredMatch) continue;
+
+      const distancePenalty = (offset - searchStartOffset) / range;
+      const score = (tempMatch ? 2 : 0.6) + avgTempC / 20 - distancePenalty;
+
+      results.push({
+        offsetMonths: offset,
+        date,
+        monthIndex,
+        avgTempC,
+        score,
+      });
+    }
+
+    return results.sort((a, b) => b.score - a.score);
+  }, [
+    engagementMonthsNumber,
+    minWeddingTempCNumber,
+    now,
+    preferredWeddingMonths,
+    proposalInMonthsNumber,
+    weddingSearchWindowMonthsNumber,
+  ]);
 
   const addChild = () => {
     setChildren((prev) => {
@@ -239,6 +310,131 @@ const Long = () => {
                   onChange={(e) => setSpacingMaxMonths(e.target.value)}
                 />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Marriage Calculator</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="proposal-months">Proposal in months</Label>
+                <Input
+                  id="proposal-months"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={proposalInMonths}
+                  onChange={(e) => setProposalInMonths(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="engagement-months">Months from proposal to wedding</Label>
+                <Input
+                  id="engagement-months"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={engagementMonths}
+                  onChange={(e) => setEngagementMonths(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wedding-window">Search window after target (months)</Label>
+                <Input
+                  id="wedding-window"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={weddingSearchWindowMonths}
+                  onChange={(e) => setWeddingSearchWindowMonths(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="temp-threshold">Min avg temp in Germany (°C)</Label>
+                <Input
+                  id="temp-threshold"
+                  type="number"
+                  step="0.5"
+                  value={minWeddingTempC}
+                  onChange={(e) => setMinWeddingTempC(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Preferred wedding months (click to toggle)</Label>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12">
+                {MONTH_LABELS.map((label, monthIndex) => {
+                  const selected = preferredWeddingMonths.includes(monthIndex);
+                  const avgTemp = GERMANY_MONTHLY_AVG_TEMP_C[monthIndex];
+                  return (
+                    <Button
+                      key={label}
+                      type="button"
+                      variant={selected ? "default" : "outline"}
+                      className="h-auto py-2"
+                      onClick={() => togglePreferredWeddingMonth(monthIndex)}
+                      title={`Avg ${avgTemp}°C in Germany`}
+                    >
+                      <span className="flex flex-col leading-tight">
+                        <span>{label}</span>
+                        <span className="text-[10px] opacity-80">{avgTemp}°C</span>
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Expected proposal</p>
+                <p className="text-sm font-semibold">{format(proposalDate, "MMMM yyyy")}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Target wedding month</p>
+                <p className="text-sm font-semibold">{format(targetWeddingDate, "MMMM yyyy")}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Best month candidate</p>
+                <p className="text-sm font-semibold">
+                  {weddingCandidates[0]
+                    ? `${format(weddingCandidates[0].date, "MMMM yyyy")} (${weddingCandidates[0].avgTempC}°C avg)`
+                    : "No month matches current filters"}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Warm-season hint</p>
+                <p className="text-sm font-semibold">In Germany, May-Sep is usually warmest</p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border">
+              <div className="grid grid-cols-[120px,1fr,100px] gap-2 border-b px-3 py-2 text-xs font-semibold text-muted-foreground">
+                <span>Month</span>
+                <span>Why it fits</span>
+                <span>Avg temp</span>
+              </div>
+              {weddingCandidates.slice(0, 5).map((candidate) => (
+                <div key={candidate.offsetMonths} className="grid grid-cols-[120px,1fr,100px] gap-2 border-b px-3 py-2 text-sm last:border-b-0">
+                  <span className="font-medium">{format(candidate.date, "MMM yyyy")}</span>
+                  <span className="text-muted-foreground">
+                    {candidate.avgTempC >= (Number.isFinite(minWeddingTempCNumber) ? minWeddingTempCNumber : 16)
+                      ? "Matches your warm-weather threshold"
+                      : "Selected month, but cooler than preferred threshold"}
+                  </span>
+                  <span>{candidate.avgTempC}°C</span>
+                </div>
+              ))}
+              {weddingCandidates.length === 0 && (
+                <div className="px-3 py-3 text-sm text-muted-foreground">
+                  No candidate month found. Try selecting more months or lowering the temperature threshold.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
