@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 type PlannedChild = {
   id: string;
@@ -74,6 +75,7 @@ const Long = () => {
   const [yourAge, setYourAge] = useState("30");
   const [partnerAge, setPartnerAge] = useState("29");
   const [firstChildInMonths, setFirstChildInMonths] = useState("12");
+  const [firstChildAfterWedding, setFirstChildAfterWedding] = useState(false);
   const [spacingMinMonths, setSpacingMinMonths] = useState("12");
   const [spacingMaxMonths, setSpacingMaxMonths] = useState("18");
   const [proposalInMonths, setProposalInMonths] = useState("6");
@@ -97,13 +99,16 @@ const Long = () => {
   const engagementMonthsNumber = Math.max(0, Math.trunc(Number(engagementMonths) || 0));
   const weddingSearchWindowMonthsNumber = Math.max(1, Math.trunc(Number(weddingSearchWindowMonths) || 1));
   const minWeddingTempCNumber = Number(minWeddingTempC);
+  const weddingBaselineOffsetMonths = proposalInMonthsNumber + engagementMonthsNumber;
+  const firstChildBaseOffsetMonths =
+    (firstChildAfterWedding ? weddingBaselineOffsetMonths : 0) + firstChildInMonthsNumber;
 
   const timeline = useMemo<ChildTimeline[]>(() => {
     if (!Number.isFinite(yourAgeNumber) || !Number.isFinite(partnerAgeNumber)) return [];
 
     return children.map((child, index) => {
-      const birthMinOffsetMonths = firstChildInMonthsNumber + index * spacingMinMonthsNumber;
-      const birthMaxOffsetMonths = firstChildInMonthsNumber + index * spacingMaxMonthsNumber;
+      const birthMinOffsetMonths = firstChildBaseOffsetMonths + index * spacingMinMonthsNumber;
+      const birthMaxOffsetMonths = firstChildBaseOffsetMonths + index * spacingMaxMonthsNumber;
       const age25MinOffsetMonths = birthMinOffsetMonths + TARGET_MONTHS;
       const age25MaxOffsetMonths = birthMaxOffsetMonths + TARGET_MONTHS;
 
@@ -141,32 +146,13 @@ const Long = () => {
     });
   }, [
     children,
-    firstChildInMonthsNumber,
+    firstChildBaseOffsetMonths,
     now,
     partnerAgeNumber,
     spacingMaxMonthsNumber,
     spacingMinMonthsNumber,
     yourAgeNumber,
   ]);
-
-  const maxOffsetMonths = useMemo(() => {
-    const maxChildOffset = timeline.reduce((max, item) => Math.max(max, item.age25MaxOffsetMonths), 0);
-    return Math.max(8 * YEARS_TO_MONTHS, maxChildOffset + 24);
-  }, [timeline]);
-
-  const timelineYears = Math.ceil(maxOffsetMonths / YEARS_TO_MONTHS);
-  const timelineWidth = timelineYears * YEAR_WIDTH_PX;
-
-  const yearTicks = useMemo(
-    () => Array.from({ length: timelineYears + 1 }, (_, idx) => now.getFullYear() + idx),
-    [now, timelineYears]
-  );
-
-  const toLeft = (offsetMonths: number) => (offsetMonths / maxOffsetMonths) * timelineWidth;
-  const toWidth = (minOffsetMonths: number, maxOffsetMonthsValue: number) => {
-    const raw = ((maxOffsetMonthsValue - minOffsetMonths) / maxOffsetMonths) * timelineWidth;
-    return Math.max(10, raw);
-  };
 
   const togglePreferredWeddingMonth = (monthIndex: number) => {
     setPreferredWeddingMonths((prev) => {
@@ -218,6 +204,28 @@ const Long = () => {
     proposalInMonthsNumber,
     weddingSearchWindowMonthsNumber,
   ]);
+  const topWeddingCandidates = weddingCandidates.slice(0, 5);
+
+  const maxOffsetMonths = useMemo(() => {
+    const maxChildOffset = timeline.reduce((max, item) => Math.max(max, item.age25MaxOffsetMonths), 0);
+    const maxWeddingOffset = topWeddingCandidates.reduce((max, item) => Math.max(max, item.offsetMonths), 0);
+    const maxRelevantOffset = Math.max(maxChildOffset, maxWeddingOffset);
+    return Math.max(8 * YEARS_TO_MONTHS, maxRelevantOffset + 24);
+  }, [timeline, topWeddingCandidates]);
+
+  const timelineYears = Math.ceil(maxOffsetMonths / YEARS_TO_MONTHS);
+  const timelineWidth = timelineYears * YEAR_WIDTH_PX;
+
+  const yearTicks = useMemo(
+    () => Array.from({ length: timelineYears + 1 }, (_, idx) => now.getFullYear() + idx),
+    [now, timelineYears]
+  );
+
+  const toLeft = (offsetMonths: number) => (offsetMonths / maxOffsetMonths) * timelineWidth;
+  const toWidth = (minOffsetMonths: number, maxOffsetMonthsValue: number) => {
+    const raw = ((maxOffsetMonthsValue - minOffsetMonths) / maxOffsetMonths) * timelineWidth;
+    return Math.max(10, raw);
+  };
 
   const addChild = () => {
     setChildren((prev) => {
@@ -278,7 +286,11 @@ const Long = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="first-child">Erstes Kind in Monaten</Label>
+                <Label htmlFor="first-child">
+                  {firstChildAfterWedding
+                    ? "Erstes Kind in Monaten nach der Hochzeit"
+                    : "Erstes Kind in Monaten"}
+                </Label>
                 <Input
                   id="first-child"
                   type="number"
@@ -287,6 +299,16 @@ const Long = () => {
                   value={firstChildInMonths}
                   onChange={(e) => setFirstChildInMonths(e.target.value)}
                 />
+                <div className="flex items-center gap-2 pt-1">
+                  <Switch
+                    id="first-child-mode"
+                    checked={firstChildAfterWedding}
+                    onCheckedChange={setFirstChildAfterWedding}
+                  />
+                  <Label htmlFor="first-child-mode" className="text-xs text-muted-foreground">
+                    Nach Hochzeit rechnen
+                  </Label>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="spacing-min">Abstand Min (Monate)</Label>
@@ -413,28 +435,8 @@ const Long = () => {
               </div>
             </div>
 
-            <div className="rounded-lg border">
-              <div className="grid grid-cols-[120px,1fr,100px] gap-2 border-b px-3 py-2 text-xs font-semibold text-muted-foreground">
-                <span>Month</span>
-                <span>Why it fits</span>
-                <span>Avg temp</span>
-              </div>
-              {weddingCandidates.slice(0, 5).map((candidate) => (
-                <div key={candidate.offsetMonths} className="grid grid-cols-[120px,1fr,100px] gap-2 border-b px-3 py-2 text-sm last:border-b-0">
-                  <span className="font-medium">{format(candidate.date, "MMM yyyy")}</span>
-                  <span className="text-muted-foreground">
-                    {candidate.avgTempC >= (Number.isFinite(minWeddingTempCNumber) ? minWeddingTempCNumber : 16)
-                      ? "Matches your warm-weather threshold"
-                      : "Selected month, but cooler than preferred threshold"}
-                  </span>
-                  <span>{candidate.avgTempC}°C</span>
-                </div>
-              ))}
-              {weddingCandidates.length === 0 && (
-                <div className="px-3 py-3 text-sm text-muted-foreground">
-                  No candidate month found. Try selecting more months or lowering the temperature threshold.
-                </div>
-              )}
+            <div className="rounded-lg border p-3 text-sm text-muted-foreground">
+              Top-Hochzeitsmonate erscheinen jetzt als eigener Eintrag im Timeline Grid.
             </div>
           </CardContent>
         </Card>
@@ -483,8 +485,10 @@ const Long = () => {
             <CardTitle>Timeline Grid ({format(now, "dd.MM.yyyy")} als Startpunkt)</CardTitle>
           </CardHeader>
           <CardContent>
-            {timeline.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Füge mindestens ein Kind hinzu, um das Grid zu sehen.</p>
+            {timeline.length === 0 && topWeddingCandidates.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Füge mindestens ein Kind hinzu oder passe die Hochzeitsfilter an, um das Grid zu sehen.
+              </p>
             ) : (
               <div className="overflow-x-auto rounded-lg border">
                 <div className="min-w-[1050px]" style={{ width: LEFT_COLUMN_WIDTH + timelineWidth }}>
@@ -503,6 +507,58 @@ const Long = () => {
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+
+                  <div
+                    className="grid border-b"
+                    style={{ gridTemplateColumns: `${LEFT_COLUMN_WIDTH}px ${timelineWidth}px` }}
+                  >
+                    <div className="space-y-1 border-r px-4 py-3 text-sm">
+                      <div className="font-semibold">Hochzeit (Top Monate)</div>
+                      <div className="text-xs text-muted-foreground">
+                        Proposal: {format(proposalDate, "MMM yyyy")} | Ziel: {format(targetWeddingDate, "MMM yyyy")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {topWeddingCandidates.length > 0
+                          ? topWeddingCandidates
+                              .map((candidate) => `${format(candidate.date, "MMM yyyy")} (${candidate.avgTempC}°C)`)
+                              .join(" • ")
+                          : "Keine passenden Kandidaten"}
+                      </div>
+                    </div>
+                    <div
+                      className="relative h-24"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(to right, hsl(var(--border)) 0px, hsl(var(--border)) 1px, transparent 1px, transparent 8px)",
+                      }}
+                    >
+                      {yearTicks.map((year, idx) => {
+                        const left = (idx / timelineYears) * timelineWidth;
+                        return (
+                          <div
+                            key={`wedding-${year}`}
+                            className="absolute top-0 h-full border-l border-foreground/20"
+                            style={{ left }}
+                          />
+                        );
+                      })}
+
+                      {topWeddingCandidates.map((candidate, index) => (
+                        <div
+                          key={`wedding-candidate-${candidate.offsetMonths}`}
+                          className="absolute h-7 rounded-md border border-emerald-700 bg-emerald-500/90 px-2 text-xs font-medium leading-7 text-white shadow-sm"
+                          style={{
+                            top: index % 2 === 0 ? 10 : 46,
+                            left: toLeft(candidate.offsetMonths),
+                            width: Math.max(58, timelineWidth * 0.04),
+                          }}
+                          title={`${format(candidate.date, "MMMM yyyy")} (${candidate.avgTempC}°C Durchschnitt)`}
+                        >
+                          {format(candidate.date, "MMM yyyy")}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
