@@ -218,6 +218,16 @@ const Index = () => {
     return Object.fromEntries(entries) as Record<string, StickyColor>;
   }, [calendarsForUi]);
 
+  const runwayCalendarOptions = useMemo(
+    () =>
+      calendarsForUi.map((c) => ({
+        id: c.id,
+        name: c.name,
+        color: coerceStickyColor(c.default_note_color, "yellow"),
+      })),
+    [calendarsForUi]
+  );
+
   const editableVisibleCalendars = useMemo(() => {
     const visible = new Set(effectiveVisibleCalendarIds ?? []);
     return orderedCalendars
@@ -883,6 +893,7 @@ const Index = () => {
         onNoteDeleted={() => entitlement.bumpNoteCount(-1)}
         textOverflowMode={settings.textOverflowMode}
         autoScrollStruckNotes={settings.autoScrollStruckNotes}
+        autoHideStruckNotes={settings.autoHideStruckNotes}
         calendarColor={settings.calendarColor}
         alwaysShowArrows={settings.alwaysShowArrows}
         showInbox={settings.showInbox}
@@ -893,6 +904,7 @@ const Index = () => {
           startCapital: settings.runwayInitialCapital,
           burnRate: settings.runwayMonthlyBurn,
           baseScenarioName: settings.runwayBaseScenarioName,
+          baseScenarioCalendarId: settings.runwayBaseScenarioCalendarId ?? null,
         }}
         runwayScenarios={settings.runwayScenarios}
         runwayPanelState={{
@@ -900,11 +912,13 @@ const Index = () => {
           open: settings.runwayPanelOpen,
           position: { x: settings.runwayPanelPosX, y: settings.runwayPanelPosY },
         }}
+        runwayCalendarOptions={runwayCalendarOptions}
         onRunwayConfigChange={(next) =>
           updateSettings({
             runwayInitialCapital: next.startCapital,
             runwayMonthlyBurn: next.burnRate,
             runwayBaseScenarioName: next.baseScenarioName ?? "BASE",
+            runwayBaseScenarioCalendarId: next.baseScenarioCalendarId ?? null,
           })
         }
         onRunwayScenariosChange={(next) => updateSettings({ runwayScenarios: next })}
@@ -955,6 +969,8 @@ const Index = () => {
         onTextOverflowModeChange={(mode) => updateSettings({ textOverflowMode: mode })}
         autoScrollStruckNotes={settings.autoScrollStruckNotes}
         onAutoScrollStruckNotesChange={(enabled) => updateSettings({ autoScrollStruckNotes: enabled })}
+        autoHideStruckNotes={settings.autoHideStruckNotes}
+        onAutoHideStruckNotesChange={(enabled) => updateSettings({ autoHideStruckNotes: enabled })}
         calendarColor={settings.calendarColor}
         onCalendarColorChange={(color) => updateSettings({ calendarColor: color })}
         alwaysShowArrows={settings.alwaysShowArrows}

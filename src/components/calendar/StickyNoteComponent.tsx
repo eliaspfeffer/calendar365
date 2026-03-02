@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StickyNote, StickyColor } from "@/types/calendar";
 import { X, Link } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ interface StickyNoteComponentProps {
   scale: number;
   textOverflowMode: TextOverflowMode;
   autoScrollStruckNotes?: boolean;
+  autoHideStruckNotes?: boolean;
   isLinkMode: boolean;
   isConnected: boolean;
   isHighlighted: boolean;
@@ -45,6 +46,7 @@ export function StickyNoteComponent({
   scale,
   textOverflowMode,
   autoScrollStruckNotes = true,
+  autoHideStruckNotes = false,
   isLinkMode,
   isConnected,
   isHighlighted,
@@ -53,6 +55,35 @@ export function StickyNoteComponent({
   readOnly = false,
 }: StickyNoteComponentProps) {
   const hasDraggedRef = useRef(false);
+  const hideTimeoutRef = useRef<number | null>(null);
+  const [isFadingOut, setIsFadingOut] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+
+  useEffect(() => {
+    if (hideTimeoutRef.current !== null) {
+      window.clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+
+    if (!autoHideStruckNotes || !note.is_struck) {
+      setIsFadingOut(false);
+      setIsHidden(false);
+      return;
+    }
+
+    setIsHidden(false);
+    setIsFadingOut(false);
+    hideTimeoutRef.current = window.setTimeout(() => {
+      setIsFadingOut(true);
+    }, 3000);
+
+    return () => {
+      if (hideTimeoutRef.current !== null) {
+        window.clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = null;
+      }
+    };
+  }, [autoHideStruckNotes, note.is_struck, note.id]);
 
   // Counteract zoomed-out scales so note text stays legible without growing the note itself
   const getReadableFontSize = () => {
@@ -172,6 +203,8 @@ export function StickyNoteComponent({
     }
   };
 
+  if (isHidden) return null;
+
   return (
     <div
       data-note-id={note.id}
@@ -191,12 +224,20 @@ export function StickyNoteComponent({
         !readOnly && !isLinkMode && !isDragging && "cursor-grab",
         readOnly && "cursor-default",
         isHighlighted && "ring-2 ring-primary shadow-lg shadow-primary/30",
-        isDragging && "opacity-50 cursor-grabbing z-50"
+        isDragging && "opacity-50 cursor-grabbing z-50",
+        autoHideStruckNotes && note.is_struck && "transition-opacity duration-300 ease-out",
+        isFadingOut && "opacity-0 pointer-events-none"
       )}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onMouseEnter={() => onHover(note.id)}
       onMouseLeave={() => onHover(null)}
+      onTransitionEnd={(event) => {
+        if (event.propertyName !== "opacity") return;
+        if (autoHideStruckNotes && note.is_struck && isFadingOut) {
+          setIsHidden(true);
+        }
+      }}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       style={{

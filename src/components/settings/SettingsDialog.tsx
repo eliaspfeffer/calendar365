@@ -43,6 +43,8 @@ interface SettingsDialogProps {
   onTextOverflowModeChange: (mode: TextOverflowMode) => void;
   autoScrollStruckNotes: boolean;
   onAutoScrollStruckNotesChange: (enabled: boolean) => void;
+  autoHideStruckNotes: boolean;
+  onAutoHideStruckNotesChange: (enabled: boolean) => void;
   calendarColor: CalendarColor;
   onCalendarColorChange: (color: CalendarColor) => void;
   alwaysShowArrows: boolean;
@@ -102,6 +104,8 @@ export function SettingsDialog({
   onTextOverflowModeChange,
   autoScrollStruckNotes,
   onAutoScrollStruckNotesChange,
+  autoHideStruckNotes,
+  onAutoHideStruckNotesChange,
   calendarColor,
   onCalendarColorChange,
   alwaysShowArrows,
@@ -448,6 +452,24 @@ export function SettingsDialog({
                   id="auto-scroll-struck-notes"
                   checked={autoScrollStruckNotes}
                   onCheckedChange={onAutoScrollStruckNotesChange}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium" htmlFor="auto-hide-struck-notes">
+                    Auto-hide crossed-out notes
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Struck notes fade out after 3 seconds instead of staying visible.
+                  </p>
+                </div>
+                <Switch
+                  id="auto-hide-struck-notes"
+                  checked={autoHideStruckNotes}
+                  onCheckedChange={onAutoHideStruckNotesChange}
                 />
               </div>
             </div>

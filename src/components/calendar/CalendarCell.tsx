@@ -24,6 +24,7 @@ interface CalendarCellProps {
   scale: number;
   textOverflowMode: TextOverflowMode;
   autoScrollStruckNotes?: boolean;
+  autoHideStruckNotes?: boolean;
   isLinkMode: boolean;
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
@@ -49,6 +50,7 @@ export function CalendarCell({
   scale,
   textOverflowMode,
   autoScrollStruckNotes = true,
+  autoHideStruckNotes = false,
   isLinkMode,
   connectedNoteIds,
   highlightedNoteIds,
@@ -195,6 +197,7 @@ export function CalendarCell({
               scale={scale}
               textOverflowMode={textOverflowMode}
               autoScrollStruckNotes={autoScrollStruckNotes}
+              autoHideStruckNotes={autoHideStruckNotes}
               isLinkMode={isLinkMode}
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}
@@ -232,6 +235,7 @@ export function CalendarCell({
               scale={scale}
               textOverflowMode={textOverflowMode}
               autoScrollStruckNotes={autoScrollStruckNotes}
+              autoHideStruckNotes={autoHideStruckNotes}
               isLinkMode={isLinkMode}
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}
@@ -269,6 +273,7 @@ export function CalendarCell({
               scale={scale}
               textOverflowMode={textOverflowMode}
               autoScrollStruckNotes={autoScrollStruckNotes}
+              autoHideStruckNotes={autoHideStruckNotes}
               isLinkMode={isLinkMode}
               isConnected={connectedNoteIds.includes(note.id)}
               isHighlighted={highlightedNoteIds.includes(note.id)}

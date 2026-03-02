@@ -32,13 +32,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { coerceStickyColor } from "@/lib/stickyNoteColors";
+import { STICKY_NOTE_COLORS, coerceStickyColor } from "@/lib/stickyNoteColors";
 import type { GoogleCalendarDayEvent } from "@/types/googleCalendar";
 
 type BurnConfig = {
   startCapital: number;
   burnRate: number;
   baseScenarioName?: string;
+  baseScenarioCalendarId?: string | null;
 };
 
 type BurnScenario = {
@@ -48,6 +49,7 @@ type BurnScenario = {
   endMonth: number | null;
   deltaBurn: number;
   deltaOffset: number;
+  calendarId?: string | null;
 };
 
 type RunwayPanelState = {
@@ -90,12 +92,14 @@ function BurnRateCell({
   value,
   maxAbs,
   muted = false,
+  barClass,
   onClick,
   showAdd,
 }: {
   value: number | null;
   maxAbs: number;
   muted?: boolean;
+  barClass?: string;
   onClick?: () => void;
   showAdd?: boolean;
 }) {
@@ -103,7 +107,10 @@ function BurnRateCell({
   const magnitude = value === null ? 0 : Math.min(1, Math.abs(value) / safeMax);
   const width = Math.max(0, Math.round(magnitude * BURN_BAR_MAX));
   const isPositive = (value ?? 0) >= 0;
-  const barClass = isPositive ? "bg-emerald-500" : "bg-rose-500";
+  const fallbackClass = isPositive ? "bg-emerald-500" : "bg-rose-500";
+  const appliedBarClass = barClass
+    ? cn(barClass, !isPositive && "opacity-70")
+    : fallbackClass;
   const barStyle = isPositive
     ? ({ right: "50%", width } as React.CSSProperties)
     : ({ left: "50%", width } as React.CSSProperties);
@@ -128,7 +135,7 @@ function BurnRateCell({
       <div className="absolute inset-y-2 left-1/2 w-px bg-border" />
       {value !== null && width > 0 && (
         <div
-          className={cn("absolute top-1/2 h-2 -translate-y-1/2 rounded-full", barClass)}
+          className={cn("absolute top-1/2 h-2 -translate-y-1/2 rounded-full", appliedBarClass)}
           style={barStyle}
         />
       )}
@@ -164,12 +171,16 @@ function BurnRateRow({
   scenarioSeries,
   maxAbs,
   onClickMonth,
+  showBase = true,
+  baseBarClass,
 }: {
   monthIndex: number;
   baseSeries: number[];
-  scenarioSeries: Array<{ id: string; values: Array<number> }>;
+  scenarioSeries: Array<{ id: string; values: Array<number>; barClass?: string }>;
   maxAbs: number;
   onClickMonth?: (monthIndex: number, baseValue: number) => void;
+  showBase?: boolean;
+  baseBarClass?: string;
 }) {
   return (
     <div className="flex">
@@ -179,14 +190,18 @@ function BurnRateRow({
           value={scenario.values[monthIndex]}
           maxAbs={maxAbs}
           muted={idx % 2 === 1}
+          barClass={scenario.barClass}
         />
       ))}
-      <BurnRateCell
-        value={baseSeries[monthIndex]}
-        maxAbs={maxAbs}
-        onClick={onClickMonth ? () => onClickMonth(monthIndex, baseSeries[monthIndex]) : undefined}
-        showAdd={Boolean(onClickMonth)}
-      />
+      {showBase && (
+        <BurnRateCell
+          value={baseSeries[monthIndex]}
+          maxAbs={maxAbs}
+          barClass={baseBarClass}
+          onClick={onClickMonth ? () => onClickMonth(monthIndex, baseSeries[monthIndex]) : undefined}
+          showAdd={Boolean(onClickMonth)}
+        />
+      )}
     </div>
   );
 }
@@ -209,6 +224,7 @@ interface SingleYearGridProps {
   onDragOver?: (e: React.DragEvent) => void;
   textOverflowMode: TextOverflowMode;
   autoScrollStruckNotes?: boolean;
+  autoHideStruckNotes?: boolean;
   isLinkMode: boolean;
   connectedNoteIds: string[];
   highlightedNoteIds: string[];
@@ -217,6 +233,9 @@ interface SingleYearGridProps {
   readOnly?: boolean;
   burnConfig?: BurnConfig;
   burnScenarios?: BurnScenario[];
+  baseScenarioVisible?: boolean;
+  baseScenarioBarClass?: string;
+  scenarioBarClasses?: Record<string, string>;
   onRunwayMonthClick?: (monthIndex: number, baseValue: number) => void;
   editingScenarioId?: string | null;
   scenarioNameDraft?: string;
@@ -243,6 +262,7 @@ function SingleYearGrid({
   onDragOver,
   textOverflowMode,
   autoScrollStruckNotes = true,
+  autoHideStruckNotes = false,
   isLinkMode,
   connectedNoteIds,
   highlightedNoteIds,
@@ -251,6 +271,9 @@ function SingleYearGrid({
   readOnly = false,
   burnConfig,
   burnScenarios,
+  baseScenarioVisible = true,
+  baseScenarioBarClass,
+  scenarioBarClasses,
   onRunwayMonthClick,
   editingScenarioId,
   scenarioNameDraft,
@@ -270,8 +293,9 @@ function SingleYearGrid({
     return burnScenarios.map((scenario) => ({
       id: scenario.id,
       values: buildScenarioSeries(baseSeries, scenario),
+      barClass: scenarioBarClasses?.[scenario.id],
     }));
-  }, [burnConfig, burnScenarios, baseSeries]);
+  }, [burnConfig, burnScenarios, baseSeries, scenarioBarClasses]);
   const maxAbs = useMemo(() => {
     if (!burnConfig) return 1;
     const values: number[] = [...baseSeries];
@@ -283,10 +307,13 @@ function SingleYearGrid({
     return Math.max(1, ...values.map((v) => Math.abs(v)));
   }, [burnConfig, baseSeries, scenarioSeries]);
 
-  const leftOffset = burnConfig
-    ? (scenarioSeries.length + 1) * BURN_COLUMN_WIDTH + BURN_COLUMN_GAP
-    : 0;
-  const scenarioNames = burnScenarios?.map((s) => ({ id: s.id, name: s.name })) ?? [];
+  const runwayColumns = burnConfig ? scenarioSeries.length + (baseScenarioVisible ? 1 : 0) : 0;
+  const leftOffset =
+    burnConfig && runwayColumns > 0
+      ? runwayColumns * BURN_COLUMN_WIDTH + BURN_COLUMN_GAP
+      : 0;
+  const scenarioNames =
+    burnScenarios?.map((s) => ({ id: s.id, name: s.name, barClass: scenarioBarClasses?.[s.id] })) ?? [];
   const baseScenarioLabel = (burnConfig?.baseScenarioName ?? "BASE").trim() || "BASE";
   const runwayWidth = Math.max(0, leftOffset - BURN_COLUMN_GAP);
 
@@ -317,12 +344,19 @@ function SingleYearGrid({
               style={{ width: runwayWidth, transform: `translateX(${-runwayWidth}px)` }}
             >
               <div className="relative h-4">
-                <div
-                  className="absolute -translate-x-1/2 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
-                  style={{ left: (scenarioNames.length + 0.5) * BURN_COLUMN_WIDTH }}
-                >
-                  {baseScenarioLabel.toUpperCase()}
-                </div>
+                {baseScenarioVisible && (
+                  <div
+                    className="absolute -translate-x-1/2 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider"
+                    style={{ left: (scenarioNames.length + 0.5) * BURN_COLUMN_WIDTH }}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {baseScenarioBarClass && (
+                        <span className={cn("h-2 w-2 rounded-full", baseScenarioBarClass)} />
+                      )}
+                      {baseScenarioLabel.toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 {scenarioNames.map((scenario, idx) => {
                   const isEditing = editingScenarioId === scenario.id;
                   const left = (idx + 0.5) * BURN_COLUMN_WIDTH;
@@ -348,7 +382,12 @@ function SingleYearGrid({
                           autoFocus
                         />
                       ) : (
-                        scenario.name.toUpperCase()
+                        <span className="inline-flex items-center gap-1.5">
+                          {scenario.barClass && (
+                            <span className={cn("h-2 w-2 rounded-full", scenario.barClass)} />
+                          )}
+                          {scenario.name.toUpperCase()}
+                        </span>
                       )}
                     </div>
                   );
@@ -360,7 +399,7 @@ function SingleYearGrid({
         {/* Month rows */}
         {calendarData.map((monthDays, monthIndex) => (
           <div key={monthIndex} className="relative flex" style={{ marginLeft: leftOffset }}>
-            {burnConfig && (
+            {burnConfig && runwayColumns > 0 && (
               <div
                 className="absolute top-0"
                 style={{ left: -(leftOffset - BURN_COLUMN_GAP) }}
@@ -370,6 +409,8 @@ function SingleYearGrid({
                   baseSeries={baseSeries}
                   scenarioSeries={scenarioSeries}
                   maxAbs={maxAbs}
+                  showBase={baseScenarioVisible}
+                  baseBarClass={baseScenarioBarClass}
                   onClickMonth={onRunwayMonthClick}
                 />
               </div>
@@ -402,6 +443,7 @@ function SingleYearGrid({
                   scale={scale}
                   textOverflowMode={textOverflowMode}
                   autoScrollStruckNotes={autoScrollStruckNotes}
+                  autoHideStruckNotes={autoHideStruckNotes}
                   isLinkMode={isLinkMode}
                   connectedNoteIds={connectedNoteIds}
                   highlightedNoteIds={highlightedNoteIds}
@@ -447,11 +489,13 @@ interface YearCalendarProps {
   onNoteDeleted?: () => void;
   textOverflowMode: TextOverflowMode;
   autoScrollStruckNotes?: boolean;
+  autoHideStruckNotes?: boolean;
   calendarColor?: CalendarColor;
   alwaysShowArrows?: boolean;
   showInbox?: boolean;
   calendarOptions?: Array<{ id: string; name: string }>;
   calendarDefaultNoteColorById?: Record<string, StickyColor>;
+  runwayCalendarOptions?: Array<{ id: string; name: string; color: StickyColor }>;
   googleEventsByDate?: Record<string, GoogleCalendarDayEvent[]> | null;
   // Public share editing props
   publicShareSlug?: string;
@@ -486,11 +530,13 @@ export function YearCalendar({
   onNoteDeleted,
   textOverflowMode,
   autoScrollStruckNotes = true,
+  autoHideStruckNotes = false,
   calendarColor,
   alwaysShowArrows = false,
   showInbox = true,
   calendarOptions,
   calendarDefaultNoteColorById,
+  runwayCalendarOptions,
   googleEventsByDate,
   publicShareSlug,
   publicSharePassword,
@@ -521,6 +567,7 @@ export function YearCalendar({
     startCapital: 1200000,
     burnRate: 85000,
     baseScenarioName: "BASE",
+    baseScenarioCalendarId: null,
   });
   const [localRunwayScenarios, setLocalRunwayScenarios] = useState<BurnScenario[]>([]);
   const [localRunwayPanelState, setLocalRunwayPanelState] = useState<RunwayPanelState>({
@@ -570,7 +617,94 @@ export function YearCalendar({
     endMonth: null as number | null,
     deltaBurn: 0,
     deltaOffset: 0,
+    calendarId: null as string | null,
   });
+  const stickyColorClassByValue = useMemo(
+    () => Object.fromEntries(STICKY_NOTE_COLORS.map((c) => [c.value, c.className])),
+    []
+  );
+  const calendarColorClassById = useMemo(() => {
+    const map: Record<string, string> = {};
+    (runwayCalendarOptions ?? []).forEach((calendar) => {
+      const stickyColor = coerceStickyColor(calendar.color, "yellow");
+      const className = stickyColorClassByValue[stickyColor];
+      if (className) map[calendar.id] = className;
+    });
+    if (!runwayCalendarOptions && calendarDefaultNoteColorById) {
+      Object.entries(calendarDefaultNoteColorById).forEach(([id, color]) => {
+        const stickyColor = coerceStickyColor(color, "yellow");
+        const className = stickyColorClassByValue[stickyColor];
+        if (className) map[id] = className;
+      });
+    }
+    return map;
+  }, [runwayCalendarOptions, calendarDefaultNoteColorById, stickyColorClassByValue]);
+  const runwayCalendarSelectOptions = useMemo(() => {
+    if (runwayCalendarOptions && runwayCalendarOptions.length > 0) return runwayCalendarOptions;
+    if (calendarOptions && calendarOptions.length > 0) {
+      return calendarOptions.map((calendar) => ({
+        id: calendar.id,
+        name: calendar.name,
+        color: coerceStickyColor(calendarDefaultNoteColorById?.[calendar.id], "yellow"),
+      }));
+    }
+    return [];
+  }, [runwayCalendarOptions, calendarOptions, calendarDefaultNoteColorById]);
+  const runwayCalendarNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    runwayCalendarSelectOptions.forEach((calendar) => {
+      map[calendar.id] = calendar.name;
+    });
+    return map;
+  }, [runwayCalendarSelectOptions]);
+  const visibleCalendarSet = useMemo(() => new Set(visibleCalendarIds ?? []), [visibleCalendarIds]);
+  const isCalendarVisible = useCallback(
+    (calendarId?: string | null) => {
+      if (!calendarId) return true;
+      if (!visibleCalendarIds) return true;
+      return visibleCalendarSet.has(calendarId);
+    },
+    [visibleCalendarIds, visibleCalendarSet]
+  );
+  const baseScenarioVisible = isCalendarVisible(burnConfig.baseScenarioCalendarId ?? null);
+  const baseScenarioBarClass = burnConfig.baseScenarioCalendarId
+    ? calendarColorClassById[burnConfig.baseScenarioCalendarId]
+    : undefined;
+  const visibleBurnScenarios = useMemo(
+    () => burnScenarios.filter((scenario) => isCalendarVisible(scenario.calendarId ?? null)),
+    [burnScenarios, isCalendarVisible]
+  );
+  const scenarioBarClasses = useMemo(() => {
+    const map: Record<string, string> = {};
+    visibleBurnScenarios.forEach((scenario) => {
+      if (scenario.calendarId) {
+        const className = calendarColorClassById[scenario.calendarId];
+        if (className) map[scenario.id] = className;
+      }
+    });
+    return map;
+  }, [visibleBurnScenarios, calendarColorClassById]);
+
+  useEffect(() => {
+    if (!runwayCalendarSelectOptions.length) return;
+    if (burnConfig.baseScenarioCalendarId) {
+      const name = runwayCalendarNameById[burnConfig.baseScenarioCalendarId];
+      if (name && burnConfig.baseScenarioName !== name) {
+        setBurnConfig((prev) => ({ ...prev, baseScenarioName: name }));
+      }
+    }
+    setBurnScenarios((prev) => {
+      let changed = false;
+      const next = prev.map((scenario) => {
+        if (!scenario.calendarId) return scenario;
+        const name = runwayCalendarNameById[scenario.calendarId];
+        if (!name || scenario.name === name) return scenario;
+        changed = true;
+        return { ...scenario, name };
+      });
+      return changed ? next : prev;
+    });
+  }, [runwayCalendarSelectOptions, runwayCalendarNameById, burnConfig.baseScenarioCalendarId, burnConfig.baseScenarioName, setBurnConfig, setBurnScenarios]);
 
   // Public share edit API
   const publicShareEditApi = usePublicShareEdit({
@@ -1715,13 +1849,17 @@ export function YearCalendar({
                       onDragOver={handleDragOver}
                       textOverflowMode={textOverflowMode}
                       autoScrollStruckNotes={autoScrollStruckNotes}
+                      autoHideStruckNotes={autoHideStruckNotes}
                       isLinkMode={isLinkMode}
                       connectedNoteIds={uniqueConnectedNoteIds}
                       highlightedNoteIds={highlightedNoteIds}
                       draggedNoteId={draggedNoteId}
                       isNoteReadOnly={isNoteReadOnly}
                       burnConfig={burnConfig}
-                      burnScenarios={burnScenarios}
+                      burnScenarios={visibleBurnScenarios}
+                      baseScenarioVisible={baseScenarioVisible}
+                      baseScenarioBarClass={baseScenarioBarClass}
+                      scenarioBarClasses={scenarioBarClasses}
                       editingScenarioId={editingScenarioId}
                       scenarioNameDraft={scenarioNameDraft}
                       onScenarioEdit={(id) => {
@@ -1742,6 +1880,15 @@ export function YearCalendar({
                         setScenarioNameDraft("");
                       }}
                       onRunwayMonthClick={(monthIndex, baseValue) => {
+                        const defaultCalendarId =
+                          activeCalendarId ??
+                          visibleCalendarIds?.[0] ??
+                          runwayCalendarOptions?.[0]?.id ??
+                          calendarOptions?.[0]?.id ??
+                          null;
+                        const defaultCalendarName = defaultCalendarId
+                          ? runwayCalendarNameById[defaultCalendarId]
+                          : null;
                         setRunwayPanelState({
                           ...runwayPanelState,
                           visible: true,
@@ -1752,11 +1899,12 @@ export function YearCalendar({
                         setScenarioDraftEditStartNav(false);
                         setScenarioDraft((prev) => ({
                           ...prev,
-                          name: `Scenario ${uiMonths[monthIndex]}`,
+                          name: defaultCalendarName ?? `Scenario ${uiMonths[monthIndex]}`,
                           startMonth: monthIndex,
                           endMonth: null,
                           deltaBurn: 0,
                           deltaOffset: 0,
+                          calendarId: defaultCalendarId,
                         }));
                       }}
                     />
@@ -1938,6 +2086,7 @@ export function YearCalendar({
                     scale={scale}
                     textOverflowMode={textOverflowMode}
                     autoScrollStruckNotes={autoScrollStruckNotes}
+                    autoHideStruckNotes={autoHideStruckNotes}
                     isLinkMode={isLinkMode}
                     isConnected={uniqueConnectedNoteIds.includes(note.id)}
                     isHighlighted={highlightedNoteIds.includes(note.id)}
@@ -2079,6 +2228,40 @@ export function YearCalendar({
                       }
                     />
                   </div>
+                  <div className="mt-3">
+                    <Label className="text-xs text-muted-foreground">Linked calendar</Label>
+                    <Select
+                      value={burnConfig.baseScenarioCalendarId ?? "none"}
+                      onValueChange={(value) =>
+                        setBurnConfig((prev) => ({
+                          ...prev,
+                          baseScenarioCalendarId: value === "none" ? null : value,
+                          baseScenarioName:
+                            value === "none" ? prev.baseScenarioName : runwayCalendarNameById[value] ?? prev.baseScenarioName,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs" onPointerDown={(e) => e.stopPropagation()}>
+                        <SelectValue placeholder="No calendar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No calendar</SelectItem>
+                        {runwayCalendarSelectOptions.map((calendar) => (
+                          <SelectItem key={`base-calendar-${calendar.id}`} value={calendar.id}>
+                            <span className="inline-flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "h-2 w-2 rounded-full",
+                                  calendarColorClassById[calendar.id]
+                                )}
+                              />
+                              {calendar.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                 <div className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">Scenarios</div>
 
@@ -2108,6 +2291,48 @@ export function YearCalendar({
                         >
                           Remove
                         </Button>
+                      </div>
+                      <div className="mt-2">
+                        <Label className="text-[11px] text-muted-foreground">Linked calendar</Label>
+                        <Select
+                          value={scenario.calendarId ?? "none"}
+                          onValueChange={(value) =>
+                            setBurnScenarios((prev) =>
+                              prev.map((s) =>
+                                s.id === scenario.id
+                                  ? {
+                                      ...s,
+                                      calendarId: value === "none" ? null : value,
+                                      name:
+                                        value === "none"
+                                          ? s.name
+                                          : runwayCalendarNameById[value] ?? s.name,
+                                    }
+                                  : s
+                              )
+                            )
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs" onPointerDown={(e) => e.stopPropagation()}>
+                            <SelectValue placeholder="No calendar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No calendar</SelectItem>
+                            {runwayCalendarSelectOptions.map((calendar) => (
+                              <SelectItem key={`${scenario.id}-calendar-${calendar.id}`} value={calendar.id}>
+                                <span className="inline-flex items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      "h-2 w-2 rounded-full",
+                                      calendarColorClassById[calendar.id]
+                                    )}
+                                  />
+                                  {calendar.name}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                         <div>
@@ -2217,6 +2442,39 @@ export function YearCalendar({
                         onChange={(e) => setScenarioDraft((prev) => ({ ...prev, name: e.target.value }))}
                       />
                     </div>
+                    <div className="col-span-2">
+                      <Label className="text-[11px] text-muted-foreground">Linked calendar</Label>
+                      <Select
+                        value={scenarioDraft.calendarId ?? "none"}
+                        onValueChange={(value) =>
+                          setScenarioDraft((prev) => ({
+                            ...prev,
+                            calendarId: value === "none" ? null : value,
+                            name:
+                              value === "none"
+                                ? prev.name
+                                : runwayCalendarNameById[value] ?? prev.name,
+                          }))
+                        }
+                      >
+                        <SelectTrigger className="h-8 text-xs" onPointerDown={(e) => e.stopPropagation()}>
+                          <SelectValue placeholder="No calendar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No calendar</SelectItem>
+                          {runwayCalendarSelectOptions.map((calendar) => (
+                            <SelectItem key={`draft-calendar-${calendar.id}`} value={calendar.id}>
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className={cn("h-2 w-2 rounded-full", calendarColorClassById[calendar.id])}
+                                />
+                                {calendar.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div>
                       <Label className="text-[11px] text-muted-foreground">Start month</Label>
                       <Select
@@ -2319,7 +2577,7 @@ export function YearCalendar({
                     className="mt-2 w-full"
                     onClick={() => {
                       const nextName = scenarioDraft.name.trim() || `Scenario ${burnScenarios.length + 1}`;
-                    setBurnScenarios((prev) => [
+                      setBurnScenarios((prev) => [
                       ...prev,
                       {
                         id: `scenario-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -2328,6 +2586,7 @@ export function YearCalendar({
                         endMonth: scenarioDraft.endMonth,
                         deltaBurn: scenarioDraft.deltaBurn,
                         deltaOffset: scenarioDraft.deltaOffset,
+                        calendarId: scenarioDraft.calendarId ?? null,
                       },
                     ]);
                     setScenarioDraft((prev) => ({ ...prev, name: "Scenario" }));
@@ -2374,6 +2633,7 @@ export function YearCalendar({
           draggedNoteId={draggedNoteId}
           textOverflowMode={textOverflowMode}
           autoScrollStruckNotes={autoScrollStruckNotes}
+          autoHideStruckNotes={autoHideStruckNotes}
         />
       )}
 
