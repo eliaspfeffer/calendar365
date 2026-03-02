@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { SETTINGS_KEY } from '@/lib/settingsStorage';
+import { SETTINGS_KEY, SETTINGS_UPDATED_AT_KEY } from '@/lib/settingsStorage';
 import {
   applyColorSchemePreference,
   applyDarkThemePreference,
@@ -265,6 +265,10 @@ function coercePartialSettings(raw: unknown): Partial<Settings> {
 }
 
 export function useSettings(userId: string | null = null) {
+  const initialLocalUpdatedAt =
+    typeof window === "undefined"
+      ? 0
+      : Number.parseInt(window.localStorage.getItem(SETTINGS_UPDATED_AT_KEY) ?? "", 10) || 0;
   const [settings, setSettings] = useState<Settings>(() => {
     if (typeof window === "undefined") return defaultSettings;
     const stored = window.localStorage.getItem(SETTINGS_KEY);
@@ -277,6 +281,7 @@ export function useSettings(userId: string | null = null) {
     }
   });
   const settingsRef = useRef(settings);
+  const localSettingsUpdatedAtRef = useRef(initialLocalUpdatedAt);
   const saveTimeoutRef = useRef<number | null>(null);
   const pendingRemoteRef = useRef<Settings | null>(null);
   const remoteLoadedRef = useRef(false);
@@ -286,6 +291,12 @@ export function useSettings(userId: string | null = null) {
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  const writeLocalSettingsSnapshot = useCallback((next: Settings, updatedAtMs = Date.now()) => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    localStorage.setItem(SETTINGS_UPDATED_AT_KEY, String(updatedAtMs));
+    localSettingsUpdatedAtRef.current = updatedAtMs;
+  }, []);
 
   useEffect(() => {
     if (remoteUserIdRef.current === userId) return;
@@ -319,7 +330,7 @@ export function useSettings(userId: string | null = null) {
     (async () => {
       const { data, error } = await supabase
         .from("user_settings")
-        .select("settings")
+        .select("settings, updated_at")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -331,10 +342,19 @@ export function useSettings(userId: string | null = null) {
       }
 
       const hasRemote = Boolean(data?.settings);
+      const remoteUpdatedAt =
+        typeof data?.updated_at === "string" ? Date.parse(data.updated_at) : 0;
+      const safeRemoteUpdatedAt = Number.isFinite(remoteUpdatedAt) ? remoteUpdatedAt : 0;
+
       if (hasRemote && !dirtyBeforeRemoteLoadRef.current) {
-        const next = { ...defaultSettings, ...coercePartialSettings(data.settings) };
-        setSettings(next);
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+        const localUpdatedAt = localSettingsUpdatedAtRef.current;
+        if (localUpdatedAt > safeRemoteUpdatedAt) {
+          pendingRemoteRef.current = settingsRef.current;
+        } else {
+          const next = { ...defaultSettings, ...coercePartialSettings(data.settings) };
+          setSettings(next);
+          writeLocalSettingsSnapshot(next, safeRemoteUpdatedAt || Date.now());
+        }
       }
 
       remoteLoadedRef.current = true;
@@ -347,6 +367,10 @@ export function useSettings(userId: string | null = null) {
 
         if (!cancelled && upsertError) {
           console.error("Error seeding user settings:", upsertError);
+        } else if (!cancelled) {
+          const updatedAtMs = Date.now();
+          localStorage.setItem(SETTINGS_UPDATED_AT_KEY, String(updatedAtMs));
+          localSettingsUpdatedAtRef.current = updatedAtMs;
         }
       } else if (dirtyBeforeRemoteLoadRef.current && pendingRemoteRef.current) {
         // Flush any local changes that happened before remote hydration completed.
@@ -357,6 +381,23 @@ export function useSettings(userId: string | null = null) {
           .upsert({ user_id: userId, settings: pending as unknown as Json }, { onConflict: "user_id" });
         if (!cancelled && upsertError) {
           console.error("Error saving user settings:", upsertError);
+        } else if (!cancelled) {
+          const updatedAtMs = Date.now();
+          localStorage.setItem(SETTINGS_UPDATED_AT_KEY, String(updatedAtMs));
+          localSettingsUpdatedAtRef.current = updatedAtMs;
+        }
+      } else if (pendingRemoteRef.current) {
+        const pending = pendingRemoteRef.current;
+        pendingRemoteRef.current = null;
+        const { error: upsertError } = await supabase
+          .from("user_settings")
+          .upsert({ user_id: userId, settings: pending as unknown as Json }, { onConflict: "user_id" });
+        if (!cancelled && upsertError) {
+          console.error("Error saving user settings:", upsertError);
+        } else if (!cancelled) {
+          const updatedAtMs = Date.now();
+          localStorage.setItem(SETTINGS_UPDATED_AT_KEY, String(updatedAtMs));
+          localSettingsUpdatedAtRef.current = updatedAtMs;
         }
       }
     })();
@@ -389,6 +430,10 @@ export function useSettings(userId: string | null = null) {
           .upsert({ user_id: userId, settings: pending as unknown as Json }, { onConflict: "user_id" });
         if (error) {
           console.error("Error saving user settings:", error);
+        } else {
+          const updatedAtMs = Date.now();
+          localStorage.setItem(SETTINGS_UPDATED_AT_KEY, String(updatedAtMs));
+          localSettingsUpdatedAtRef.current = updatedAtMs;
         }
       }, 500);
     },
@@ -400,12 +445,12 @@ export function useSettings(userId: string | null = null) {
       setSettings((prev) => {
         const updates = typeof updater === "function" ? updater(prev) : updater;
         const next = { ...prev, ...updates };
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+        writeLocalSettingsSnapshot(next);
         scheduleRemoteSave(next);
         return next;
       });
     },
-    [scheduleRemoteSave],
+    [scheduleRemoteSave, writeLocalSettingsSnapshot],
   );
 
   return { settings, updateSettings };

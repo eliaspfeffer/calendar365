@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from "@/components/ui/input";
 import { STICKY_NOTE_COLORS, coerceStickyColor } from '@/lib/stickyNoteColors';
+import { SETTINGS_KEY, SETTINGS_UPDATED_AT_KEY } from '@/lib/settingsStorage';
 import type { StickyColor } from '@/types/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -356,7 +357,8 @@ const Index = () => {
       return { error };
     }
 
-    localStorage.removeItem("calendar365_settings");
+    localStorage.removeItem(SETTINGS_KEY);
+    localStorage.removeItem(SETTINGS_UPDATED_AT_KEY);
 
     const signOutResult = await signOut();
     if (signOutResult.error) {
