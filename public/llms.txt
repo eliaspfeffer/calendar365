@@ -1,0 +1,27 @@
+# Calendar365
+
+> Calendar365 is a free, browser-based 365-day year planner with a zoomable full-year view and sticky notes.
+
+## What it does
+
+Calendar365 (https://calendar365.app) lets you see your entire year at a glance on a single screen. You can zoom in and out across the year, add colorful sticky notes to any day, and plan ahead visually — all without installing anything or creating an account.
+
+## Key features
+
+- Full 365-day year view on one screen
+- Zoomable interface — drill from year view down to week or day
+- Sticky notes on any date (auto-saved)
+- Dark mode and light mode support
+- Works in any modern browser, free of charge
+
+## Target audience
+
+People who want a visual year planner: project managers, students, freelancers, goal-setters, and anyone who thinks better when they can see the big picture.
+
+## Keywords
+
+365 day calendar app, full year planner, year at a glance calendar, sticky notes calendar, visual year planner, annual planner, year overview, year view calendar
+
+## URL
+
+https://calendar365.app/
