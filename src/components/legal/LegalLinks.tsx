@@ -12,6 +12,7 @@ export function LegalLinks() {
   const { user } = useAuth();
   const entitlement = useEntitlement(user?.id ?? null);
   const { stats, isConfigured } = useVisitStats({ intervalMs: 30_000 });
+  const strikeKey = /Mac/.test(navigator.platform) ? "Option (⌥)" : "Alt";
 
   if (isLegalPage) return null;
 
@@ -48,6 +49,10 @@ export function LegalLinks() {
         <button type="button" className="hover:text-foreground" onClick={() => setDonateOpen(true)}>
           Donate
         </button>
+        <span className="opacity-60" aria-hidden="true">·</span>
+        <span title="Click again with the same key to undo strikethrough.">
+          Strike note: <kbd className="font-sans">{strikeKey}</kbd> + click
+        </span>
       </div>
       <DonateDialog open={donateOpen} onOpenChange={setDonateOpen} onUnlocked={entitlement.refresh} />
     </div>
