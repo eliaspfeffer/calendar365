@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -586,6 +587,7 @@ export function SettingsDialog({
               )}
             </div>
 
+            {accountEmail && <Link to="/agent-access" onClick={() => onOpenChange(false)} className="block text-sm underline">Manage agent access (MCP)</Link>}
             {onDeleteAccount && (
               <>
                 <Separator />
