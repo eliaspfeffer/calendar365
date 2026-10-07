@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Keep password-manager popups clickable; the modal overlay still blocks the calendar. */
+body:has([data-login-dialog][data-state="open"]) {
+  pointer-events: auto !important;
+}
+
 @layer base {
   :root {
     color-scheme: light;
