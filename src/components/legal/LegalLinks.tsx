@@ -22,6 +22,10 @@ export function LegalLinks() {
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex min-w-max items-center gap-3 whitespace-nowrap">
+        <Link to="/agent-access" className="hover:text-foreground" title="Manage agent access">
+          MCP
+        </Link>
+        <span className="opacity-60" aria-hidden="true">·</span>
         <Link
           to="/imprint"
           state={{ backgroundLocation: location }}
