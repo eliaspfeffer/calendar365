@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://calendar365.app/sitemap.xml
+Sitemap: https://www.calendar365.app/sitemap.xml

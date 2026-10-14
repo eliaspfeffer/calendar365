@@ -4,7 +4,7 @@
 
 ## What it does
 
-Calendar365 (https://calendar365.app) lets you see your entire year at a glance on a single screen. You can zoom in and out across the year, add colorful sticky notes to any day, and plan ahead visually — all without installing anything or creating an account.
+Calendar365 (https://www.calendar365.app) lets you see your entire year at a glance on a single screen. You can zoom in and out across the year, add colorful sticky notes to any day, and plan ahead visually — all without installing anything or creating an account.
 
 ## Key features
 
@@ -38,4 +38,4 @@ People who want a visual year planner: project managers, students, freelancers, 
 
 ## URL
 
-https://calendar365.app/
+https://www.calendar365.app/
