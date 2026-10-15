@@ -13,6 +13,7 @@ import { LegalLinks } from "./components/legal/LegalLinks";
 import { LegalModal } from "./components/legal/LegalModal";
 import Long from "./pages/Long";
 import AgentAccess from "./pages/AgentAccess";
+import { RouteSeo } from "./components/RouteSeo";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const AppRoutes = () => {
 
   return (
     <>
+      <RouteSeo />
       <LegalLinks />
       <Routes location={routesLocation}>
         <Route path="/" element={<Index />} />

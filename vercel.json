@@ -1,6 +1,18 @@
 {
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(?!api(?:/|$)).*", "dest": "/index.html" }
+    {
+      "src": "/(?:auth|reset-password|agent-access|long|imprint|privacy|invite|s)(?:/.*)?",
+      "headers": {
+        "X-Robots-Tag": "noindex, nofollow"
+      },
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(?!api(?:/|$)).*",
+      "dest": "/index.html"
+    }
   ]
 }
